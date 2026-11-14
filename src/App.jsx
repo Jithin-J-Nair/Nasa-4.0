@@ -924,7 +924,7 @@ img, svg { display: block; max-width: 100%; }
   overflow: clip;
   background: transparent;
 }
-.hero-content h1 { margin-bottom: 1rem !important; max-width: 16ch; }
+.hero-content h1 { margin-bottom: 1rem !important; max-width: min(14ch, 100%); }
 .hero-content p { margin-bottom: 1.5rem !important; }
 .hero-content { position: relative; z-index: 2; max-width: 1200px; }
 .section {
@@ -1814,45 +1814,26 @@ function Hero({ ready }) {
     <section className="hero" id="top" aria-label="Hero">
       <div className="hero-content">
         <p className="kicker" style={{ marginBottom: '1.25rem' }}>
-          <ScrambleLine text="NASA SPACE APPS 2026 · ABANDONED BUT NOT FORGOTTEN" active={ready} />
+          NASA SPACE APPS 2026 · ABANDONED BUT NOT FORGOTTEN
         </p>
         <h1 className="display display-xl" style={{ marginBottom: '1.25rem' }}>
-          {ready && (
-            <>
-              <SplitChars text="THE" staggerMs={28} />
-              {' '}
-              <span className="outline-text"><SplitChars text="SILENT" staggerMs={28} /></span>
+          {ready ? (
+            <motion.span
+              initial={{ opacity: 0, y: 28, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              transition={{ duration: 0.9, ease: EASE }}
+              style={{ display: 'block' }}
+            >
+              SILENT
               <br />
-              <span className="grad-text" style={{ display:'inline-block' }}>
-                <SplitChars text="FLEET" staggerMs={28} />
-              </span>
-              <br />
-              <span style={{ position:'relative' }}>
-                <SplitChars text="IS NOT" staggerMs={28} />
-                {' '}
-                <span className="grad-text" style={{ WebkitTextStroke: '0', color: 'transparent' }}>
-                  <motion.span
-                    style={{
-                      display:'inline-block',
-                      background: 'linear-gradient(90deg, #ff7a45, #8ec8ff, #e8eef5)',
-                      backgroundSize: '220% 100%',
-                      WebkitBackgroundClip: 'text',
-                      backgroundClip: 'text',
-                      color: 'transparent',
-                    }}
-                    animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
-                    transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-                  >
-                    <SplitChars text="FORGOTTEN" staggerMs={28} />
-                  </motion.span>
-                </span>
-              </span>
-            </>
+              <span className="grad-text">FLEET</span>
+            </motion.span>
+          ) : (
+            <>SILENT<br /><span className="grad-text">FLEET</span></>
           )}
         </h1>
-        <p style={{ maxWidth: 540, color: 'var(--ink-dim)', fontSize: 'clamp(1rem, 2.2vw, 1.2rem)', lineHeight: 1.55, marginBottom: '2rem' }}>
-          Meet the robotic explorers NASA left on the Moon, on Mars, and in deep space —
-          and walk away knowing the science they still make possible.
+        <p style={{ maxWidth: 480, color: 'var(--ink-dim)', fontSize: 'clamp(1rem, 2.2vw, 1.15rem)', lineHeight: 1.55, marginBottom: '2rem' }}>
+          Hardware NASA left behind — and the science that still belongs to it.
         </p>
         <div style={{ display:'flex', flexWrap:'wrap', gap:'0.75rem' }}>
           <MagneticButton

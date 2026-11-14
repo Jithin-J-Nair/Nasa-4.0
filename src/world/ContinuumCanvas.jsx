@@ -309,11 +309,14 @@ function DustField({ count = 2800, stormRef }) {
     blending: THREE.AdditiveBlending,
   }), [])
 
+  const pts = useRef()
   useFrame((s) => {
+    const storm = stormRef?.current ?? 0
     mat.uniforms.uTime.value = s.clock.elapsedTime
-    mat.uniforms.uStorm.value = stormRef?.current ?? 0
+    mat.uniforms.uStorm.value = storm
+    if (pts.current) pts.current.visible = storm > 0.04
   })
-  return <points geometry={geo} material={mat} position={[2.6, 0.3, -0.5]} frustumCulled={false} />
+  return <points ref={pts} geometry={geo} material={mat} position={[2.6, 0.3, -0.5]} frustumCulled={false} visible={false} />
 }
 
 function TransitionFX({ diveRef, stormRef, carrierRef, mouse }) {
@@ -644,8 +647,6 @@ function FilmDirector({
 
     // Exposure on renderer
     gl.toneMappingExposure = lerp(gl.toneMappingExposure, sample.grade.exposure, 0.08)
-
-    invalidate()
   })
 
   return null
@@ -706,8 +707,8 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
         onSample={onSample}
       />
 
-      <Starfield count={mobile ? 5000 : 11000} warpRef={warpRef} />
-      {!mobile && <DustField count={2200} stormRef={stormRef} />}
+      <Starfield count={mobile ? 3200 : 7000} warpRef={warpRef} />
+      {!mobile && <DustField count={1400} stormRef={stormRef} />}
 
       <Suspense fallback={null}>
         <BodySphere
