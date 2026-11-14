@@ -420,30 +420,7 @@ function Hero({ ready, reduced, onOpen }) {
         </div>
       </div>
 
-      {/* Stage-right · lives on the Moon side of the composition (Tranquility coords) */}
-      {HERO_LEFTOVER?.image && (
-        <button
-          type="button"
-          className="hero-leftover"
-          data-hero-cta
-          onClick={() => onOpen?.(HERO_LEFTOVER)}
-          onMouseEnter={() => setLabel('EAGLE')}
-          onMouseLeave={() => setLabel('')}
-          aria-label={`${HERO_LEFTOVER.name} at ${HERO_LEFTOVER.coords}`}
-        >
-          <div className="nasa-media hero-leftover-media body-moon">
-            <img
-              src={HERO_LEFTOVER.image}
-              alt={HERO_LEFTOVER.imageAlt || HERO_LEFTOVER.name}
-              decoding="async"
-            />
-            <span className="credit">{HERO_LEFTOVER.credit} · {HERO_LEFTOVER.coords}</span>
-          </div>
-          <span className="hero-leftover-caption mono">
-            LUNA · {HERO_LEFTOVER.codename} · {HERO_LEFTOVER.coords}
-          </span>
-        </button>
-      )}
+      {/* Hero keeps Moon stage only — NASA leftover plate lives in Objective, not here */}
 
       <div className="hero-scroll-cue" data-hero-cue aria-hidden style={{ opacity: ready ? undefined : 0.7 }}>
         <span>SCROLL THE JOURNEY</span>
