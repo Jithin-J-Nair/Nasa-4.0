@@ -1149,7 +1149,11 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   transform: translateX(-50%);
   width: min(240px, 68vw);
   max-height: min(70vh, 420px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   padding: 0.55rem 0.6rem 0.7rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1408,6 +1412,8 @@ body.is-coarse .fleet-card { cursor: pointer; }
   position: fixed; inset: 0; z-index: 500;
   display: grid; place-items: center;
   padding: 1rem;
+  /* Own the scroll context — Lenis must not steal wheel/touch here */
+  overscroll-behavior: contain;
 }
 .modal-backdrop {
   position: absolute; inset: 0;
@@ -1430,16 +1436,34 @@ body.is-coarse .fleet-card { cursor: pointer; }
   position: relative; z-index: 3;
   width: min(720px, 100%);
   max-height: min(88vh, 860px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   border-radius: 20px;
   padding: clamp(1.25rem, 3vw, 2rem);
+  padding-bottom: clamp(1.75rem, 4vw, 2.5rem);
+  scrollbar-gutter: stable;
+}
+.modal-panel::-webkit-scrollbar {
+  width: 8px;
+}
+.modal-panel::-webkit-scrollbar-thumb {
+  background: rgba(142, 200, 255, 0.28);
+  border-radius: 4px;
 }
 .modal-close {
-  position: absolute; top: 1rem; right: 1rem;
+  position: sticky;
+  top: 0;
+  float: right;
+  z-index: 4;
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center;
-  background: rgba(255,255,255,0.06);
+  background: rgba(7, 7, 12, 0.72);
+  backdrop-filter: blur(8px);
   font-size: 1.2rem;
+  margin: -0.25rem -0.25rem 0.5rem 0.5rem;
 }
 
 .timeline-wrap { position: relative; padding-left: clamp(1rem, 4vw, 3rem); }
@@ -1798,11 +1822,18 @@ html.lenis, html.lenis body { height: auto; }
   border-left: 2px solid rgba(142, 200, 255, 0.55);
   background: linear-gradient(90deg, rgba(142, 200, 255, 0.08), transparent 70%);
 }
+.dossier-voice__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.55rem;
+}
 .dossier-voice__label {
   font-size: 0.58rem;
   letter-spacing: 0.16em;
   color: var(--ice);
-  margin: 0 0 0.55rem;
+  margin: 0;
 }
 .dossier-voice p:last-child {
   margin: 0;
@@ -1810,6 +1841,55 @@ html.lenis, html.lenis body { height: auto; }
   font-size: 1.02rem;
   line-height: 1.65;
   font-style: italic;
+}
+.dossier-voice.is-reading p:last-child {
+  color: #cfe6ff;
+}
+.hardware-reader {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgba(142, 200, 255, 0.35);
+  border-radius: 2px;
+  background: rgba(8, 12, 20, 0.65);
+  color: var(--ice);
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.hardware-reader:hover,
+.hardware-reader:focus-visible {
+  background: rgba(142, 200, 255, 0.12);
+  border-color: rgba(142, 200, 255, 0.65);
+  outline: none;
+}
+.hardware-reader.is-playing {
+  border-color: rgba(255, 122, 69, 0.55);
+  color: #ffb08a;
+  background: rgba(255, 122, 69, 0.1);
+}
+.hardware-reader:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.hardware-reader__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 0 rgba(142, 200, 255, 0.4);
+}
+.hardware-reader.is-playing .hardware-reader__dot {
+  animation: readerPulse 1.1s ease-in-out infinite;
+  background: #ff7a45;
+}
+@keyframes readerPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 122, 69, 0.45); transform: scale(1); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 122, 69, 0); transform: scale(1.15); }
 }
 .light-day {
   margin: 1.35rem 0 0;

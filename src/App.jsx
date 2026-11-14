@@ -994,19 +994,124 @@ function Archive({ onOpen }) {
   )
 }
 
+/** Prefer a calm English voice for hardware monologues. */
+function pickHardwareVoice() {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return null
+  const voices = window.speechSynthesis.getVoices()
+  if (!voices?.length) return null
+  const prefer = [
+    /samantha/i, /karen/i, /moira/i, /google uk english female/i,
+    /google us english/i, /microsoft aria/i, /microsoft jenny/i, /english/i,
+  ]
+  for (const re of prefer) {
+    const hit = voices.find((v) => re.test(v.name) && /^en/i.test(v.lang || 'en'))
+    if (hit) return hit
+  }
+  return voices.find((v) => /^en/i.test(v.lang || '')) || voices[0]
+}
+
+function stopHardwareSpeech() {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return
+  window.speechSynthesis.cancel()
+}
+
+/** Self-reading tool — speaks first-person voice, then transmission + short story. */
+function HardwareReader({ item, reading, onReadingChange }) {
+  const supported = typeof window !== 'undefined' && !!window.speechSynthesis
+  const script = useMemo(() => {
+    if (!item) return ''
+    const parts = []
+    if (item.voice) parts.push(item.voice)
+    if (item.transmission) parts.push(`Last transmission. ${item.transmission}.`)
+    if (item.story) parts.push(item.story)
+    return parts.join(' ')
+  }, [item])
+
+  useEffect(() => {
+    if (!supported) return undefined
+    // Chrome loads voices async
+    const warm = () => { pickHardwareVoice() }
+    warm()
+    window.speechSynthesis.addEventListener?.('voiceschanged', warm)
+    return () => {
+      window.speechSynthesis.removeEventListener?.('voiceschanged', warm)
+      stopHardwareSpeech()
+      onReadingChange?.(false)
+    }
+  }, [supported, onReadingChange])
+
+  const toggle = () => {
+    if (!supported || !script) return
+    if (reading) {
+      stopHardwareSpeech()
+      onReadingChange?.(false)
+      return
+    }
+    stopHardwareSpeech()
+    const utter = new SpeechSynthesisUtterance(script)
+    const voice = pickHardwareVoice()
+    if (voice) utter.voice = voice
+    utter.rate = 0.92
+    utter.pitch = 0.95
+    utter.lang = voice?.lang || 'en-US'
+    utter.onend = () => onReadingChange?.(false)
+    utter.onerror = () => onReadingChange?.(false)
+    onReadingChange?.(true)
+    window.speechSynthesis.speak(utter)
+  }
+
+  if (!supported) {
+    return (
+      <button type="button" className="hardware-reader" disabled title="Speech not available in this browser">
+        READ UNAVAILABLE
+      </button>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      className={`hardware-reader${reading ? ' is-playing' : ''}`}
+      onClick={toggle}
+      aria-pressed={reading}
+      aria-label={reading ? 'Stop reading dossier aloud' : 'Read dossier aloud'}
+    >
+      <span className="hardware-reader__dot" aria-hidden />
+      {reading ? 'STOP' : 'LISTEN'}
+    </button>
+  )
+}
+
 function ArtifactModal({ item, onClose }) {
   const [phase, setPhase] = useState(0)
+  const [reading, setReading] = useState(false)
+  const panelRef = useRef(null)
+  const onReadingChange = useCallback((v) => setReading(!!v), [])
+
   useEffect(() => {
     const t1 = setTimeout(() => setPhase(1), 80)
     const t2 = setTimeout(() => setPhase(2), 220)
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    // Reset scroll when opening a new dossier
+    requestAnimationFrame(() => {
+      if (panelRef.current) panelRef.current.scrollTop = 0
+    })
     return () => {
       clearTimeout(t1)
       clearTimeout(t2)
       window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+      stopHardwareSpeech()
     }
-  }, [onClose])
+  }, [onClose, item?.id])
+
+  // Keep wheel/touch on the panel — Lenis otherwise owns the page scroll
+  const keepScrollLocal = useCallback((e) => {
+    e.stopPropagation()
+  }, [])
 
   if (!item) return null
   return createPortal(
@@ -1027,10 +1132,16 @@ function ArtifactModal({ item, onClose }) {
         transition={{ duration: 0.7, delay: 0.15 }}
       />
       <motion.div
+        ref={panelRef}
         className="modal-panel glass-3"
+        data-lenis-prevent
+        data-lenis-prevent-wheel
+        data-lenis-prevent-touch
         initial={{ opacity: 0, y: 28, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.45, ease: EASE }}
+        onWheel={keepScrollLocal}
+        onTouchMove={keepScrollLocal}
       >
         <button type="button" className="modal-close" onClick={onClose} aria-label="Close dossier">×</button>
         <motion.p className="kicker" initial={{ opacity: 0 }} animate={{ opacity: phase >= 1 ? 1 : 0 }}>
@@ -1055,10 +1166,13 @@ function ArtifactModal({ item, onClose }) {
           </div>
         )}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: phase >= 2 ? 1 : 0 }}>
-          {item.voice && (
-            <blockquote className="dossier-voice">
-              <p className="mono dossier-voice__label">THE HARDWARE SPEAKS</p>
-              <p>“{item.voice}”</p>
+          {(item.voice || item.story) && (
+            <blockquote className={`dossier-voice${reading ? ' is-reading' : ''}`}>
+              <div className="dossier-voice__head">
+                <p className="mono dossier-voice__label">THE HARDWARE SPEAKS</p>
+                <HardwareReader item={item} reading={reading} onReadingChange={onReadingChange} />
+              </div>
+              {item.voice ? <p>“{item.voice}”</p> : <p>“{item.story}”</p>}
             </blockquote>
           )}
           <p style={{ color: 'var(--ink-dim)', lineHeight: 1.65, marginBottom: '1rem' }}>{item.story}</p>
