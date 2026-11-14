@@ -113,9 +113,77 @@ img, svg { display: block; max-width: 100%; }
   /* Transparent over the fixed continuum — no plate wash that seams across the moon */
   background: transparent;
 }
+/* Owned film rail — ScrollTrigger progress is the only film tip */
+.continuum-rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.sf-chrome {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  pointer-events: none;
+  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity;
+}
+.sf-chrome > * {
+  pointer-events: auto;
+}
+.sf-chrome.is-dying {
+  filter: grayscale(0.35) brightness(0.72);
+}
+.film-scrubber {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 260;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  width: min(260px, 52vw);
+  background: rgba(6, 8, 14, 0.82);
+  border: 1px solid rgba(232, 238, 245, 0.14);
+  backdrop-filter: blur(10px);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(232, 238, 245, 0.7);
+}
+.film-scrubber input[type='range'] {
+  width: 100%;
+  accent-color: #ffe0c8;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.film-scrubber__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.film-scrubber__shots button {
+  pointer-events: auto;
+  cursor: pointer;
+  border: 1px solid rgba(232, 238, 245, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0.08em;
+  padding: 3px 6px;
+}
+.journey-hud.is-last-light .journey-hud__act {
+  color: #ffb089;
+  letter-spacing: 0.18em;
+}
+.journey-hud__meter[data-label='LAST LIGHT'] .journey-hud__meter-fill {
+  width: 92%;
+  background: linear-gradient(90deg, #ff7a45, #2a0e08);
+}
 .story-plate > .section,
 .story-plate > .heartbeats,
 .story-plate > .journey-spacer,
+.story-plate > .continuum-rail .journey-spacer,
 .story-plate > .location-atlas,
 .story-plate .objective-atlas-band > .section,
 .story-plate .objective-atlas-band > .location-atlas {
@@ -218,7 +286,8 @@ img, svg { display: block; max-width: 100%; }
   background: rgba(142,200,255,0.08);
 }
 .journey-spacer {
-  height: 720vh;
+  /* Extra length in the owned rail — weight Meridiani + last light */
+  height: 820vh;
   pointer-events: none;
   position: relative;
   margin-top: clamp(-2rem, -4vh, 0);
@@ -923,7 +992,21 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   font-weight: 600;
 }
 @media (max-width: 768px) {
-  .mars-hotspot-wheel-hud { display: none; }
+  .mars-hotspot-wheel-hud {
+    /* Mobile shares the grammar — compact bottom sheet, not exile */
+    top: auto;
+    bottom: 5.5rem;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: min(38vh, 280px);
+    padding: 0 0.5rem;
+  }
+  .mars-hotspot-wheel {
+    width: 100%;
+    height: 100%;
+    font-size: clamp(14px, 3.6vw, 18px);
+  }
 }
 .atlas-heading {
   flex: 0 0 auto;

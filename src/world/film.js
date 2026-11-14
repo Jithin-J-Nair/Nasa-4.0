@@ -2,7 +2,33 @@
  * FilmDirector — directed beats, not keyframe lerps.
  * Holds you feel. Smash that hurts. Darkness as punctuation.
  * Journey: lunar zoom → void pullback → warp → Mars arrival.
+ *
+ * Phase 3: five hero SHOTS name the body feelings; ACTS still sample the continuum.
  */
+
+/** Five owned seconds you can name — intent for camera damp + chrome. */
+export const SHOTS = [
+  { id: 'arrival', intent: 'hold', progress: 0.05, label: 'ARRIVAL', body: 'Moon centered — equal limbs' },
+  { id: 'near_side', intent: 'push', progress: 0.155, label: 'NEAR SIDE', body: 'Atlas intimacy — surveyed sites' },
+  { id: 'leave', intent: 'hold', progress: 0.30, label: 'JOURNEY', body: 'Lunar leave into corridor' },
+  { id: 'meridiani', intent: 'recover', progress: 0.56, label: 'MERIDIANI', body: 'Right-limb settle — Opportunity' },
+  { id: 'last_light', intent: 'fail', progress: 0.70, label: 'LAST LIGHT', body: 'Storm eats exposure + chrome + score' },
+]
+
+export function shotForProgress(p) {
+  let best = SHOTS[0]
+  let bestD = Infinity
+  for (const s of SHOTS) {
+    const d = Math.abs(p - s.progress)
+    if (d < bestD) { best = s; bestD = d }
+  }
+  // Prefer last_light whenever inside dust_storm act
+  if (p >= 0.64 && p < 0.76) return SHOTS.find((s) => s.id === 'last_light') || best
+  if (p >= 0.52 && p < 0.64) return SHOTS.find((s) => s.id === 'meridiani') || best
+  if (p >= 0.28 && p < 0.52) return SHOTS.find((s) => s.id === 'leave') || best
+  if (p >= 0.09 && p < 0.28) return SHOTS.find((s) => s.id === 'near_side') || best
+  return best
+}
 
 export function clamp(n, a, b) { return Math.max(a, Math.min(b, n)) }
 export function lerp(a, b, t) { return a + (b - a) * t }
@@ -173,19 +199,23 @@ export const ACTS = [
     hotspot: 'opportunity',
   },
   {
+    // Illegal moment — Opportunity's last light (signature beat)
     id: 'dust_storm',
-    label: 'DUST STORM',
+    label: 'LAST LIGHT',
     range: [0.64, 0.76],
     ease: easeInOutQuint,
     // Locked right-limb — grade/storm carry drama, not camera punch
-    cam: { from: [0.55, 0.1, 4.7], to: [0.52, 0.12, 4.55], look: [1.22, 0.07, -0.35], fov: [33, 32] },
-    grade: { lift: [0.14, 0.05, 0.01], gain: [1.45, 0.55, 0.28], exposure: 0.28, grain: 0.28 },
-    event: { dive: 0, storm: 1, carrier: 0, warp: 0.45 },
-    dark: 0.92,
-    fog: [1.4, 6.5],
+    cam: { from: [0.55, 0.1, 4.7], to: [0.50, 0.11, 4.45], look: [1.20, 0.06, -0.32], fov: [33, 30.5] },
+    grade: { lift: [0.16, 0.04, 0.005], gain: [1.55, 0.42, 0.18], exposure: 0.14, grain: 0.42 },
+    event: { dive: 0, storm: 1, carrier: 0, warp: 0.35 },
+    dark: 0.96,
+    fog: [1.1, 5.2],
     focus: 'storm',
     cue: 'opportunity_death',
     hotspot: 'opportunity',
+    smash: 0.70,
+    uiMode: 'death',
+    lookId: 'last_light',
   },
   {
     id: 'carrier',
@@ -304,12 +334,20 @@ export function sampleActs(progress) {
     fogFar = lerp(85, 130, warpPeak)
   }
 
-  // Storm: darkness owns the beat — Opportunity dying in the body
+  // Illegal moment: storm eats exposure — then scored silence hole
   if (act.id === 'dust_storm') {
     const smother = easeInOutQuint(local)
+    const crush = easeInQuart(smoothstep(0.15, 0.85, local))
     event.storm = Math.max(event.storm, smother)
-    dark = Math.max(dark, 0.55 + smother * 0.42)
-    grade.exposure = Math.min(grade.exposure, lerp(0.55, 0.12, smother))
+    dark = Math.max(dark, 0.62 + smother * 0.36)
+    grade.exposure = Math.min(grade.exposure, lerp(0.48, 0.045, crush))
+    grade.grain = Math.max(grade.grain, lerp(0.12, 0.55, crush))
+    // Mid-act black breath — the “last light” hole a stranger remembers
+    if (local > 0.42 && local < 0.72) {
+      const hole = Math.sin(((local - 0.42) / 0.3) * Math.PI)
+      grade.exposure *= 1 - hole * 0.72
+      dark = Math.max(dark, 0.88 + hole * 0.1)
+    }
   }
   // Carrier: signal collapses into scored silence
   if (act.id === 'silence') {
@@ -337,6 +375,15 @@ export function sampleActs(progress) {
     }
   }
 
+  const shot = shotForProgress(p)
+  // Chrome kill 0→1 during last light — HUD must die with the image
+  let chromeKill = 0
+  if (act.id === 'dust_storm') {
+    chromeKill = easeInOutQuint(smoothstep(0.08, 0.55, local))
+  } else if (act.id === 'carrier' || act.id === 'silence') {
+    chromeKill = act.id === 'silence' ? 0.35 : 0.15
+  }
+
   return {
     index: i,
     act,
@@ -357,5 +404,11 @@ export function sampleActs(progress) {
     smash,
     transitPhase,
     journey,
+    shot,
+    shotId: shot.id,
+    intent: shot.intent,
+    uiMode: act.uiMode || (chromeKill > 0.55 ? 'death' : 'live'),
+    lookId: act.lookId || act.id,
+    chromeKill,
   }
 }

@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense, createContext, useContext, Component, lazy } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  motion, AnimatePresence, useScroll, useSpring, useMotionValue,
+  motion, AnimatePresence, useSpring, useMotionValue,
   useInView,
 } from 'framer-motion'
 import { createSoundscape } from './audio/Soundscape'
@@ -19,6 +19,7 @@ import { GLOBAL_CSS } from './styles/global.css.js'
 import {
   createScrollEngine, destroyScrollEngine, scrollToHash, playHeroIntro, playBootSequence,
   revealOnScroll, scheduleScrollRefresh, playMoonToMarsJourney,
+  createFilmRail, filmProgressRef, scrollToFilmMarker, scrollToFilmProgress, setFilmProgress,
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
 import {
@@ -294,6 +295,7 @@ function Nav({ progress, onNavAtlas, onNavJourney }) {
         <a
           href="#atlas"
           onClick={(e) => {
+            e.preventDefault()
             onNavAtlas?.(e)
           }}
         >
@@ -302,6 +304,7 @@ function Nav({ progress, onNavAtlas, onNavJourney }) {
         <a
           href="#journey"
           onClick={(e) => {
+            e.preventDefault()
             onNavJourney?.(e)
           }}
         >
@@ -319,15 +322,15 @@ function FilmJourney({ label = 'JOURNEY' }) {
   const phase =
     label === 'NEAR PASS' || label === 'NEAR SIDE' ? 'Lunar zoom'
       : label === 'JOURNEY' ? 'Transit corridor'
-        : label === 'MERIDIANI' || label === 'DUST STORM' ? 'Mars arrival'
+        : label === 'MERIDIANI' || label === 'LAST LIGHT' || label === 'DUST STORM' ? 'Mars arrival'
           : 'Continuum'
   return (
     <section id="journey" className="journey-spacer" aria-label="Film continuum journey">
-      {/* Scroll beat markers — GSAP Journey nav lands on these */}
       <span id="journey-dive" className="journey-beat" style={{ top: '10%' }} aria-hidden />
       <span id="journey-transit" className="journey-beat" style={{ top: '42%' }} aria-hidden />
       <span id="journey-mars" className="journey-beat" style={{ top: '74%' }} aria-hidden />
-      <div className="journey-hud" aria-hidden>
+      <span id="journey-last-light" className="journey-beat" style={{ top: '88%' }} aria-hidden />
+      <div className={`journey-hud ${label === 'LAST LIGHT' ? 'is-last-light' : ''}`} aria-hidden>
         <span className="section-rail journey-hud__rail">FILM · CONTINUUM</span>
         <p className="journey-hud__act mono">{label}</p>
         <p className="journey-hud__phase">{phase}</p>
@@ -336,6 +339,60 @@ function FilmJourney({ label = 'JOURNEY' }) {
         </div>
       </div>
     </section>
+  )
+}
+
+/** Dev-only film scrubber — rehearse the five owned shots */
+function FilmScrubber() {
+  const [p, setP] = useState(() => filmProgressRef.current)
+  useEffect(() => {
+    let id = 0
+    const tick = () => {
+      setP(filmProgressRef.current)
+      id = requestAnimationFrame(tick)
+    }
+    id = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(id)
+  }, [])
+  const jump = (v) => {
+    createFilmRail()
+    scrollToFilmProgress(v, { immediate: true })
+    setP(v)
+  }
+  return (
+    <div className="film-scrubber" role="group" aria-label="Film scrubber">
+      <label className="mono" htmlFor="film-scrub">
+        FILM {p.toFixed(3)}
+      </label>
+      <input
+        id="film-scrub"
+        type="range"
+        min={0}
+        max={1}
+        step={0.001}
+        value={p}
+        onPointerDown={(e) => e.stopPropagation()}
+        onChange={(e) => jump(Number(e.target.value))}
+      />
+      <div className="film-scrubber__shots">
+        {[
+          ['ARRIVAL', 0.05],
+          ['ATLAS', 0.155],
+          ['LEAVE', 0.30],
+          ['MARS', 0.56],
+          ['LIGHT', 0.70],
+        ].map(([label, tip]) => (
+          <button
+            key={label}
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => jump(tip)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -1065,17 +1122,15 @@ export default function App() {
   const [actLabel, setActLabel] = useState('ARRIVAL')
   const [atlasLock, setAtlasLock] = useState(false)
   const [marsLock, setMarsLock] = useState(false)
-  /** Recover/Fleet in view — force-hide Mars wheel so it never covers those sections */
-  const [pastMeridiani, setPastMeridiani] = useState(false)
+  const [chromeKill, setChromeKill] = useState(0)
   const [focusSiteId, setFocusSiteId] = useState('a11-lm')
   const [cardSiteId, setCardSiteId] = useState(null)
   const mainRef = useRef(null)
   const soundRef = useRef(null)
   const moonReadyResolve = useRef(null)
-  /** GSAP Journey drive — number while playing, null = follow scroll */
-  const filmDriveRef = useRef(null)
   const journeyPlayingRef = useRef(false)
   const killJourneyRef = useRef(null)
+  const scoreUnlockedRef = useRef(false)
   const moonReadyPromise = useMemo(
     () => new Promise((resolve) => { moonReadyResolve.current = resolve }),
     [],
@@ -1083,10 +1138,17 @@ export default function App() {
   const mouse = useMouse()
   const mobile = useMediaQuery('(max-width: 768px)')
   const reduced = usePrefersReduced()
-  const { scrollYProgress } = useScroll()
-  // Soft spring — lower work per frame while staying continuous with Lenis
-  // Soft mass — Journey Moon→Mars reads as one continuous cinematic push
-  const smoothProgress = useSpring(scrollYProgress, { stiffness: 32, damping: 28, mass: 1.15 })
+  // Nav meter follows owned film tip (synced from filmProgressRef)
+  const filmMv = useMotionValue(0)
+  useEffect(() => {
+    let id = 0
+    const tick = () => {
+      filmMv.set(filmProgressRef.current)
+      id = requestAnimationFrame(tick)
+    }
+    id = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(id)
+  }, [filmMv])
 
   useEffect(() => {
     const style = document.createElement('style')
@@ -1108,39 +1170,46 @@ export default function App() {
     preloadPlanetTextures(mobile)
   }, [mobile])
 
-  // Hide Mars HUD as soon as Recover enters the viewport (film progress can lag the layout)
+  // Score unlocks on first intentional gesture — mute is escape, not the designed path
   useEffect(() => {
     if (booting) return undefined
-    const recover = document.getElementById('recover')
-    if (!recover || typeof IntersectionObserver === 'undefined') return undefined
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        const top = entry.boundingClientRect.top
-        const past = entry.isIntersecting || top < window.innerHeight * 0.72
-        setPastMeridiani((prev) => (prev === past ? prev : past))
-      },
-      { threshold: [0, 0.01, 0.08, 0.2], rootMargin: '0px 0px -18% 0px' },
-    )
-    io.observe(recover)
-    return () => io.disconnect()
+    const unlock = async () => {
+      if (scoreUnlockedRef.current) return
+      scoreUnlockedRef.current = true
+      const s = soundRef.current
+      if (!s) return
+      await s.unlock()
+      if (!s.isEnabled?.()) {
+        const on = s.toggle()
+        setAudioOn(!!on)
+      }
+    }
+    const opts = { once: true, passive: true }
+    window.addEventListener('pointerdown', unlock, opts)
+    window.addEventListener('keydown', unlock, opts)
+    window.addEventListener('wheel', unlock, opts)
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+      window.removeEventListener('wheel', unlock)
+    }
   }, [booting])
-
-  useEffect(() => {
-    if (!pastMeridiani) return
-    setCardSiteId((id) => {
-      const cur = ARTIFACTS.find((a) => a.id === id)
-      return cur?.body === 'mars' ? null : id
-    })
-  }, [pastMeridiani])
 
   const onFilmSample = useCallback((sample) => {
     soundRef.current?.setFilm(sample)
     if (sample?.label) setActLabel((prev) => (prev === sample.label ? prev : sample.label))
-    // Dual-path Mars stage lock — only commit when the value actually changes
-    // Never keep Meridiani HUD alive once Recover has taken the page
-    const marsOn = !atlasLock && !pastMeridiani && (sample?.focus === 'mars' || sample?.focus === 'storm')
+    const kill = sample?.chromeKill ?? 0
+    setChromeKill((prev) => (Math.abs(prev - kill) < 0.02 ? prev : kill))
+    // Mars HUD only while film focus is Meridiani/storm — impossible on Recover (film tip ≥ 1)
+    const marsOn = !atlasLock && (sample?.focus === 'mars' || sample?.focus === 'storm')
     setMarsLock((prev) => (prev === marsOn ? prev : marsOn))
-  }, [atlasLock, pastMeridiani])
+    if (!marsOn) {
+      setCardSiteId((id) => {
+        const cur = ARTIFACTS.find((a) => a.id === id)
+        return cur?.body === 'mars' ? null : id
+      })
+    }
+  }, [atlasLock])
 
   const onMoonReady = useCallback(() => {
     moonReadyResolve.current?.()
@@ -1177,22 +1246,21 @@ export default function App() {
   }, [])
 
   const onNavAtlas = useCallback((e) => {
-    e.preventDefault()
+    e?.preventDefault?.()
     killJourneyRef.current?.()
     killJourneyRef.current = null
     journeyPlayingRef.current = false
-    filmDriveRef.current = null
     setAtlasLock(true)
     setMarsLock(false)
     setFocusSiteId('a11-lm')
     setCardSiteId('a11-lm')
-    // Land on the sticky title bridge so Objective→Atlas reads as one page
-    scrollToHash('#atlas-bridge')
+    createFilmRail()
+    scrollToFilmMarker('atlas', { duration: 1.1 })
     history.replaceState(null, '', '#atlas')
   }, [])
 
   const onNavJourney = useCallback((e) => {
-    e.preventDefault()
+    e?.preventDefault?.()
     killJourneyRef.current?.()
     journeyPlayingRef.current = true
     setAtlasLock(false)
@@ -1200,9 +1268,9 @@ export default function App() {
     setCardSiteId(null)
     setFocusSiteId('a11-lm')
     history.replaceState(null, '', '#journey')
+    createFilmRail()
+    scheduleScrollRefresh(0)
     killJourneyRef.current = playMoonToMarsJourney({
-      filmDriveRef,
-      getProgress: () => (typeof smoothProgress?.get === 'function' ? smoothProgress.get() : 0),
       reduced,
       onStart: () => {
         journeyPlayingRef.current = true
@@ -1215,7 +1283,7 @@ export default function App() {
         killJourneyRef.current = null
       },
     })
-  }, [reduced, smoothProgress])
+  }, [reduced])
 
   const onFocusSite = useCallback((id) => {
     if (id) setFocusSiteId(id)
@@ -1251,17 +1319,18 @@ export default function App() {
   useEffect(() => {
     if (booting) return undefined
     createScrollEngine()
-    // Warm session seed so reload variance is live
+    createFilmRail()
     getSessionSeed()
-    // Continuum + fonts shift layout after boot — one debounced ST refresh
     scheduleScrollRefresh(200)
-    const onLoad = () => scheduleScrollRefresh(80)
+    const onLoad = () => {
+      scheduleScrollRefresh(80)
+      createFilmRail()
+    }
     window.addEventListener('load', onLoad)
     return () => {
       window.removeEventListener('load', onLoad)
       killJourneyRef.current?.()
       killJourneyRef.current = null
-      filmDriveRef.current = null
       journeyPlayingRef.current = false
       destroyScrollEngine()
     }
@@ -1314,8 +1383,7 @@ export default function App() {
             {/* Mount during preloader so 8K GPU upload overlaps boot choreography */}
             <Suspense fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
               <ContinuumCanvas
-                progress={smoothProgress}
-                filmDriveRef={filmDriveRef}
+                progress={filmMv}
                 mouse={mouse}
                 mobile={mobile}
                 reduced={reduced}
@@ -1324,11 +1392,11 @@ export default function App() {
                 onMoonReady={onMoonReady}
                 onMarsActive={onMarsActive}
                 atlasLock={atlasLock}
-                marsLock={marsLock && !atlasLock && !pastMeridiani}
+                marsLock={marsLock && !atlasLock}
                 focusSiteId={focusSiteId}
-                moonHotspotsInteractive={atlasLock && !mobile}
-                marsHotspotsInteractive={marsLock && !atlasLock && !pastMeridiani && !mobile}
-                cardSiteId={pastMeridiani ? null : cardSiteId}
+                moonHotspotsInteractive={atlasLock}
+                marsHotspotsInteractive={marsLock && !atlasLock && chromeKill < 0.55}
+                cardSiteId={cardSiteId}
                 onHotspotHover={onHotspotHover}
                 onHotspotLeave={onHotspotLeave}
                 onHotspotOpen={openDossier}
@@ -1339,7 +1407,7 @@ export default function App() {
           <div className="sf-veil" aria-hidden />
 
           <MarsHotspotWheel
-            active={marsLock && !atlasLock && !pastMeridiani && !mobile && !booting}
+            active={marsLock && !atlasLock && !booting && chromeKill < 0.55}
             selectedId={focusSiteId}
             onSelect={onMarsHotspotSelect}
           />
@@ -1371,47 +1439,57 @@ export default function App() {
             />
           )}
 
-          <Nav progress={smoothProgress} onNavAtlas={onNavAtlas} onNavJourney={onNavJourney} />
-
-          <button
-            type="button"
-            className={`audio-toggle ${audioOn ? 'on' : ''}`}
-            onClick={toggleAudio}
-            aria-pressed={audioOn}
-            aria-label={audioOn ? 'Mute soundscape' : 'Enable soundscape'}
+          <div
+            className={`sf-chrome ${chromeKill > 0.08 ? 'is-dying' : ''}`}
+            style={{ opacity: 1 - chromeKill * 0.92, pointerEvents: chromeKill > 0.72 ? 'none' : undefined }}
           >
-            {audioOn ? actLabel : 'SOUND'}
-          </button>
+            <Nav progress={filmMv} onNavAtlas={onNavAtlas} onNavJourney={onNavJourney} />
+
+            <button
+              type="button"
+              className={`audio-toggle ${audioOn ? 'on' : ''}`}
+              onClick={toggleAudio}
+              aria-pressed={audioOn}
+              aria-label={audioOn ? 'Mute soundscape' : 'Enable soundscape'}
+            >
+              {audioOn ? actLabel : 'SOUND'}
+            </button>
+          </div>
+
+          {!booting && import.meta.env.DEV && (
+            <FilmScrubber />
+          )}
 
           <div className="sf-chapters">
             <ErrorBoundary fallback={<section className="hero"><div className="hero-content"><h1 className="display display-xl">SILENT FLEET</h1></div></section>}>
               <Hero ready={ready && !booting} reduced={reduced} onOpen={openDossier} />
             </ErrorBoundary>
 
-            {/* One continuous scroll plate — Objective → Fleet reads as a single page */}
+            {/* Owned continuum rail — ScrollTrigger progress == filmProgress */}
             <div className="story-plate">
-              {/* Sticky band: “Where they still sit” enters in Objective and holds through Atlas */}
-              <div className={`objective-atlas-band ${atlasLock ? 'is-atlas-live' : ''}`}>
-                <ErrorBoundary>
-                  <ChallengeObjective reduced={reduced} />
-                </ErrorBoundary>
+              <div id="continuum-rail" className="continuum-rail">
+                <div className={`objective-atlas-band ${atlasLock ? 'is-atlas-live' : ''}`}>
+                  <ErrorBoundary>
+                    <ChallengeObjective reduced={reduced} />
+                  </ErrorBoundary>
 
-                <AtlasBridgeHeading atlasActive={atlasLock} />
+                  <AtlasBridgeHeading atlasActive={atlasLock} />
 
-                <ErrorBoundary>
-                  <LocationAtlas
-                    locked={atlasLock}
-                    onActiveChange={onAtlasActive}
-                    onFocusSite={onFocusSite}
-                    onCardSite={setCardSiteId}
-                    cardSiteId={cardSiteId}
-                  />
-                </ErrorBoundary>
+                  <ErrorBoundary>
+                    <LocationAtlas
+                      locked={atlasLock}
+                      onActiveChange={onAtlasActive}
+                      onFocusSite={onFocusSite}
+                      onCardSite={setCardSiteId}
+                      cardSiteId={cardSiteId}
+                    />
+                  </ErrorBoundary>
+                </div>
+
+                <div className="story-seam story-seam--into-film" aria-hidden />
+
+                <FilmJourney label={actLabel} />
               </div>
-
-              <div className="story-seam story-seam--into-film" aria-hidden />
-
-              <FilmJourney label={actLabel} />
 
               <div className="story-seam story-seam--into-recover" aria-hidden />
 

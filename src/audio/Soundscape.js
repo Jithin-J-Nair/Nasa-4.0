@@ -28,6 +28,8 @@ export function createSoundscape() {
   let heartbeat = null
   let heartbeatGain = null
   let pulseTimer = null
+  /** Fire Opportunity death once per descent until progress clears the storm */
+  let deathLatched = false
 
   function ensure() {
     if (ctx) return
@@ -234,9 +236,17 @@ export function createSoundscape() {
       heartbeatGain.gain.setTargetAtTime(0, now, 0.4)
     }
 
+    // Clear death latch when leaving storm so a later replay can fire once
+    if (cue !== 'opportunity_death' && (sample?.event?.storm ?? 0) < 0.2) {
+      deathLatched = false
+    }
+
     if (cue !== lastCue) {
       if (cue === 'dive') rushDive()
-      if (cue === 'opportunity_death') scoreOpportunityDeath()
+      if (cue === 'opportunity_death' && !deathLatched) {
+        deathLatched = true
+        scoreOpportunityDeath()
+      }
       if (cue === 'mars') ping(500, 0.03, 0.45)
       if (cue === 'journey') {
         rushDive()
@@ -272,21 +282,34 @@ export function createSoundscape() {
     ping(140, 0.06, 1.1)
   }
 
-  /** Room goes dark — storm swell then scored silence */
+  /** Opportunity last light — storm swell, heartbeat, then scored silence hole */
   function scoreOpportunityDeath() {
     if (!enabled || !ctx || !master || !stormGain) return
     const now = ctx.currentTime
     stormGain.gain.cancelScheduledValues(now)
-    stormGain.gain.setValueAtTime(Math.max(stormGain.gain.value, 0.08), now)
-    stormGain.gain.linearRampToValueAtTime(0.32, now + 1.4)
-    // Heartbeat then cut to near-silence
-    silenceUntil = now + 2.6
+    stormGain.gain.setValueAtTime(Math.max(stormGain.gain.value, 0.1), now)
+    stormGain.gain.linearRampToValueAtTime(0.38, now + 1.55)
+    stormGain.gain.linearRampToValueAtTime(0.04, now + 2.4)
+    // Heartbeat under the smother, then cut — leave the room empty
+    if (heartbeatGain) {
+      heartbeatGain.gain.cancelScheduledValues(now)
+      heartbeatGain.gain.setValueAtTime(0.02, now)
+      heartbeatGain.gain.linearRampToValueAtTime(0.04, now + 1.1)
+      heartbeatGain.gain.linearRampToValueAtTime(0.0001, now + 2.1)
+    }
+    silenceUntil = now + 4.2
     master.gain.cancelScheduledValues(now)
-    master.gain.setValueAtTime(master.gain.value || 0.9, now)
-    master.gain.linearRampToValueAtTime(0.95, now + 1.2)
-    master.gain.linearRampToValueAtTime(0.015, now + 1.85)
-    master.gain.setTargetAtTime(0.7, now + 2.6, 0.7)
-    ping(72, 0.045, 1.6)
+    master.gain.setValueAtTime(Math.max(master.gain.value, 0.85), now)
+    master.gain.linearRampToValueAtTime(1.0, now + 1.15)
+    master.gain.linearRampToValueAtTime(0.008, now + 2.15)
+    // Hold near-silence — mute is escape; this hole is authored
+    master.gain.setTargetAtTime(0.012, now + 2.4, 0.4)
+    master.gain.setTargetAtTime(0.45, now + 4.2, 1.1)
+    ping(72, 0.05, 1.8)
+    setTimeout(() => {
+      if (!enabled || !ctx) return
+      ping(48, 0.015, 2.4)
+    }, 2100)
   }
 
   /** Carrier death — signal collapses */

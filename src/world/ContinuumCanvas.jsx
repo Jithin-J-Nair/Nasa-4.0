@@ -12,7 +12,8 @@ import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
 import * as THREE from 'three'
 import { sampleActs, lerp, clamp, smoothstep, easeInOutCubic } from './film'
-import { ATLAS_HOLD_PROGRESS, latLonToLocal, SITE_FOCUS } from './geo'
+import { latLonToLocal, SITE_FOCUS } from './geo'
+import { filmProgressRef } from '../motion/engine'
 import { ARTIFACTS } from '../data/artifacts'
 
 const MOON_SITES = ARTIFACTS.filter((a) => a.body === 'moon' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
@@ -1008,7 +1009,6 @@ function useInertiaPointer(mouse, reduced) {
 
 function FilmDirector({
   progress,
-  filmDriveRef,
   mouse,
   reduced,
   moonRef,
@@ -1055,20 +1055,18 @@ function FilmDirector({
   const marsActiveRef = useRef(false)
 
   useFrame((state, dt) => {
-    const raw = typeof progress?.get === 'function' ? progress.get() : 0
+    void progress
     const step = Math.min(0.05, Math.max(0.001, dt))
-    const drive = filmDriveRef?.current
-    const driven = Number.isFinite(drive)
+    // ONE owner: continuum-rail ScrollTrigger → filmProgressRef
+    const filmTarget = Number.isFinite(filmProgressRef.current) ? filmProgressRef.current : 0
 
-    // Softer Atlas blend — Objective→Atlas eases instead of snapping the stage
-    // Journey drive forces Atlas off so Moon→Mars can play
-    atlasBlend.current = lerp(atlasBlend.current, (!driven && atlasLock) ? 1 : 0, Math.min(1, (driven ? 4.2 : 1.55) * step))
+    // Atlas blend is interaction chrome only — never freezes film tip
+    atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 1.55 * step))
     const ab = atlasBlend.current
     if (beaconsVisibleRef) beaconsVisibleRef.current = ab
 
-    // GSAP Journey drive wins; else soft-hold film while Atlas is on screen
-    const filmTarget = driven ? drive : (atlasLock ? ATLAS_HOLD_PROGRESS : raw)
-    const catchUp = driven ? 10 : (atlasLock ? 1.35 : 3.6)
+    // Shot-aware catch-up: silk during journey, punch into death
+    const catchUp = filmTarget >= 0.64 && filmTarget < 0.76 ? 6.5 : 4.2
     filmP.current = lerp(filmP.current, filmTarget, Math.min(1, catchUp * step))
     const sample = sampleActs(filmP.current)
     onSample?.(sample)
@@ -1230,20 +1228,28 @@ function FilmDirector({
       )
     }
 
-    // Journey uses a silkier follow so scale-level moves read as one continuous shot
-    const journeyDamp = transit
-      ? (reduced ? 0.12 : 0.038)
-      : marsStageLock
-        ? (reduced ? 0.14 : 0.055)
-        : (reduced ? 0.16 : 0.065)
-    const damp = sample.smash && ab < 0.25 ? 0.55 : journeyDamp
+    // Shot-intent damp — silk leave · settle recover · punch fail (last light)
+    const intent = sample.intent || 'hold'
+    let journeyDamp
+    if (intent === 'fail' || (sample.smash && ab < 0.25)) {
+      journeyDamp = reduced ? 0.28 : 0.14
+    } else if (intent === 'push' || transit) {
+      journeyDamp = reduced ? 0.12 : 0.038
+    } else if (intent === 'recover' || marsStageLock) {
+      journeyDamp = reduced ? 0.14 : 0.048
+    } else {
+      journeyDamp = reduced ? 0.16 : 0.065
+    }
+    const damp = journeyDamp
     camera.position.x = lerp(camera.position.x, desired.x, damp)
     camera.position.y = lerp(camera.position.y, desired.y, damp)
     camera.position.z = lerp(camera.position.z, desired.z, damp)
 
     if ('fov' in camera) {
       const targetFov = marsStageLock ? 33 : sample.fov
-      const fovDamp = sample.smash && ab < 0.25 ? 0.5 : (transit ? 0.045 : 0.075)
+      const fovDamp = intent === 'fail'
+        ? (reduced ? 0.22 : 0.12)
+        : (transit || intent === 'push' ? 0.045 : 0.075)
       camera.fov = lerp(camera.fov, targetFov, fovDamp)
       camera.updateProjectionMatrix()
     }
@@ -1369,11 +1375,22 @@ function FilmDirector({
 
 function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
   const [aberration] = useState(() => new Vector2(0.00004, 0.00005))
+  const noiseRef = useRef(null)
+  const vignetteRef = useRef(null)
   useFrame(() => {
-    // Aberration only during owned events — never invent concentric ring artifacts on hero
-    const w = Math.max(stormRef?.current ?? 0, diveRef?.current ?? 0) * 0.85
-    aberration.set(0.00004 + w * 0.0011, 0.00005 + w * 0.0009)
-    void darkRef
+    // Aberration / grain / vignette owned by film events — death collapses the image
+    const storm = stormRef?.current ?? 0
+    const dive = diveRef?.current ?? 0
+    const dark = darkRef?.current ?? 0
+    const w = Math.max(storm, dive) * 0.85
+    aberration.set(0.00004 + w * 0.0014 + dark * 0.0004, 0.00005 + w * 0.0011 + dark * 0.00035)
+    if (noiseRef.current) {
+      noiseRef.current.opacity = 0.025 + storm * 0.14 + dark * 0.1
+    }
+    if (vignetteRef.current) {
+      vignetteRef.current.offset = 0.28 + storm * 0.22 + dark * 0.12
+      vignetteRef.current.darkness = 0.48 + storm * 0.42 + dark * 0.28
+    }
   })
   if (mobile || reduced) return null
   return (
@@ -1381,15 +1398,14 @@ function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
       {/* No mipmapBlur bloom — it turned stars into soft tan particle orbs */}
       <Bloom intensity={0.028} luminanceThreshold={0.985} luminanceSmoothing={0.12} mipmapBlur={false} />
       <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={aberration} />
-      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.025} />
-      <Vignette eskil={false} offset={0.28} darkness={0.48} />
+      <Noise ref={noiseRef} premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.025} />
+      <Vignette ref={vignetteRef} eskil={false} offset={0.28} darkness={0.48} />
     </EffectComposer>
   )
 }
 
 function ContinuumScene({
   progress,
-  filmDriveRef,
   mouse,
   mobile,
   reduced,
@@ -1456,7 +1472,6 @@ function ContinuumScene({
 
       <FilmDirector
         progress={progress}
-        filmDriveRef={filmDriveRef}
         mouse={mouse}
         reduced={reduced}
         moonRef={moonRef}
@@ -1559,7 +1574,6 @@ function MoonReadySignal({ onReady }) {
 
 export default function ContinuumCanvas({
   progress,
-  filmDriveRef,
   mouse,
   mobile,
   reduced,
@@ -1626,7 +1640,6 @@ export default function ContinuumCanvas({
       >
         <ContinuumScene
           progress={progress}
-          filmDriveRef={filmDriveRef}
           mouse={mouse}
           mobile={mobile}
           reduced={reduced}

@@ -18,6 +18,45 @@ let rafId = 0
 let tickerBound = false
 let refreshTimer = 0
 let resizeObs = null
+let filmRailTrigger = null
+let filmScrollTween = null
+
+/**
+ * Single owner of continuum time (0→1).
+ * ScrollTrigger on `#continuum-rail` is the only writer in production.
+ * Dev scrubber may write directly for rehearsal.
+ */
+export const filmProgressRef = { current: 0 }
+
+/** Labeled scrub positions — nav / Journey land here (not a second film driver). */
+export const FILM_MARKERS = {
+  hero: 0.04,
+  atlas: 0.155,
+  dive: 0.22,
+  transit: 0.30,
+  meridiani: 0.56,
+  storm: 0.68,
+  lastLight: 0.70,
+  carrier: 0.80,
+  silence: 0.92,
+  coda: 1,
+}
+
+export function getFilmProgress() {
+  return filmProgressRef.current
+}
+
+export function setFilmProgress(p) {
+  filmProgressRef.current = Math.max(0, Math.min(1, Number(p) || 0))
+}
+
+/** MotionValue-shaped reader for FilmDirector / Nav — no React scroll spring. */
+export const filmProgressMv = {
+  get: () => filmProgressRef.current,
+  getVelocity: () => 0,
+  on: () => () => {},
+  onChange: () => () => {},
+}
 
 export function prefersReducedMotion() {
   return typeof window !== 'undefined'
@@ -113,83 +152,173 @@ export function scrollToHash(hash, { offset = -72, duration } = {}) {
 }
 
 /**
- * JOURNEY nav — GSAP-driven Moon zoom → warp corridor → Mars arrive.
- * Drives Continuum film progress via filmDriveRef while Lenis scrolls the page.
- * Uses gsap.utils.clamp / mapRange / interpolate for the cinematic beats.
+ * Owned film rail — `#continuum-rail` scroll progress IS filmProgress (0→1).
+ * Before the rail → 0 (hero). After the rail (Recover+) → 1 (silence/coda).
+ */
+export function createFilmRail() {
+  destroyFilmRail()
+  const rail = typeof document !== 'undefined'
+    ? document.getElementById('continuum-rail')
+    : null
+  if (!rail) return null
+
+  filmRailTrigger = ScrollTrigger.create({
+    id: 'continuum-film-rail',
+    trigger: rail,
+    start: 'top top',
+    end: 'bottom bottom',
+    scrub: prefersReducedMotion() ? false : 0.35,
+    invalidateOnRefresh: true,
+    onUpdate: (self) => {
+      filmProgressRef.current = self.progress
+    },
+    onLeaveBack: () => {
+      filmProgressRef.current = 0
+    },
+    onLeave: () => {
+      filmProgressRef.current = 1
+    },
+  })
+
+  // Sync once after layout
+  requestAnimationFrame(() => {
+    if (filmRailTrigger) filmProgressRef.current = filmRailTrigger.progress
+  })
+
+  return filmRailTrigger
+}
+
+export function destroyFilmRail() {
+  if (filmScrollTween) {
+    filmScrollTween.kill()
+    filmScrollTween = null
+  }
+  if (filmRailTrigger) {
+    filmRailTrigger.kill()
+    filmRailTrigger = null
+  }
+}
+
+/** Pixel scroll Y for a film progress tip on the continuum rail. */
+export function filmProgressToScrollY(p) {
+  const t = Math.max(0, Math.min(1, p))
+  if (!filmRailTrigger) {
+    const rail = document.getElementById('continuum-rail')
+    if (!rail) return window.scrollY
+    const top = rail.getBoundingClientRect().top + window.scrollY
+    const travel = Math.max(1, rail.offsetHeight - window.innerHeight)
+    return top + travel * t
+  }
+  return filmRailTrigger.start + (filmRailTrigger.end - filmRailTrigger.start) * t
+}
+
+/** Scroll the owned rail to a film tip — the ONLY way nav moves the film. */
+export function scrollToFilmProgress(p, { duration, immediate = false } = {}) {
+  const y = filmProgressToScrollY(p)
+  if (immediate || prefersReducedMotion()) {
+    if (lenis) lenis.scrollTo(y, { immediate: true })
+    else window.scrollTo(0, y)
+    setFilmProgress(p)
+    return
+  }
+  const dur = Number.isFinite(duration) ? duration : 1.35
+  if (lenis) {
+    lenis.scrollTo(y, {
+      duration: dur,
+      easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
+    })
+  } else {
+    gsap.to(window, {
+      duration: dur,
+      ease: 'power3.out',
+      scrollTo: y,
+      overwrite: true,
+    })
+  }
+}
+
+export function scrollToFilmMarker(name, opts = {}) {
+  const p = FILM_MARKERS[name]
+  if (!Number.isFinite(p)) return
+  scrollToFilmProgress(p, opts)
+}
+
+/**
+ * JOURNEY nav — cinematic scrub of the *owned* rail (Atlas → Meridiani).
+ * No filmDriveRef dual driver: Lenis/scroll position writes filmProgress via ScrollTrigger.
  */
 export function playMoonToMarsJourney({
-  filmDriveRef,
-  getProgress,
   reduced = false,
   onStart,
   onComplete,
 } = {}) {
+  if (filmScrollTween) {
+    filmScrollTween.kill()
+    filmScrollTween = null
+  }
   if (playMoonToMarsJourney._tl) {
     playMoonToMarsJourney._tl.kill()
     playMoonToMarsJourney._tl = null
   }
 
-  const raw = typeof getProgress === 'function' ? getProgress() : 0
-  // Atlas→Journey: start from intimacy hold so the handoff is continuous
-  const atlasStart = gsap.utils.clamp(0.14, 0.22, Number.isFinite(raw) ? Math.max(raw, 0.155) : 0.155)
-  const state = { p: atlasStart }
-  if (filmDriveRef) filmDriveRef.current = atlasStart
+  // Ensure the owned rail exists before scrubbing (HMR / late layout)
+  if (!filmRailTrigger) createFilmRail()
+
+  const fromP = gsap.utils.clamp(
+    FILM_MARKERS.atlas,
+    FILM_MARKERS.transit,
+    Math.max(filmProgressRef.current, FILM_MARKERS.atlas),
+  )
+  const toP = FILM_MARKERS.meridiani
   onStart?.()
 
-  const write = () => {
-    if (filmDriveRef) filmDriveRef.current = state.p
-  }
-
   if (reduced || prefersReducedMotion()) {
-    state.p = 0.56
-    write()
-    scrollToHash('#journey-mars', { offset: -80, duration: 0.6 })
-    const done = window.setTimeout(() => {
-      if (filmDriveRef) filmDriveRef.current = null
-      onComplete?.()
-    }, 700)
+    scrollToFilmProgress(toP, { duration: 0.55 })
+    const done = window.setTimeout(() => onComplete?.(), 650)
     return () => window.clearTimeout(done)
   }
 
-  // One continuous film drive — Atlas hold → Meridiani (no beat-to-beat zoom hits)
-  const marsHold = 0.56
-  write()
+  // Ensure we sit on the rail at atlas before the long scrub
+  scrollToFilmProgress(fromP, { immediate: true })
 
+  const state = { p: fromP }
   const tl = gsap.timeline({
     defaults: { overwrite: 'auto' },
     onComplete: () => {
-      scrollToHash('#journey-mars', { offset: -90, duration: 1.4 })
-      gsap.delayedCall(0.7, () => {
-        if (filmDriveRef) filmDriveRef.current = null
-        playMoonToMarsJourney._tl = null
-        onComplete?.()
-      })
+      playMoonToMarsJourney._tl = null
+      filmScrollTween = null
+      // Settle exactly on Meridiani tip
+      scrollToFilmProgress(toP, { duration: 0.9 })
+      gsap.delayedCall(0.35, () => onComplete?.())
     },
   })
 
   tl.to(state, {
-    p: marsHold,
+    p: toP,
     duration: 12.5,
     ease: 'power1.inOut',
-    onUpdate: write,
+    onUpdate: () => {
+      const y = filmProgressToScrollY(state.p)
+      if (lenis) lenis.scrollTo(y, { immediate: true })
+      else window.scrollTo(0, y)
+      // ST may lag one frame on immediate scroll — stamp tip explicitly
+      filmProgressRef.current = state.p
+    },
   }, 0)
 
-  // Page scroll rides alongside — long Lenis glide, no snap
-  scrollToHash('#journey', { offset: -72, duration: 2.8 })
-  gsap.delayedCall(2.6, () => {
-    scrollToHash('#journey-mars', { offset: -90, duration: 9.2 })
-  })
-
   playMoonToMarsJourney._tl = tl
+  filmScrollTween = tl
   return () => {
     tl.kill()
     if (playMoonToMarsJourney._tl === tl) playMoonToMarsJourney._tl = null
+    filmScrollTween = null
   }
 }
 
 export function destroyScrollEngine() {
   window.clearTimeout(refreshTimer)
   refreshTimer = 0
+  destroyFilmRail()
   if (resizeObs) {
     resizeObs.disconnect()
     resizeObs = null
