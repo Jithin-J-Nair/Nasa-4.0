@@ -41,6 +41,9 @@ export function equirectXY(lat, lon, { pad = 4 } = {}) {
   }
 }
 
+/** Film tip held while Atlas is on screen — end of intimacy, centered near-side. */
+export const ATLAS_HOLD_PROGRESS = 0.185
+
 export const SITE_FOCUS = {
   'a11-lm': { body: 'moon', aimLon: 23.47, aimLat: 0.67 },
   'a12-alsep': { body: 'moon', aimLon: -23.42, aimLat: -3.01 },

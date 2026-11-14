@@ -12,7 +12,7 @@ import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
 import * as THREE from 'three'
 import { sampleActs, lerp, clamp } from './film'
-import { latLonToLocal, SITE_FOCUS } from './geo'
+import { ATLAS_HOLD_PROGRESS, latLonToLocal, SITE_FOCUS } from './geo'
 import { ARTIFACTS } from '../data/artifacts'
 
 const MOON_SITES = ARTIFACTS.filter((a) => a.body === 'moon' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
@@ -879,15 +879,6 @@ function useInertiaPointer(mouse, reduced) {
   return state
 }
 
-/** Atlas hold — hero-scale Continuum Moon, readable hotspots, no crater-dive crop */
-const ATLAS_FRAME = {
-  cam: [-0.48, 0.12, 4.55],
-  look: [1.18, -0.08, 0],
-  fov: 36,
-  moon: [1.28, -0.1, 0],
-  scale: 2.08,
-}
-
 function FilmDirector({
   progress,
   mouse,
@@ -921,13 +912,23 @@ function FilmDirector({
   const inertia = useInertiaPointer(mouse, reduced)
   const lastDpr = useRef(1)
   const atlasBlend = useRef(0)
+  const filmP = useRef(0)
   const moonPos = useRef(new THREE.Vector3(1.35, -0.12, 0))
   const moonScale = useRef(2.1)
-  const atlasFov = useRef(40)
 
   useFrame((state, dt) => {
-    const p = typeof progress?.get === 'function' ? progress.get() : 0
-    const sample = sampleActs(p)
+    const raw = typeof progress?.get === 'function' ? progress.get() : 0
+    const step = Math.min(0.05, Math.max(0.001, dt))
+
+    // Soft Atlas presence — hold the centered intimacy tip (no separate camera beat)
+    atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 2.6 * step))
+    const ab = atlasBlend.current
+    if (beaconsVisibleRef) beaconsVisibleRef.current = ab
+
+    // Soft-hold film at near-side zoom while Atlas is on screen — never hard-snap progress
+    const filmTarget = atlasLock ? ATLAS_HOLD_PROGRESS : raw
+    filmP.current = lerp(filmP.current, filmTarget, Math.min(1, (atlasLock ? 2.2 : 4.2) * step))
+    const sample = sampleActs(filmP.current)
     onSample?.(sample)
 
     diveRef.current = sample.event.dive
@@ -937,25 +938,18 @@ function FilmDirector({
     darkRef.current = sample.dark
     gradeRef.current = sample.grade
 
-    // Soft atlas presence — never snap film progress
-    const step = Math.min(0.05, Math.max(0.001, dt))
-    atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 2.8 * step))
-    const ab = atlasBlend.current
-    if (beaconsVisibleRef) beaconsVisibleRef.current = ab
-
-    // Hero free-spins with no hotspot. Atlas (or film intimacy hotspot) aims & marks.
-    const inAtlas = ab > 0.2
-    const hot = inAtlas
-      ? (focusSiteId || 'a11-lm')
+    // Hero free-spins. Intimacy+Atlas rotate the focused site onto the lens center.
+    const aimPhase = ab > 0.12 || sample.act?.id === 'intimacy' || !!sample.hotspot
+    const hot = ab > 0.2
+      ? (focusSiteId || sample.hotspot || 'a11-lm')
       : (sample.hotspot || null)
-    if (hotspotRef) hotspotRef.current = inAtlas ? hot : null
+    if (hotspotRef) hotspotRef.current = ab > 0.35 ? hot : (sample.hotspot || null)
     const focus = hot ? SITE_FOCUS[hot] : null
     if (moonAimRef) {
-      if (inAtlas && focus?.body === 'moon') moonAimRef.current = focus.aimLon
-      else moonAimRef.current = null
+      moonAimRef.current = aimPhase && focus?.body === 'moon' ? focus.aimLon : null
     }
     if (marsAimRef) {
-      marsAimRef.current = inAtlas && focus?.body === 'mars' ? focus.aimLon : null
+      marsAimRef.current = ab > 0.2 && focus?.body === 'mars' ? focus.aimLon : null
     }
 
     const targetDpr = clamp(
@@ -968,33 +962,30 @@ function FilmDirector({
       lastDpr.current = targetDpr
     }
 
-    const mx = inertia.current.x * (0.22 + sample.event.warp * 0.18) * (1 - ab * 0.7)
-    const my = inertia.current.y * (0.14 + sample.event.warp * 0.12) * (1 - ab * 0.7)
+    const mx = inertia.current.x * (0.22 + sample.event.warp * 0.18) * (1 - ab * 0.55)
+    const my = inertia.current.y * (0.14 + sample.event.warp * 0.12) * (1 - ab * 0.55)
 
-    // Film camera, soft-blended into Atlas hero-scale frame (fixes dive crop at Atlas)
+    // One continuous film camera — Atlas only holds progress, never reframes left/right
     desired.set(
-      lerp(sample.cam[0] + mx, ATLAS_FRAME.cam[0] + mx * 0.35, ab),
-      lerp(sample.cam[1] - my, ATLAS_FRAME.cam[1] - my * 0.35, ab),
-      lerp(sample.cam[2] + Math.abs(mx) * 0.05, ATLAS_FRAME.cam[2], ab),
+      sample.cam[0] + mx,
+      sample.cam[1] - my,
+      sample.cam[2] + Math.abs(mx) * 0.05,
     )
 
-    // Smash: hard snap into crater — but never while Atlas owns the lens
-    const damp = ab > 0.4 ? (reduced ? 0.14 : 0.08) : sample.smash ? 0.55 : (reduced ? 0.16 : 0.065)
+    const damp = sample.smash && ab < 0.25 ? 0.55 : (reduced ? 0.16 : 0.065)
     camera.position.x = lerp(camera.position.x, desired.x, damp)
     camera.position.y = lerp(camera.position.y, desired.y, damp)
     camera.position.z = lerp(camera.position.z, desired.z, damp)
 
     if ('fov' in camera) {
-      const targetFov = lerp(sample.fov, ATLAS_FRAME.fov, ab)
-      atlasFov.current = lerp(atlasFov.current, targetFov, sample.smash && ab < 0.2 ? 0.5 : 0.075)
-      camera.fov = atlasFov.current
+      camera.fov = lerp(camera.fov, sample.fov, sample.smash && ab < 0.25 ? 0.5 : 0.075)
       camera.updateProjectionMatrix()
     }
 
     look.set(
-      lerp(sample.look[0] + mx * 0.08, ATLAS_FRAME.look[0], ab),
-      lerp(sample.look[1] - my * 0.05, ATLAS_FRAME.look[1], ab),
-      lerp(sample.look[2], ATLAS_FRAME.look[2], ab),
+      sample.look[0] + mx * 0.08,
+      sample.look[1] - my * 0.05,
+      sample.look[2],
     )
     camera.lookAt(look)
 
@@ -1007,23 +998,16 @@ function FilmDirector({
       let tx = 0
       let ty = 0
       let tz = 0
-      if (f === 'dive' && ab < 0.5) {
+      if (f === 'dive') {
         targetScale = lerp(2.0, 5.8, sample.event.dive)
         tx = 0.85; ty = -0.1; tz = -0.2
       } else if (f === 'moon') {
         const arrival = sample.act?.id === 'hero'
-        targetScale = arrival ? lerp(2.05, 2.2, sample.eased) : lerp(1.85, 2.05, sample.eased)
-        tx = arrival ? 1.35 : 0.55
-        ty = arrival ? -0.12 : -0.06
+        // Hero: moon right. Intimacy: slide toward center while zooming.
+        targetScale = arrival ? lerp(2.05, 2.2, sample.eased) : lerp(1.95, 2.18, sample.eased)
+        tx = arrival ? 1.35 : lerp(0.55, 0.08, sample.eased)
+        ty = arrival ? -0.12 : lerp(-0.06, -0.04, sample.eased)
         tz = 0
-      }
-      // Blend toward Atlas hero-scale park (no hard cut)
-      if (ab > 0.001) {
-        const baseScale = targetScale < 0.05 ? ATLAS_FRAME.scale : targetScale
-        targetScale = lerp(baseScale, ATLAS_FRAME.scale, ab)
-        tx = lerp(tx || ATLAS_FRAME.moon[0], ATLAS_FRAME.moon[0], ab)
-        ty = lerp(ty || ATLAS_FRAME.moon[1], ATLAS_FRAME.moon[1], ab)
-        tz = lerp(tz, ATLAS_FRAME.moon[2], ab)
       }
 
       const poseDamp = Math.min(1, (reduced ? 8 : 4.5) * step)

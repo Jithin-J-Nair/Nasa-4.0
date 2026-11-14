@@ -51,7 +51,8 @@ export const ACTS = [
     label: 'NEAR SIDE',
     range: [0.10, 0.22],
     ease: easeInOutCubic,
-    cam: { from: [-0.55, 0.14, 4.7], to: [0.15, 0.08, 3.0], look: [0.35, -0.02, 0], fov: [34, 28] },
+    // Stay centered — zoom in on the disc; Atlas holds here with the site facing the lens
+    cam: { from: [-0.55, 0.14, 4.7], to: [0.02, 0.04, 2.75], look: [0.08, -0.03, 0], fov: [34, 27] },
     grade: { lift: [0.015, 0.02, 0.045], gain: [1.04, 1.05, 1.1], exposure: 1.02, grain: 0.04 },
     event: { dive: 0, storm: 0, carrier: 0, warp: 0.06 },
     dark: 0.04,
@@ -65,7 +66,7 @@ export const ACTS = [
     label: 'CRATER DIVE',
     range: [0.22, 0.36],
     ease: easeInQuart,
-    cam: { from: [0.15, 0.08, 3.0], to: [0.9, -0.12, 0.55], look: [1.05, -0.08, 0], fov: [28, 58] },
+    cam: { from: [0.02, 0.04, 2.75], to: [0.9, -0.12, 0.55], look: [1.05, -0.08, 0], fov: [27, 58] },
     grade: { lift: [0.05, 0.045, 0.04], gain: [0.72, 0.74, 0.76], exposure: 0.48, grain: 0.18 },
     event: { dive: 1, storm: 0, carrier: 0, warp: 0.95 },
     dark: 0.55,

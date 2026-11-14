@@ -620,17 +620,35 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .location-atlas {
   position: relative;
   z-index: 2;
-  min-height: min(92vh, 920px);
+  min-height: min(100vh, 980px);
   padding-bottom: clamp(3rem, 8vh, 5rem);
-  /* Let the Continuum Moon read through on the right */
+  /* Soft veil — Continuum Moon stays the centered stage */
   background:
-    linear-gradient(90deg, rgba(3,3,8,0.88) 0%, rgba(3,3,8,0.55) 42%, rgba(3,3,8,0.18) 68%, rgba(3,3,8,0.08) 100%);
+    linear-gradient(180deg, rgba(3,3,8,0.42) 0%, rgba(3,3,8,0.18) 38%, rgba(3,3,8,0.28) 100%);
   overflow: visible;
+}
+.atlas-overlay {
+  position: relative;
+  z-index: 4;
+  max-width: min(520px, 92vw);
+  padding-top: clamp(1.5rem, 6vh, 3.5rem);
+}
+.atlas-title {
+  font-size: clamp(2.2rem, 5.5vw, 3.8rem);
+  margin: 0.75rem 0 0.85rem;
+  text-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+.atlas-lede {
+  color: var(--ink-dim);
+  max-width: 44ch;
+  line-height: 1.55;
+  margin-bottom: 1.35rem;
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 .atlas-tabs {
   display: inline-flex;
   gap: 0.35rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
   padding: 0.3rem;
   border: 1px solid var(--line);
   background: rgba(7, 7, 12, 0.55);
@@ -648,37 +666,18 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   color: var(--ink);
   background: rgba(142, 200, 255, 0.12);
 }
-.atlas-stage {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, min(420px, 46vw));
-  gap: clamp(1.25rem, 3vw, 2.5rem);
-  align-items: start;
-  min-height: min(58vh, 520px);
-}
-@media (max-width: 900px) {
-  .atlas-stage {
-    grid-template-columns: 1fr;
-    min-height: 0;
-  }
-  .location-atlas {
-    background: linear-gradient(180deg, rgba(3,3,8,0.82), rgba(3,3,8,0.55));
-  }
-}
-.atlas-panel {
-  display: grid;
-  gap: 1.1rem;
-  position: relative;
-  z-index: 4;
-}
 .atlas-site-list {
   list-style: none;
+  margin: 0;
   display: grid;
-  gap: 0.35rem;
-  max-height: min(38vh, 320px);
+  gap: 0.3rem;
+  max-height: min(42vh, 360px);
   overflow: auto;
-  padding-right: 0.25rem;
+  padding: 0.45rem;
   scrollbar-width: thin;
+  background: rgba(7, 7, 12, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
 }
 .atlas-site {
   width: 100%;
@@ -766,8 +765,9 @@ body.is-coarse .atlas-site { cursor: pointer; }
 }
 .moon-hotspot-card {
   position: absolute;
-  left: 14px;
-  top: -10px;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
   width: min(220px, 62vw);
   padding: 0.55rem 0.6rem 0.7rem;
   border-radius: 10px;
