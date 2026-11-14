@@ -59,5 +59,3 @@ export const SITE_FOCUS = {
   voyager1: { body: 'deep' },
 }
 
-/** Film tip held while Atlas is in view — moon intimacy with hotspot front-facing. */
-export const ATLAS_LOCK_PROGRESS = 0.2
