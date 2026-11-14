@@ -1419,22 +1419,20 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   color: var(--ink);
   z-index: 5;
 }
-/* Edge-aware — keep the full dossier card inside the viewport */
-.moon-hotspot-card[data-edge~="edge-left"] {
-  left: auto;
-  right: 18px;
+/* Portaled to document.body — screen-space fixed, never clipped by Mars limb */
+.moon-hotspot-card--viewport {
+  position: fixed;
+  left: 0;
+  top: 0;
   transform: none;
+  z-index: 140;
+  width: min(240px, calc(100vw - 32px));
+  max-height: min(70vh, 420px);
+  margin: 0;
 }
-.moon-hotspot-card[data-edge~="edge-right"] {
-  left: 18px;
-  transform: none;
-}
-.moon-hotspot-card[data-edge~="edge-below"] {
-  top: 14px;
-}
-.moon-hotspot-card[data-edge~="edge-above"] {
-  top: auto;
-  bottom: 18px;
+.moon-hotspot-card--mars {
+  border-color: rgba(255, 200, 160, 0.18);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(255, 180, 120, 0.06);
 }
 .hotspot-html {
   z-index: 90 !important;

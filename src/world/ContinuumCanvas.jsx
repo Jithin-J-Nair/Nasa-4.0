@@ -4,7 +4,8 @@
  * Moon / Mars as place · Meridiani dust · carrier death as physics.
  * Material system: albedo + height AO/roughness + GGX + ASC-CDL grade.
  */
-import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, useTexture, useGLTF } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@react-three/postprocessing'
@@ -511,6 +512,53 @@ function DustSheets({ stormRef, darkRef, sunDirRef }) {
   )
 }
 
+
+/** Keep hotspot dossier cards fully inside the viewport (Mars right-limb safe). */
+function placeHotspotCard(card, uiRoot, size) {
+  if (!card || typeof document === 'undefined') return
+  const hit = uiRoot?.querySelector?.('.moon-hotspot-hit')
+  const pin = hit?.getBoundingClientRect?.()
+  if (!pin) return
+  // Pin may be opacity-hidden mid-frame — keep last placement
+  if (pin.width === 0 && pin.height === 0 && pin.left === 0 && pin.top === 0) return
+  const pad = 16
+  const vw = size?.width || window.innerWidth
+  const vh = size?.height || window.innerHeight
+  const cw = Math.min(card.offsetWidth || 240, vw - pad * 2)
+  const ch = Math.min(card.offsetHeight || 280, vh - pad * 2)
+
+  // Prefer under the pin, centered (image-2 grammar)
+  let left = pin.left + pin.width / 2 - cw / 2
+  let top = pin.bottom + 14
+
+  // Near right limb → bias card left of pin; near left → bias right
+  const pinCx = pin.left + pin.width / 2
+  if (pinCx > vw * 0.58) {
+    left = pin.left - cw - 14
+  } else if (pinCx < vw * 0.32) {
+    left = pin.right + 14
+  }
+
+  left = Math.min(Math.max(pad, left), vw - pad - cw)
+
+  if (top + ch > vh - pad) {
+    top = pin.top - 14 - ch
+  }
+  if (top < pad) {
+    top = Math.min(pad, Math.max(pad, vh - pad - ch))
+  }
+  top = Math.min(Math.max(pad, top), vh - pad - ch)
+
+  card.style.position = 'fixed'
+  card.style.left = `${Math.round(left)}px`
+  card.style.top = `${Math.round(top)}px`
+  card.style.right = 'auto'
+  card.style.bottom = 'auto'
+  card.style.transform = 'none'
+  card.style.zIndex = '140'
+  card.style.maxWidth = `${Math.min(240, vw - pad * 2)}px`
+}
+
 function SiteBeacon({
   site,
   hotspotRef,
@@ -543,6 +591,16 @@ function SiteBeacon({
   const camLocal = useMemo(() => new THREE.Vector3(), [])
   const limbLocal = useMemo(() => new THREE.Vector3(), [])
   const tmp = useMemo(() => new THREE.Vector3(), [])
+  const { size } = useThree()
+
+  // First paint placement before paint — avoids one-frame corner flash
+  useLayoutEffect(() => {
+    if (!cardOpen) return undefined
+    const id = requestAnimationFrame(() => {
+      placeHotspotCard(cardRef.current, uiRef.current, size)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [cardOpen, site.id, size.width, size.height])
 
   useFrame((s) => {
     if (!frontRef.current || !limbRef.current) return
@@ -581,12 +639,8 @@ function SiteBeacon({
     }
     if (facing && frontMesh.current) {
       if (cardRef.current && cardOpen) {
-        const ndc = worldPos.clone().project(s.camera)
-        const nx = (ndc.x + 1) * 0.5
-        const ny = 1 - (ndc.y + 1) * 0.5
-        const edgeX = nx > 0.62 ? 'edge-left' : nx < 0.28 ? 'edge-right' : 'edge-center'
-        const edgeY = ny < 0.28 ? 'edge-below' : ny > 0.72 ? 'edge-above' : 'edge-mid'
-        cardRef.current.dataset.edge = `${edgeX} ${edgeY}`
+        // Screen-space clamp — drei Html distanceFactor breaks CSS edge offsets
+        placeHotspotCard(cardRef.current, uiRef.current, s.size)
       }
       const active = hotspotRef?.current === site.id || cardOpen
       const pulse = active ? 0.5 + Math.sin(s.clock.elapsedTime * 3.6) * 0.22 : 0.32
@@ -666,11 +720,10 @@ function SiteBeacon({
                 onBlur={() => onLeave?.(site)}
                 onClick={selectOrOpen}
               />
-              {cardOpen && (
+              {cardOpen && typeof document !== 'undefined' && createPortal(
                 <article
                   ref={cardRef}
-                  className="moon-hotspot-card"
-                  data-edge="edge-center edge-mid"
+                  className={`moon-hotspot-card moon-hotspot-card--viewport${site.body === 'mars' ? ' moon-hotspot-card--mars' : ''}`}
                   role="dialog"
                   aria-label={site.name}
                 >
@@ -687,7 +740,8 @@ function SiteBeacon({
                   <button type="button" className="mono open moon-hotspot-open" onClick={openDossier}>
                     OPEN DOSSIER →
                   </button>
-                </article>
+                </article>,
+                document.body,
               )}
             </div>
           </Html>
