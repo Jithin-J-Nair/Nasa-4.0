@@ -513,7 +513,7 @@ img, svg { display: block; max-width: 100%; }
   line-height: 0.92;
 }
 .display-xl {
-  font-size: clamp(3rem, 12vw, 11rem);
+  font-size: clamp(2.8rem, 10.5vw, 8.5rem);
 }
 .outline-text {
   color: transparent;
@@ -732,9 +732,11 @@ img, svg { display: block; max-width: 100%; }
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: calc(var(--nav-h) + 2rem) clamp(1.25rem, 4vw, 4rem) 4rem;
+  padding: calc(var(--nav-h) + 1.5rem) clamp(1.25rem, 4vw, 4rem) 5.5rem;
   overflow: clip;
 }
+.hero-content h1 { margin-bottom: 1rem !important; max-width: 16ch; }
+.hero-content p { margin-bottom: 1.5rem !important; }
 .hero-canvas {
   position: absolute; inset: 0; z-index: 0;
 }
