@@ -14,7 +14,7 @@ import {
 } from 'framer-motion'
 import { createSoundscape } from './audio/Soundscape'
 import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
-import { preloadCriticalMoon, preloadPlanetTextures } from './world/preloadTextures'
+import { preloadContinuumModule, preloadCriticalMoon, preloadPlanetTextures } from './world/preloadTextures'
 import { GLOBAL_CSS } from './styles/global.css.js'
 import {
   createScrollEngine, destroyScrollEngine, playHeroIntro, playBootSequence,
@@ -210,23 +210,30 @@ class ErrorBoundary extends Component {
 const CursorCtx = createContext({ setLabel: () => {}, setVisible: () => {} })
 function useCursor() { return useContext(CursorCtx) }
 
-function Preloader({ onDone, reduced, mobile }) {
+function Preloader({ onDone, reduced, mobile, moonReady }) {
   const rootRef = useRef(null)
   useEffect(() => {
     let cancelled = false
     let animDone = false
-    let texturesDone = false
+    let assetsDone = false
     let finished = false
 
     const finish = () => {
-      if (cancelled || finished || !animDone || !texturesDone) return
+      if (cancelled || finished || !animDone || !assetsDone) return
       finished = true
       onDone?.()
     }
 
-    // Kick moon masters immediately; warm Mars in parallel without blocking enter
-    const moonReady = preloadCriticalMoon(mobile).then(() => {
-      texturesDone = true
+    // THREE.Cache + Continuum chunk + Moon maps; Mars warms in the background
+    const assets = Promise.all([
+      preloadCriticalMoon(mobile),
+      preloadContinuumModule(),
+      moonReady,
+    ]).then(() => {
+      assetsDone = true
+      finish()
+    }).catch(() => {
+      assetsDone = true
       finish()
     })
     preloadPlanetTextures(mobile)
@@ -243,21 +250,17 @@ function Preloader({ onDone, reduced, mobile }) {
 
     // Never trap the user if a texture host stalls
     const safety = window.setTimeout(() => {
-      texturesDone = true
+      assetsDone = true
       finish()
-    }, reduced ? 2500 : 14000)
-
-    moonReady.catch(() => {
-      texturesDone = true
-      finish()
-    })
+    }, reduced ? 2500 : 16000)
 
     return () => {
       cancelled = true
       window.clearTimeout(safety)
       stopAnim?.()
+      void assets
     }
-  }, [onDone, reduced, mobile])
+  }, [onDone, reduced, mobile, moonReady])
   return (
     <div className="preloader" ref={rootRef}>
       <div className="preloader-panels" aria-hidden>
@@ -1015,6 +1018,11 @@ export default function App() {
   const [actLabel, setActLabel] = useState('ARRIVAL')
   const mainRef = useRef(null)
   const soundRef = useRef(null)
+  const moonReadyResolve = useRef(null)
+  const moonReadyPromise = useMemo(
+    () => new Promise((resolve) => { moonReadyResolve.current = resolve }),
+    [],
+  )
   const mouse = useMouse()
   const mobile = useMediaQuery('(max-width: 768px)')
   const reduced = usePrefersReduced()
@@ -1034,9 +1042,20 @@ export default function App() {
     return () => soundRef.current?.dispose()
   }, [])
 
+  // Start texture + chunk warm immediately on first paint
+  useEffect(() => {
+    preloadContinuumModule()
+    preloadCriticalMoon(mobile)
+    preloadPlanetTextures(mobile)
+  }, [mobile])
+
   const onFilmSample = useCallback((sample) => {
     soundRef.current?.setFilm(sample)
     if (sample?.label) setActLabel((prev) => (prev === sample.label ? prev : sample.label))
+  }, [])
+
+  const onMoonReady = useCallback(() => {
+    moonReadyResolve.current?.()
   }, [])
 
   useEffect(() => {
@@ -1090,6 +1109,7 @@ export default function App() {
                 reduced={reduced}
                 active={!booting}
                 onSample={onFilmSample}
+                onMoonReady={onMoonReady}
               />
             </Suspense>
           </ErrorBoundary>
@@ -1113,7 +1133,14 @@ export default function App() {
             Skip to content
           </a>
 
-          {booting && <Preloader onDone={onBootDone} reduced={reduced} mobile={mobile} />}
+          {booting && (
+            <Preloader
+              onDone={onBootDone}
+              reduced={reduced}
+              mobile={mobile}
+              moonReady={moonReadyPromise}
+            />
+          )}
 
           <Nav progress={smoothProgress} />
 

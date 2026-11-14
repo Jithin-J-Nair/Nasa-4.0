@@ -987,7 +987,7 @@ function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
   )
 }
 
-function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
+function ContinuumScene({ progress, mouse, mobile, reduced, onSample, onMoonReady }) {
   const moonRef = useRef()
   const marsRef = useRef()
   const pioneerRef = useRef()
@@ -1050,6 +1050,7 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
       {!mobile && <DustField count={1200} stormRef={stormRef} />}
       {!mobile && <DustSheets stormRef={stormRef} darkRef={darkRef} sunDirRef={sunDirRef} />}
 
+      {/* Moon Suspense is separate so Mars 8K never blocks hero readiness */}
       <Suspense fallback={null}>
         <BodySphere
           groupRef={moonRef}
@@ -1066,6 +1067,9 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
           hotspotRef={hotspotRef}
           aimLonRef={moonAimRef}
         />
+        <MoonReadySignal onReady={onMoonReady} />
+      </Suspense>
+      <Suspense fallback={null}>
         <BodySphere
           groupRef={marsRef}
           body={1}
@@ -1092,7 +1096,27 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
   )
 }
 
-export default function ContinuumCanvas({ progress, mouse, mobile, reduced, active = true, onSample }) {
+function MoonReadySignal({ onReady }) {
+  useEffect(() => {
+    onReady?.()
+  }, [onReady])
+  return null
+}
+
+export default function ContinuumCanvas({
+  progress,
+  mouse,
+  mobile,
+  reduced,
+  active = true,
+  onSample,
+  onMoonReady,
+}) {
+  // Keep rendering during boot so textures upload + FilmDirector places the Moon
+  // behind the preloader. Demand mode only for reduced-motion (was the refresh bug).
+  void active
+  const frameloop = reduced ? 'demand' : 'always'
+
   return (
     <div className="continuum-canvas" aria-hidden>
       <Canvas
@@ -1105,7 +1129,7 @@ export default function ContinuumCanvas({ progress, mouse, mobile, reduced, acti
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.02,
         }}
-        frameloop={active && !reduced ? 'always' : 'demand'}
+        frameloop={frameloop}
         onCreated={({ gl }) => {
           gl.setClearColor('#020206')
           gl.toneMapping = THREE.ACESFilmicToneMapping
@@ -1117,6 +1141,7 @@ export default function ContinuumCanvas({ progress, mouse, mobile, reduced, acti
           mobile={mobile}
           reduced={reduced}
           onSample={onSample}
+          onMoonReady={onMoonReady}
         />
       </Canvas>
     </div>

@@ -1,24 +1,38 @@
 /**
- * Warm planet texture bytes during the preloader so ContinuumCanvas
- * mounts on already-cached 8K masters (desktop) / 2K (mobile).
+ * Warm planet textures during the preloader so ContinuumCanvas / useTexture
+ * can hit THREE.Cache and the browser HTTP cache on first paint.
  */
-const IMAGE_CACHE = new Map()
+import * as THREE from 'three'
 
-function loadImage(url) {
+THREE.Cache.enabled = true
+
+const JOBS = new Map()
+
+function loadTexture(url) {
   if (!url) return Promise.resolve(null)
-  if (IMAGE_CACHE.has(url)) return IMAGE_CACHE.get(url)
-  const job = new Promise((resolve, reject) => {
-    const img = new Image()
-    img.decoding = 'async'
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error(`Failed to preload ${url}`))
-    img.src = url
-  }).catch((err) => {
-    IMAGE_CACHE.delete(url)
-    console.warn('[SilentFleet]', err?.message || err)
-    return null
+  if (JOBS.has(url)) return JOBS.get(url)
+
+  const job = new Promise((resolve) => {
+    const loader = new THREE.TextureLoader()
+    loader.load(
+      url,
+      (tex) => {
+        // Keep in THREE.Cache via loader; also pin the image in HTTP memory
+        tex.colorSpace = url.includes('height') || url.includes('bump')
+          ? THREE.NoColorSpace
+          : THREE.SRGBColorSpace
+        resolve(tex)
+      },
+      undefined,
+      (err) => {
+        console.warn('[SilentFleet] texture preload failed', url, err)
+        JOBS.delete(url)
+        resolve(null)
+      },
+    )
   })
-  IMAGE_CACHE.set(url, job)
+
+  JOBS.set(url, job)
   return job
 }
 
@@ -39,7 +53,7 @@ export function planetTextureUrls(mobile = false) {
   ]
 }
 
-/** Critical path for first hero frame — Moon only (Mars can finish after enter). */
+/** Critical path for first hero frame — Moon only. */
 export function criticalMoonUrls(mobile = false) {
   if (mobile) {
     return ['/textures/moon_color_2k.jpg', '/textures/moon_height_2k.jpg']
@@ -48,9 +62,14 @@ export function criticalMoonUrls(mobile = false) {
 }
 
 export function preloadPlanetTextures(mobile = false) {
-  return Promise.all(planetTextureUrls(mobile).map(loadImage))
+  return Promise.all(planetTextureUrls(mobile).map(loadTexture))
 }
 
 export function preloadCriticalMoon(mobile = false) {
-  return Promise.all(criticalMoonUrls(mobile).map(loadImage))
+  return Promise.all(criticalMoonUrls(mobile).map(loadTexture))
+}
+
+/** Warm the lazy ContinuumCanvas chunk in parallel with textures. */
+export function preloadContinuumModule() {
+  return import('./ContinuumCanvas')
 }
