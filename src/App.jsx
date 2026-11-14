@@ -1927,8 +1927,8 @@ function Fleet({ onOpen }) {
   return (
     <section className="section" id="fleet" style={{ paddingRight: 0, paddingLeft: 0 }}>
       <div style={{ padding: '0 clamp(1.25rem, 4vw, 4rem)' }}>
-        <span className="section-rail">02 · FLEET</span>
-        <span className="section-num">02</span>
+        <span className="section-rail">03 · FLEET</span>
+        <span className="section-num">03</span>
         <p className="kicker"><ScrambleLine text="HORIZONTAL DOSSIER · DRAG TO SURVEY" active /></p>
         <h2 className="display" style={{ fontSize:'clamp(2.2rem, 6vw, 4rem)', margin:'0.75rem 0 0.5rem' }}>
           Fifteen files.<br /><span className="outline-text">One silent fleet.</span>
