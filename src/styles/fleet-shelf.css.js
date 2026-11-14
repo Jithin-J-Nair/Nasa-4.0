@@ -435,15 +435,59 @@ export const FLEET_SHELF_CSS = `
 }
 
 @media (max-width: 767px) {
-  .fleet-shelf { --H: min(60vw, 40svh); }
+  .fleet-folio {
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  }
+  .fleet-folio__wordmark {
+    padding-top: calc(var(--nav-h) + 1.75rem);
+  }
+  .fleet-shelf {
+    --H: min(58vw, 38svh);
+    min-height: calc(var(--H) + 220px);
+    touch-action: pan-y;
+  }
   .fleet-folio__rail { display: none; }
-  .fleet-folio__title { font-size: 10vw; }
-  .fleet-folio__outline { font-size: 8.5vw; }
-  .fleet-shelf__arrow--l { left: 6px; }
-  .fleet-shelf__arrow--r { right: 6px; }
+  .fleet-folio__num {
+    font-size: clamp(4rem, 28vw, 7rem);
+    top: 4vh;
+    right: 0.75rem;
+  }
+  .fleet-folio__title { font-size: clamp(1.85rem, 9.5vw, 2.8rem); }
+  .fleet-folio__outline { font-size: clamp(1.65rem, 8.2vw, 2.4rem); }
+  .fleet-folio__lede {
+    font-size: 0.82rem;
+    max-width: 34ch;
+    padding: 0 1rem;
+  }
+  .fleet-shelf__tabs {
+    max-width: calc(100% - 1.5rem);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .fleet-shelf__tabs::-webkit-scrollbar { display: none; }
+  .fleet-shelf__tab {
+    padding: 0 10px;
+    font-size: 9px;
+    height: 32px;
+    min-width: 44px;
+  }
+  .fleet-shelf__arrow {
+    width: 44px;
+    height: 44px;
+    top: calc(50% + var(--H) * 0.42);
+  }
+  .fleet-shelf__arrow--l { left: max(4px, env(safe-area-inset-left)); }
+  .fleet-shelf__arrow--r { right: max(4px, env(safe-area-inset-right)); }
   .fleet-shelf__mask--title { font-size: clamp(1.45rem, 7.5vw, 2rem); }
-  .fleet-shelf__tab { padding: 0 9px; font-size: 9px; height: 26px; }
+  .fleet-shelf__caption { margin-top: 0.5rem; padding: 0 0.5rem; }
+  .fleet-shelf__hint { padding-bottom: 0.5rem; }
   .fleet-shelf__stage-wrap::before,
-  .fleet-shelf__stage-wrap::after { width: 1.5rem; }
+  .fleet-shelf__stage-wrap::after { width: 1.25rem; }
+}
+
+@media (max-height: 700px) and (max-width: 900px) {
+  .fleet-shelf { --H: min(42vw, 32svh); }
+  .fleet-folio__wordmark { padding-top: calc(var(--nav-h) + 1rem); }
 }
 `

@@ -62,10 +62,11 @@ img, svg { display: block; max-width: 100%; }
 .continuum-canvas {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
+  /* Prefer % over 100vw — vw includes scrollbar and overflows on mobile */
+  width: 100%;
+  height: 100%;
   height: 100svh;
-  max-width: 100vw;
+  max-width: 100%;
   max-height: 100svh;
   z-index: 0;
   pointer-events: none;
@@ -1655,7 +1656,6 @@ body.is-coarse .fleet-card { cursor: pointer; }
 }
 @media (max-width: 900px) {
   .moon-map-wrap { grid-template-columns: 1fr; }
-  .nav-links { display: none; }
 }
 .moon-disc {
   position: relative; aspect-ratio: 1; width: min(100%, 520px); margin: 0 auto;
@@ -2216,5 +2216,208 @@ html.lenis, html.lenis body { height: auto; }
 }
 @media (max-width: 640px) {
   .sf-disclosure { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Mobile accuracy pass — phones 320→414, short height, touch
+   Keep desktop grammar; reflow, don't squash.
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  :root { --nav-h: 56px; }
+
+  html, body {
+    overflow-x: clip;
+  }
+
+  .nav {
+    padding: 0 max(0.75rem, env(safe-area-inset-left)) 0 max(0.75rem, env(safe-area-inset-right));
+    gap: 0.65rem;
+  }
+  .nav-brand {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    flex: 0 0 auto;
+  }
+  /* Compact scrollable chapter links — never hide nav on phones */
+  .nav-links {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+    gap: 0.15rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-links a {
+    flex: 0 0 auto;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.55rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .hero {
+    min-height: 100svh;
+    justify-content: flex-end;
+    padding:
+      calc(var(--nav-h) + 1.25rem)
+      max(1rem, env(safe-area-inset-right))
+      max(4.5rem, calc(env(safe-area-inset-bottom) + 3.5rem))
+      max(1rem, env(safe-area-inset-left));
+  }
+  .hero-content {
+    max-width: 100%;
+    width: 100%;
+  }
+  .hero-content h1,
+  .hero-line,
+  .hero-line .gradient-text,
+  .hero-line .gradient-text__content,
+  .hero-gradient-fleet {
+    width: 100%;
+    max-width: 100%;
+  }
+  .display-xl {
+    font-size: clamp(2.55rem, 13.5vw, 4.6rem);
+    line-height: 0.9;
+  }
+  .hero-body-blur {
+    font-size: clamp(0.95rem, 3.8vw, 1.1rem);
+    max-width: 36ch;
+  }
+  .mag-btn {
+    min-height: 48px;
+    padding: 0.85rem 1.25rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+  }
+  .hero-scroll-cue {
+    left: max(1rem, env(safe-area-inset-left));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    font-size: 0.55rem;
+  }
+
+  .section,
+  .challenge-objective,
+  .location-atlas {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  .location-atlas {
+    min-height: 100svh;
+    padding-top: calc(var(--nav-h) + 4.5rem);
+    margin-top: -2.5rem;
+  }
+  .atlas-overlay--hud {
+    position: relative;
+    top: auto;
+    left: auto;
+    max-width: 100%;
+    width: 100%;
+    margin: 0 0 1rem;
+    padding: 0;
+  }
+  .atlas-heading--bridge {
+    margin-left: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  .section-rail {
+    display: none;
+  }
+  .section-num {
+    font-size: clamp(3.2rem, 22vw, 6rem);
+    opacity: 0.7;
+  }
+
+  .audio-toggle {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .journey-hud {
+    top: calc(var(--nav-h) + 1.25rem);
+    max-width: min(92vw, 36ch);
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+  .journey-hud__phase {
+    font-size: clamp(1.15rem, 5.5vw, 1.65rem);
+  }
+
+  .film-scrubber {
+    left: max(8px, env(safe-area-inset-left));
+    bottom: max(64px, calc(env(safe-area-inset-bottom) + 56px));
+    max-width: min(92vw, 280px);
+    font-size: 0.55rem;
+  }
+}
+
+/* Short viewport (split preview / landscape phone) — keep CTA on-screen, no earthquake padding */
+@media (max-height: 700px) {
+  .hero {
+    min-height: 100svh;
+    justify-content: center;
+    padding-top: calc(var(--nav-h) + 0.75rem);
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  }
+  .hero-scroll-cue { display: none; }
+  .display-xl {
+    font-size: clamp(2.1rem, 9vh, 3.4rem);
+  }
+  .hero-content p,
+  .hero-body-blur {
+    margin-bottom: 0.85rem !important;
+    font-size: 0.92rem;
+  }
+  .kicker { margin-bottom: 0.55rem !important; }
+  .challenge-motto {
+    font-size: clamp(1rem, 3.5vw, 1.25rem);
+    margin-bottom: 0.55rem;
+  }
+  .location-atlas {
+    min-height: 100svh;
+    padding-top: calc(var(--nav-h) + 3rem);
+  }
+}
+
+@media (max-width: 480px) {
+  .display-xl {
+    font-size: clamp(2.35rem, 12.5vw, 3.6rem);
+  }
+  .challenge-objective h2 {
+    font-size: clamp(1.75rem, 8vw, 2.6rem) !important;
+  }
+  .objective-link-row {
+    gap: 0.75rem 1rem;
+    font-size: 0.62rem;
+  }
+  .mars-hotspot-wheel-hud {
+    bottom: max(4.5rem, calc(env(safe-area-inset-bottom) + 3.5rem));
+    height: min(34vh, 240px);
+  }
+  .dossier-chip {
+    min-width: min(86vw, 260px);
+  }
+}
+
+@media (max-width: 360px) {
+  .nav-brand { letter-spacing: 0.1em; font-size: 0.64rem; }
+  .nav-links a {
+    padding: 0 0.4rem;
+    font-size: 0.52rem;
+  }
+  .mag-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 `

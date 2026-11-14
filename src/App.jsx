@@ -350,6 +350,10 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
 
 function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
   const scaleX = useSpring(progress, { stiffness: 90, damping: 24 })
+  const go = (fn) => (e) => {
+    e.preventDefault()
+    fn?.(e)
+  }
   return (
     <nav className="nav" aria-label="Primary">
       <a
@@ -366,43 +370,13 @@ function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
       >
         SILENT FLEET
       </a>
-      <div className="nav-links">
-        <a
-          href="#objective"
-          onClick={(e) => {
-            e.preventDefault()
-            scrollToHash('#objective', { duration: 1.05 })
-          }}
-        >
+      <div className="nav-links" role="list">
+        <a href="#objective" role="listitem" onClick={go(() => scrollToHash('#objective', { duration: 1.05 }))}>
           OBJECTIVE
         </a>
-        <a
-          href="#atlas"
-          onClick={(e) => {
-            e.preventDefault()
-            onNavAtlas?.(e)
-          }}
-        >
-          ATLAS
-        </a>
-        <a
-          href="#journey"
-          onClick={(e) => {
-            e.preventDefault()
-            onNavJourney?.(e)
-          }}
-        >
-          JOURNEY
-        </a>
-        <a
-          href="#fleet"
-          onClick={(e) => {
-            e.preventDefault()
-            onNavCoda?.(e)
-          }}
-        >
-          FLEET
-        </a>
+        <a href="#atlas" role="listitem" onClick={go(onNavAtlas)}>ATLAS</a>
+        <a href="#journey" role="listitem" onClick={go(onNavJourney)}>JOURNEY</a>
+        <a href="#fleet" role="listitem" onClick={go(onNavCoda)}>FLEET</a>
       </div>
       <motion.div className="nav-progress" style={{ scaleX, width: '100%' }} />
     </nav>
