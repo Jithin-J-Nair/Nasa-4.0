@@ -1048,7 +1048,8 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 }
 
 /* Mars Meridiani — large arc hotspot wheel docks left */
-.mars-hotspot-wheel-hud {
+.mars-hotspot-wheel-hud,
+.moon-hotspot-wheel-hud {
   position: fixed;
   left: 0;
   top: var(--nav-h);
@@ -1069,58 +1070,76 @@ body.is-coarse .hero-leftover { cursor: pointer; }
     transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
     visibility 0.45s;
 }
-.mars-hotspot-wheel-hud.is-on {
+.mars-hotspot-wheel-hud.is-on,
+.moon-hotspot-wheel-hud.is-on {
   opacity: 1;
   visibility: visible;
   transform: translate3d(0, 0, 0);
   pointer-events: none;
 }
-.mars-hotspot-wheel-hud:not(.is-on) {
+.mars-hotspot-wheel-hud:not(.is-on),
+.moon-hotspot-wheel-hud:not(.is-on) {
   pointer-events: none !important;
 }
-.mars-hotspot-wheel-kicker {
+.mars-hotspot-wheel-kicker,
+.moon-hotspot-wheel-kicker {
   pointer-events: none;
   margin: 0 0 0.65rem;
   padding-left: 1.6rem;
-  color: rgba(255, 200, 160, 0.55);
   letter-spacing: 0.18em;
   font-size: 0.62rem;
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
 }
-.mars-hotspot-wheel {
+.mars-hotspot-wheel-kicker {
+  color: rgba(255, 200, 160, 0.55);
+}
+.moon-hotspot-wheel-kicker {
+  color: rgba(142, 200, 255, 0.62);
+}
+.mars-hotspot-wheel,
+.moon-hotspot-wheel {
   /* Root is pass-through — only option labels capture pointer/wheel */
   pointer-events: none;
   height: min(84vh, 760px);
-  /* Build default body face — Space Grotesk */
   font-family: var(--font-body);
   font-weight: 500;
   letter-spacing: -0.02em;
   touch-action: pan-y;
   overscroll-behavior: auto;
 }
-.mars-hotspot-wheel .option-wheel__item {
+.mars-hotspot-wheel .option-wheel__item,
+.moon-hotspot-wheel .option-wheel__item {
   cursor: pointer;
   pointer-events: auto;
   text-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 18px rgba(0, 0, 0, 0.45);
 }
-.mars-hotspot-wheel .option-wheel__item--selected {
+.mars-hotspot-wheel .option-wheel__item--selected,
+.moon-hotspot-wheel .option-wheel__item--selected {
   font-weight: 600;
 }
 @media (max-width: 768px) {
-  .mars-hotspot-wheel-hud {
-    /* Mobile shares the grammar — compact bottom sheet, not exile */
+  .mars-hotspot-wheel-hud,
+  .moon-hotspot-wheel-hud {
+    /* Mobile — compact bottom sheet under atlas/mars stage */
     top: auto;
-    bottom: 5.5rem;
+    bottom: max(5.5rem, calc(env(safe-area-inset-bottom) + 4.25rem));
     left: 0;
     right: 0;
     width: 100%;
-    height: min(38vh, 280px);
+    height: min(36vh, 260px);
     padding: 0 0.5rem;
+    background: linear-gradient(0deg, rgba(3, 4, 10, 0.72) 0%, rgba(3, 4, 10, 0.28) 55%, transparent 100%);
   }
-  .mars-hotspot-wheel {
+  .mars-hotspot-wheel,
+  .moon-hotspot-wheel {
     width: 100%;
     height: 100%;
     font-size: clamp(14px, 3.6vw, 18px);
+  }
+  .mars-hotspot-wheel-kicker,
+  .moon-hotspot-wheel-kicker {
+    padding-left: 1rem;
+    margin-bottom: 0.35rem;
   }
 }
 .atlas-heading {
@@ -1250,6 +1269,55 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   box-shadow: 0 0 0 3px rgba(142, 200, 255, 0.18), 0 0 14px rgba(142, 200, 255, 0.4);
   transform: scale(1.15);
   outline: none;
+}
+/* Phone / coarse — big invisible hit pad, keep a readable pin via ::before */
+@media (max-width: 768px), (pointer: coarse) {
+  .moon-hotspot.is-touch .moon-hotspot-hit,
+  .moon-hotspot-hit {
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+  .moon-hotspot-hit::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    background: rgba(142, 200, 255, 0.45);
+    box-shadow: 0 0 0 3px rgba(142, 200, 255, 0.16), 0 0 14px rgba(142, 200, 255, 0.35);
+  }
+  .moon-hotspot-hit--mars::before {
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border-color: rgba(255, 210, 170, 0.9);
+    background: rgba(255, 180, 120, 0.5);
+    box-shadow: 0 0 0 2px rgba(255, 180, 120, 0.18), 0 0 12px rgba(255, 160, 90, 0.4);
+  }
+  .moon-hotspot-hit.on::before,
+  .moon-hotspot-hit:focus-visible::before {
+    transform: scale(1.2);
+    background: rgba(142, 200, 255, 0.85);
+  }
+  .moon-hotspot-limb {
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+  }
+  .moon-hotspot-card {
+    width: min(78vw, 260px);
+    max-height: min(42vh, 320px);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 .moon-hotspot-card {
   position: absolute;

@@ -518,6 +518,7 @@ function SiteBeacon({
   interactive = false,
   visibleRef,
   cardOpen = false,
+  mobile = false,
   onHover,
   onLeave,
   onOpen,
@@ -621,23 +622,34 @@ function SiteBeacon({
     limbMesh.current.material.opacity = 0.22 + sonar * 0.45
   })
 
+  const pinR = mobile ? 0.014 : 0.0075
+  const limbR = mobile ? 0.011 : 0.006
+  const openSite = (e) => {
+    e?.stopPropagation?.()
+    onOpen?.(site)
+  }
+  const revealSite = (e) => {
+    e?.stopPropagation?.()
+    onReveal?.(site)
+  }
+
   return (
     <>
       <group ref={frontRef} position={posArr} visible={false}>
         <mesh ref={frontMesh} renderOrder={2}>
-          <sphereGeometry args={[0.0075, 12, 12]} />
+          <sphereGeometry args={[pinR, 12, 12]} />
           <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
         </mesh>
         {interactive && (
           <Html
             center
-            distanceFactor={site.body === 'mars' ? 3.4 : 2.35}
+            distanceFactor={site.body === 'mars' ? (mobile ? 2.8 : 3.4) : (mobile ? 2.0 : 2.35)}
             zIndexRange={[80, 0]}
             style={{ pointerEvents: 'none' }}
             occlude={false}
             wrapperClass="hotspot-html"
           >
-            <div className={`moon-hotspot ${site.body === 'mars' ? 'moon-hotspot--mars' : ''}`} ref={uiRef} style={{ opacity: 0, visibility: 'hidden' }}>
+            <div className={`moon-hotspot ${site.body === 'mars' ? 'moon-hotspot--mars' : ''} ${mobile ? 'is-touch' : ''}`} ref={uiRef} style={{ opacity: 0, visibility: 'hidden' }}>
               <button
                 type="button"
                 className={`moon-hotspot-hit ${site.body === 'mars' ? 'moon-hotspot-hit--mars' : ''} ${cardOpen ? 'on' : ''}`}
@@ -646,7 +658,7 @@ function SiteBeacon({
                 onFocus={() => onHover?.(site)}
                 onMouseLeave={() => onLeave?.(site)}
                 onBlur={() => onLeave?.(site)}
-                onClick={() => onOpen?.(site)}
+                onClick={openSite}
               />
               {cardOpen && (
                 <article
@@ -677,25 +689,25 @@ function SiteBeacon({
       {/* Limb echo — far-side sites pulse on the silhouette to invite a drag/rotate */}
       <group ref={limbRef} visible={false}>
         <mesh ref={limbMesh} renderOrder={3}>
-          <sphereGeometry args={[0.006, 10, 10]} />
+          <sphereGeometry args={[limbR, 10, 10]} />
           <meshBasicMaterial color={color} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
         </mesh>
         {interactive && (
           <Html
             center
-            distanceFactor={2.6}
+            distanceFactor={mobile ? 2.2 : 2.6}
             zIndexRange={[70, 0]}
             style={{ pointerEvents: 'none' }}
             occlude={false}
             wrapperClass="hotspot-html"
           >
-            <div className="moon-hotspot moon-hotspot--limb" ref={limbUiRef} style={{ opacity: 0, visibility: 'hidden' }}>
+            <div className={`moon-hotspot moon-hotspot--limb ${mobile ? 'is-touch' : ''}`} ref={limbUiRef} style={{ opacity: 0, visibility: 'hidden' }}>
               <button
                 type="button"
                 className="moon-hotspot-limb"
                 aria-label={`Rotate to reveal ${site.name}`}
                 title={`Drag to reveal ${site.name}`}
-                onClick={() => onReveal?.(site)}
+                onClick={revealSite}
               >
                 <span className="moon-hotspot-limb__ring" aria-hidden />
                 <span className="moon-hotspot-limb__ring moon-hotspot-limb__ring--delay" aria-hidden />
@@ -842,7 +854,7 @@ function BodySphere({
             extensions={{ derivatives: true }}
           />
         </mesh>
-        {!mobile && sites.map((site) => (
+        {sites.map((site) => (
           <SiteBeacon
             key={site.id}
             site={site}
@@ -851,6 +863,7 @@ function BodySphere({
             interactive={hotspotsInteractive}
             visibleRef={beaconsVisibleRef}
             cardOpen={cardSiteId === site.id}
+            mobile={mobile}
             onHover={onHotspotHover}
             onLeave={onHotspotLeave}
             onOpen={onHotspotOpen}

@@ -53,6 +53,8 @@ const SPRING = { stiffness: 140, damping: 26, mass: 0.9 }
 const HERO_LEFTOVER = ARTIFACTS.find((a) => a.id === 'a11-lm')
 const MARS_HOTSPOT_SITES = ARTIFACTS.filter((a) => a.body === 'mars' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
 const MARS_HOTSPOT_LABELS = MARS_HOTSPOT_SITES.map((a) => a.name)
+const MOON_HOTSPOT_SITES = ARTIFACTS.filter((a) => a.body === 'moon' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
+const MOON_HOTSPOT_LABELS = MOON_HOTSPOT_SITES.map((a) => a.name)
 const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789░▒▓█/<>=+#*'
 
 function LineReveal({ children, delay = 0, className = '' }) {
@@ -729,6 +731,52 @@ function MarsHotspotWheel({ active, selectedId, onSelect }) {
           aria-label="Mars hotspot selector"
           onChange={(index) => {
             const site = MARS_HOTSPOT_SITES[index]
+            if (site) onSelect?.(site)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Moon Atlas wheel — phone/desktop picker matching Mars grammar (ice grade) */
+function MoonHotspotWheel({ active, selectedId, onSelect }) {
+  const foundIdx = MOON_HOTSPOT_SITES.findIndex((s) => s.id === selectedId)
+  const selectedIdx = foundIdx >= 0
+    ? foundIdx
+    : Math.max(0, MOON_HOTSPOT_SITES.findIndex((s) => s.id === 'a11-lm'))
+  return (
+    <div
+      className={`moon-hotspot-wheel-hud ${active ? 'is-on' : ''}`}
+      aria-hidden={!active}
+      aria-label="Moon hotspot wheel"
+    >
+      <p className="kicker moon-hotspot-wheel-kicker">MOON · HOTSPOTS</p>
+      {active && (
+        <OptionWheel
+          key="moon-hotspot-wheel"
+          items={MOON_HOTSPOT_LABELS}
+          defaultSelected={selectedIdx}
+          selected={selectedIdx}
+          textColor="#7a8496"
+          activeColor="#d7ebff"
+          side="left"
+          fontSize={1.85}
+          spacing={1.58}
+          curve={2.2}
+          tilt={12}
+          blur={1.2}
+          fade={0.16}
+          minOpacity={0.12}
+          smoothing={520}
+          inset={28}
+          loop={false}
+          draggable
+          soundUrl=""
+          className="moon-hotspot-wheel"
+          aria-label="Moon hotspot selector"
+          onChange={(index) => {
+            const site = MOON_HOTSPOT_SITES[index]
             if (site) onSelect?.(site)
           }}
         />
@@ -1480,6 +1528,11 @@ export default function App() {
           </ErrorBoundary>
           <div className="sf-veil" aria-hidden />
 
+          <MoonHotspotWheel
+            active={atlasLock && !booting}
+            selectedId={focusSiteId}
+            onSelect={onMarsHotspotSelect}
+          />
           <MarsHotspotWheel
             active={marsLock && !atlasLock && !booting && chromeKill < 0.55}
             selectedId={focusSiteId}
