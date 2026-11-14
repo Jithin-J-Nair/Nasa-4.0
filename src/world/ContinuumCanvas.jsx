@@ -95,9 +95,9 @@ function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
       if (!dragging.current) return
       const dx = e.clientX - lastClientX.current
       lastClientX.current = e.clientX
-      // Grab-the-surface: drag right → surface follows finger (negative Y yaw from +Z camera)
+      // Drag left → surface moves left (right-to-left spin); drag right → left-to-right
       const radPerPx = (Math.PI * 1.25) / Math.max(1, size.width)
-      targetYaw.current -= dx * radPerPx
+      targetYaw.current += dx * radPerPx
     }
 
     el.addEventListener('pointerdown', onDown)
