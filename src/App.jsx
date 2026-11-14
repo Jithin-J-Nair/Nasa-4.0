@@ -1065,6 +1065,8 @@ export default function App() {
   const [actLabel, setActLabel] = useState('ARRIVAL')
   const [atlasLock, setAtlasLock] = useState(false)
   const [marsLock, setMarsLock] = useState(false)
+  /** Recover/Fleet in view — force-hide Mars wheel so it never covers those sections */
+  const [pastMeridiani, setPastMeridiani] = useState(false)
   const [focusSiteId, setFocusSiteId] = useState('a11-lm')
   const [cardSiteId, setCardSiteId] = useState(null)
   const mainRef = useRef(null)
@@ -1106,13 +1108,39 @@ export default function App() {
     preloadPlanetTextures(mobile)
   }, [mobile])
 
+  // Hide Mars HUD as soon as Recover enters the viewport (film progress can lag the layout)
+  useEffect(() => {
+    if (booting) return undefined
+    const recover = document.getElementById('recover')
+    if (!recover || typeof IntersectionObserver === 'undefined') return undefined
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        const top = entry.boundingClientRect.top
+        const past = entry.isIntersecting || top < window.innerHeight * 0.72
+        setPastMeridiani((prev) => (prev === past ? prev : past))
+      },
+      { threshold: [0, 0.01, 0.08, 0.2], rootMargin: '0px 0px -18% 0px' },
+    )
+    io.observe(recover)
+    return () => io.disconnect()
+  }, [booting])
+
+  useEffect(() => {
+    if (!pastMeridiani) return
+    setCardSiteId((id) => {
+      const cur = ARTIFACTS.find((a) => a.id === id)
+      return cur?.body === 'mars' ? null : id
+    })
+  }, [pastMeridiani])
+
   const onFilmSample = useCallback((sample) => {
     soundRef.current?.setFilm(sample)
     if (sample?.label) setActLabel((prev) => (prev === sample.label ? prev : sample.label))
     // Dual-path Mars stage lock — only commit when the value actually changes
-    const marsOn = !atlasLock && (sample?.focus === 'mars' || sample?.focus === 'storm')
+    // Never keep Meridiani HUD alive once Recover has taken the page
+    const marsOn = !atlasLock && !pastMeridiani && (sample?.focus === 'mars' || sample?.focus === 'storm')
     setMarsLock((prev) => (prev === marsOn ? prev : marsOn))
-  }, [atlasLock])
+  }, [atlasLock, pastMeridiani])
 
   const onMoonReady = useCallback(() => {
     moonReadyResolve.current?.()
@@ -1296,11 +1324,11 @@ export default function App() {
                 onMoonReady={onMoonReady}
                 onMarsActive={onMarsActive}
                 atlasLock={atlasLock}
-                marsLock={marsLock && !atlasLock}
+                marsLock={marsLock && !atlasLock && !pastMeridiani}
                 focusSiteId={focusSiteId}
                 moonHotspotsInteractive={atlasLock && !mobile}
-                marsHotspotsInteractive={marsLock && !atlasLock && !mobile}
-                cardSiteId={cardSiteId}
+                marsHotspotsInteractive={marsLock && !atlasLock && !pastMeridiani && !mobile}
+                cardSiteId={pastMeridiani ? null : cardSiteId}
                 onHotspotHover={onHotspotHover}
                 onHotspotLeave={onHotspotLeave}
                 onHotspotOpen={openDossier}
@@ -1311,7 +1339,7 @@ export default function App() {
           <div className="sf-veil" aria-hidden />
 
           <MarsHotspotWheel
-            active={marsLock && !atlasLock && !mobile && !booting}
+            active={marsLock && !atlasLock && !pastMeridiani && !mobile && !booting}
             selectedId={focusSiteId}
             onSelect={onMarsHotspotSelect}
           />

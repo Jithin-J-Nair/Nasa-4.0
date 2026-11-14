@@ -869,7 +869,8 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   left: 0;
   top: var(--nav-h);
   bottom: 0;
-  z-index: 120;
+  /* Below Recover/Fleet story content — never paint over dossiers */
+  z-index: 40;
   width: min(56vw, 620px);
   pointer-events: none;
   display: flex;
@@ -880,15 +881,18 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   visibility: hidden;
   transform: translate3d(-14px, 0, 0);
   transition:
-    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1),
-    visibility 0.7s;
+    opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0.45s;
 }
 .mars-hotspot-wheel-hud.is-on {
   opacity: 1;
   visibility: visible;
   transform: translate3d(0, 0, 0);
   pointer-events: none;
+}
+.mars-hotspot-wheel-hud:not(.is-on) {
+  pointer-events: none !important;
 }
 .mars-hotspot-wheel-kicker {
   pointer-events: none;
@@ -1627,14 +1631,22 @@ html.lenis, html.lenis body { height: auto; }
 
 .heartbeats {
   position: relative;
+  z-index: 90;
+  isolation: isolate;
   padding: clamp(3rem, 8vw, 5rem) clamp(1.25rem, 4vw, 4rem);
   /* Same horizontal rhythm as Objective / Fleet for one-page continuity */
   scroll-margin-top: var(--nav-h);
+  /* Solid stage so Meridiani HUD cannot ghost through */
+  background: linear-gradient(180deg, rgba(2, 2, 6, 0.55) 0%, rgba(2, 2, 6, 0.92) 18%, #020206 40%);
 }
 .story-plate .fleet-section {
+  position: relative;
+  z-index: 90;
+  isolation: isolate;
   padding-top: clamp(2.5rem, 7vw, 4.5rem);
   padding-bottom: clamp(3rem, 8vw, 5rem);
   scroll-margin-top: var(--nav-h);
+  background: #020206;
 }
 .story-plate .fleet-section .section-num,
 .story-plate .challenge-objective .section-num {
