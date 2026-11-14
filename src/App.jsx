@@ -58,9 +58,6 @@ const FILTERS = [
 ]
 /** Hero challenge plate — NASA leftover hardware (Eagle LM) · Tranquility Base */
 const HERO_LEFTOVER = ARTIFACTS.find((a) => a.id === 'a11-lm')
-const MOON_SITES = ARTIFACTS.filter((a) => a.body === 'moon')
-const MARS_SITES = ARTIFACTS.filter((a) => a.body === 'mars')
-
 const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789░▒▓█/<>=+#*'
 
 function LineReveal({ children, delay = 0, className = '' }) {
@@ -542,12 +539,8 @@ function Heartbeats({ onOpen, reduced }) {
 }
 
 function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSiteId }) {
-  const { setLabel } = useCursor()
   const sectionRef = useRef(null)
-  const [body, setBody] = useState('moon')
-  const [hover, setHover] = useState(null)
   const [active, setActive] = useState(false)
-  const sites = body === 'moon' ? MOON_SITES : MARS_SITES
 
   useEffect(() => {
     const el = sectionRef.current
@@ -560,7 +553,8 @@ function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSi
         setActive(on)
         onActiveChange?.(on)
         if (on && !wasOn) {
-          onCardSite?.(body === 'moon' ? 'a11-lm' : 'opportunity')
+          onFocusSite?.('a11-lm')
+          onCardSite?.('a11-lm')
         }
         if (!on && wasOn) onCardSite?.(null)
         wasOn = on
@@ -569,84 +563,30 @@ function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSi
     )
     io.observe(el)
     return () => io.disconnect()
-  }, [onActiveChange, onCardSite, body])
+  }, [onActiveChange, onCardSite, onFocusSite])
 
+  // Keep focus in sync with the open moon hotspot card
   useEffect(() => {
-    const id = hover?.id || cardSiteId || (body === 'moon' ? 'a11-lm' : 'opportunity')
-    onFocusSite?.(id)
-  }, [hover, cardSiteId, body, onFocusSite])
+    if (active) onFocusSite?.(cardSiteId || 'a11-lm')
+  }, [active, cardSiteId, onFocusSite])
 
   const panel = (
-    <>
-      <header className="atlas-heading">
-        <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={active} /></p>
-        <h2 className="display atlas-title">
-          Where they<br /><span className="outline-text">still sit</span>
-        </h2>
-        <p className="atlas-lede">
-          Every NASA photograph is anchored to Mean Earth / Polar Axis (Moon) or planetocentric east longitude (Mars).
-          Hover the centered hotspot — or pick a site — for the NASA image and coordinates.
-        </p>
-      </header>
-
-      <div className="atlas-tabs" role="tablist" aria-label="Body">
-        {['moon', 'mars'].map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={body === id}
-            className={body === id ? 'on' : ''}
-            onClick={() => { setBody(id); setHover(null) }}
-          >
-            {id.toUpperCase()}
-          </button>
-        ))}
-      </div>
-
-      <ul className="atlas-site-list" aria-label={`${body} sites`}>
-        {sites.map((site) => {
-          const isOn = hover?.id === site.id || cardSiteId === site.id
-          return (
-            <li key={site.id}>
-              <button
-                type="button"
-                className={`atlas-site ${site.status === 'ACTIVE' ? 'live' : ''} ${isOn ? 'active' : ''}`}
-                aria-label={`${site.name} at ${site.coords}`}
-                onMouseEnter={() => {
-                  setHover(site)
-                  setLabel('SITE')
-                  onCardSite?.(site.id)
-                }}
-                onMouseLeave={() => {
-                  setHover((h) => (h?.id === site.id ? null : h))
-                  setLabel('')
-                  onCardSite?.(null)
-                }}
-                onFocus={() => {
-                  setHover(site)
-                  setLabel('SITE')
-                  onCardSite?.(site.id)
-                }}
-                onClick={() => onOpen(site)}
-              >
-                <span className="atlas-site-dot" aria-hidden />
-                <span className="atlas-site-copy">
-                  <span className="atlas-site-name">{site.name}</span>
-                  <span className="mono atlas-site-meta">{site.coords}</span>
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </>
+    <header className="atlas-heading">
+      <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={active} /></p>
+      <h2 className="display atlas-title">
+        Where they<br /><span className="outline-text">still sit</span>
+      </h2>
+      <p className="atlas-lede">
+        Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
+        Hover a hotspot on the Moon for the NASA image and exact location.
+      </p>
+    </header>
   )
 
   return (
     <section
       ref={sectionRef}
-      className={`section location-atlas body-${body} ${active ? 'is-active' : ''}`}
+      className={`section location-atlas body-moon ${active ? 'is-active' : ''}`}
       id="atlas"
       aria-label="Hardware locations"
     >

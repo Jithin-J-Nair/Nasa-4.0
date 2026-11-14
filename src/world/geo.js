@@ -44,19 +44,20 @@ export function equirectXY(lat, lon, { pad = 4 } = {}) {
 /** Film tip held while Atlas is on screen — gentle centered zoom, site facing lens. */
 export const ATLAS_HOLD_PROGRESS = 0.20
 
+/** Aim targets — NSSDC / LROC Mean Earth–Polar Axis (match artifacts.js lat/lon). */
 export const SITE_FOCUS = {
-  'a11-lm': { body: 'moon', aimLon: 23.47, aimLat: 0.67 },
-  'a12-alsep': { body: 'moon', aimLon: -23.42, aimLat: -3.01 },
-  surveyor3: { body: 'moon', aimLon: -23.42, aimLat: -3.02 },
-  'a14-alsep': { body: 'moon', aimLon: -17.48, aimLat: -3.64 },
-  'a15-lrv': { body: 'moon', aimLon: 3.64, aimLat: 26.13 },
-  'a16-lrv': { body: 'moon', aimLon: 15.50, aimLat: -8.97 },
-  'a17-lrv': { body: 'moon', aimLon: 30.78, aimLat: 20.19 },
-  'a11-lrrr': { body: 'moon', aimLon: 23.47, aimLat: 0.67 },
-  opportunity: { body: 'mars', aimLon: -5.5, aimLat: -2.28 },
-  spirit: { body: 'mars', aimLon: 175.47, aimLat: -14.57 },
-  phoenix: { body: 'mars', aimLon: -125.75, aimLat: 68.22 },
-  insight: { body: 'mars', aimLon: 135.62, aimLat: 4.50 },
+  'a11-lm': { body: 'moon', aimLon: 23.47314, aimLat: 0.67416 },
+  'a12-alsep': { body: 'moon', aimLon: -23.4249, aimLat: -3.0098 },
+  surveyor3: { body: 'moon', aimLon: -23.418, aimLat: -3.0162 },
+  'a14-alsep': { body: 'moon', aimLon: -17.47768, aimLat: -3.64419 },
+  'a15-lrv': { body: 'moon', aimLon: 3.63803, aimLat: 26.13174 },
+  'a16-lrv': { body: 'moon', aimLon: 15.5037, aimLat: -8.9729 },
+  'a17-lrv': { body: 'moon', aimLon: 30.7769, aimLat: 20.1896 },
+  'a11-lrrr': { body: 'moon', aimLon: 23.47307, aimLat: 0.67345 },
+  opportunity: { body: 'mars', aimLon: -5.5043, aimLat: -2.2795 },
+  spirit: { body: 'mars', aimLon: 175.4726, aimLat: -14.5684 },
+  phoenix: { body: 'mars', aimLon: -125.7492, aimLat: 68.2188 },
+  insight: { body: 'mars', aimLon: 135.6234, aimLat: 4.5024 },
   sojourner: { body: 'mars', aimLon: -33.22, aimLat: 19.13 },
   pioneer10: { body: 'deep' },
   voyager1: { body: 'deep' },

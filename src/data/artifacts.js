@@ -1,3 +1,8 @@
+/**
+ * Leftover hardware — Moon lat/lon are Mean Earth / Polar Axis (DE421),
+ * matching NSSDC lunar_sites + LROC anthropogenic coordinates.
+ * @see https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html
+ */
 export const ARTIFACTS = [
   {
     id: 'a11-lm', body: 'moon', status: 'SILENT', year: 1969, mission: 'Apollo 11',

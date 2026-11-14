@@ -668,6 +668,7 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   flex: 0 0 auto;
   margin: 0;
   padding: 0;
+  pointer-events: none;
 }
 .atlas-title {
   font-size: clamp(2.1rem, 5vw, 3.5rem);
@@ -681,98 +682,6 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   margin: 0;
   font-size: 0.95rem;
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-}
-.atlas-tabs {
-  display: inline-flex;
-  gap: 0.35rem;
-  margin-bottom: 1rem;
-  padding: 0.3rem;
-  border: 1px solid var(--line);
-  background: rgba(7, 7, 12, 0.55);
-}
-.atlas-tabs button {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.16em;
-  padding: 0.55rem 0.9rem;
-  color: var(--ink-mute);
-  background: transparent;
-  border: none;
-}
-.atlas-tabs button.on {
-  color: var(--ink);
-  background: rgba(142, 200, 255, 0.12);
-}
-.atlas-site-list {
-  list-style: none;
-  margin: 0;
-  display: grid;
-  gap: 0.3rem;
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: min(42vh, 360px);
-  overflow: auto;
-  padding: 0.45rem;
-  scrollbar-width: thin;
-  background: rgba(7, 7, 12, 0.42);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-}
-.atlas-overlay--hud .atlas-site-list {
-  max-height: none;
-}
-.atlas-site {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 14px 1fr;
-  gap: 0.75rem;
-  align-items: start;
-  text-align: left;
-  padding: 0.7rem 0.85rem;
-  border: 1px solid var(--line);
-  background: rgba(7, 7, 12, 0.45);
-  color: inherit;
-  cursor: none;
-}
-body.is-coarse .atlas-site { cursor: pointer; }
-.atlas-site:hover,
-.atlas-site:focus-visible,
-.atlas-site.active {
-  border-color: rgba(142, 200, 255, 0.4);
-  background: rgba(142, 200, 255, 0.08);
-}
-.atlas-site-dot {
-  width: 8px;
-  height: 8px;
-  margin-top: 0.35rem;
-  border-radius: 50%;
-  background: var(--rust);
-  box-shadow: 0 0 0 3px rgba(255, 122, 69, 0.18);
-}
-.atlas-site.live .atlas-site-dot {
-  background: var(--ice);
-  box-shadow: 0 0 0 3px rgba(142, 200, 255, 0.2);
-}
-.atlas-site-copy {
-  display: grid;
-  gap: 0.2rem;
-  min-width: 0;
-}
-.atlas-site-name {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 0.98rem;
-  letter-spacing: -0.02em;
-}
-.atlas-site-meta {
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
-  color: var(--ink-mute);
-}
-.atlas-telemetry {
-  padding: 1.35rem 1.4rem;
-  border-radius: 16px;
-  min-height: 0;
 }
 .moon-hotspot {
   position: relative;
