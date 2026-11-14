@@ -97,14 +97,12 @@ img, svg { display: block; max-width: 100%; }
   position: relative;
   z-index: 2;
 }
-/* Archive+ only — never content-visibility inside the continuous story plate */
-.sf-chapters > .section#archive,
+/* Footer only — never content-visibility inside the continuous story plate */
 .sf-chapters > .footer {
   content-visibility: auto;
   contain-intrinsic-size: auto 720px;
 }
 .fleet-card,
-.archive-card,
 .heartbeat-cell {
   contain: content;
 }

@@ -51,17 +51,9 @@ import '@fontsource/unbounded/700.css'
 
 const EASE = [0.22, 1, 0.36, 1]
 const SPRING = { stiffness: 140, damping: 26, mass: 0.9 }
-const SPRING_SOFT = { stiffness: 90, damping: 24, mass: 1 }
 const HEARTBEATS = ['opportunity', 'a11-lm', 'voyager1']
   .map((id) => ARTIFACTS.find((a) => a.id === id))
   .filter(Boolean)
-const FILTERS = [
-  { id: 'all', label: 'ALL' },
-  { id: 'moon', label: 'MOON' },
-  { id: 'mars', label: 'MARS' },
-  { id: 'deep', label: 'DEEP' },
-  { id: 'active', label: 'LIVE' },
-]
 /** Hero challenge plate — NASA leftover hardware (Eagle LM) · Tranquility Base */
 const HERO_LEFTOVER = ARTIFACTS.find((a) => a.id === 'a11-lm')
 const MARS_HOTSPOT_SITES = ARTIFACTS.filter((a) => a.body === 'mars' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
@@ -922,82 +914,6 @@ function Fleet({ onOpen }) {
   )
 }
 
-function Archive({ onOpen }) {
-  const [filter, setFilter] = useState('all')
-  const { setLabel } = useCursor()
-  const filtered = useMemo(() => ARTIFACTS.filter((a) => {
-    if (filter === 'all') return true
-    if (filter === 'active') return a.status === 'ACTIVE' || a.status === 'COASTING'
-    return a.body === filter
-  }), [filter])
-  const activeIdx = FILTERS.findIndex((f) => f.id === filter)
-
-  return (
-    <section className="section" id="archive" aria-label="Archive of discarded equipment">
-      <span className="section-rail">04 · ARCHIVE</span>
-      <span className="section-num" aria-hidden>04</span>
-      <p className="kicker"><ScrambleLine text="FILTERED INDEX · NSSDCA CROSSWALK" active /></p>
-      <h2 className="display" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', margin: '0.75rem 0 0' }}>
-        Browse the <span className="grad-text">discarded</span>
-      </h2>
-      <div className="archive-filters glass-1" role="tablist" aria-label="Body filter">
-        <motion.div
-          className="indicator"
-          animate={{ x: activeIdx * 88, width: 84 }}
-          transition={{ type: 'spring', ...SPRING }}
-          style={{ width: 84 }}
-        />
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            role="tab"
-            aria-selected={filter === f.id}
-            onClick={() => setFilter(f.id)}
-            style={{ color: filter === f.id ? 'var(--ink)' : undefined, minWidth: 84 }}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-      <motion.div className="archive-grid" layout>
-        <AnimatePresence mode="popLayout">
-          {filtered.map((a) => (
-            <motion.button
-              layout
-              key={a.id}
-              type="button"
-              className="archive-card glass-2 corner-brackets"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ type: 'spring', ...SPRING_SOFT }}
-              onClick={() => onOpen(a)}
-              onMouseEnter={() => setLabel('OPEN FILE')}
-              onMouseLeave={() => setLabel('')}
-              aria-label={`Open ${a.name}`}
-              style={{ textAlign: 'left', width: '100%', padding: 0, overflow: 'hidden', gap: 0 }}
-            >
-              {a.image && (
-                <div className={`nasa-media body-${a.body}`} style={{ marginBottom: 0, aspectRatio: '16/9', borderRadius: 0 }}>
-                  <img src={a.image} alt={a.imageAlt || a.name} loading="lazy" decoding="async" />
-                  <span className="credit">{a.credit} · {a.coords}</span>
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.85rem 1.1rem 0' }}>
-                <span className="mono" style={{ fontSize: '0.65rem', color: 'var(--ink-mute)' }}>{a.year} · {a.body.toUpperCase()}</span>
-                <span className={`status-dot ${a.status === 'ACTIVE' ? 'live' : a.status === 'COASTING' ? 'coast' : ''}`} />
-              </div>
-              <h3 className="display" style={{ fontSize: '1.25rem', padding: '0.35rem 1.1rem 0' }}>{a.name}</h3>
-              <p style={{ color: 'var(--ink-dim)', fontSize: '0.88rem', lineHeight: 1.5, flex: 1, padding: '0.5rem 1.1rem 1.15rem' }}>{a.story.slice(0, 120)}…</p>
-            </motion.button>
-          ))}
-        </AnimatePresence>
-      </motion.div>
-    </section>
-  )
-}
-
 /** Prefer a calm English voice for hardware monologues. */
 function pickHardwareVoice() {
   if (typeof window === 'undefined' || !window.speechSynthesis) return null
@@ -1742,10 +1658,6 @@ export default function App() {
                 <Fleet onOpen={openDossier} />
               </ErrorBoundary>
             </div>
-
-            <ErrorBoundary>
-              <Archive onOpen={openDossier} />
-            </ErrorBoundary>
 
             <Footer />
           </div>
