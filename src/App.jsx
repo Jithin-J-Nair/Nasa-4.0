@@ -654,6 +654,7 @@ img, svg { display: block; max-width: 100%; }
   position: absolute;
   right: clamp(0.5rem, 3vw, 2rem);
   top: 8%;
+  z-index: 0;
   font-family: var(--font-display);
   font-size: clamp(4rem, 14vw, 12rem);
   font-weight: 800;
@@ -662,6 +663,7 @@ img, svg { display: block; max-width: 100%; }
   pointer-events: none;
   user-select: none;
   letter-spacing: -0.06em;
+  mix-blend-mode: normal;
 }
 
 .mag-btn {
@@ -1060,37 +1062,59 @@ body.is-coarse .fleet-card { cursor: pointer; }
 .moon-disc {
   position: relative; aspect-ratio: 1; width: min(100%, 520px); margin: 0 auto;
   border-radius: 50%;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.08),
+    0 0 60px rgba(142,200,255,0.15);
+}
+.moon-disc .moon-surface {
+  position: absolute; inset: 0; border-radius: 50%;
   background:
     radial-gradient(circle at 32% 28%, #e8eef5 0%, #9aa7b8 18%, #5c6678 42%, #2a303c 70%, #0c0e14 100%);
   box-shadow:
-    0 0 0 1px rgba(255,255,255,0.08),
-    0 0 60px rgba(142,200,255,0.15),
     inset -30px -20px 60px rgba(0,0,0,0.45),
     inset 20px 15px 40px rgba(255,255,255,0.08);
-  animation: moonSpin 120s linear infinite;
-  overflow: hidden;
+  animation: moonSpin 160s linear infinite;
+  pointer-events: none;
+  z-index: 0;
 }
 @keyframes moonSpin { to { transform: rotate(360deg); } }
 .moon-disc .tycho {
   position: absolute; left: 58%; top: 72%; width: 8%; height: 8%; border-radius: 50%;
   background: radial-gradient(circle, #fff 0%, rgba(255,255,255,0.2) 40%, transparent 70%);
   box-shadow: 0 0 20px rgba(255,255,255,0.25);
+  pointer-events: none;
 }
 .moon-disc .tycho::before {
   content: ""; position: absolute; left: 50%; top: 50%; width: 600%; height: 600%;
   margin: -300% 0 0 -300%;
   background: conic-gradient(from 0deg, transparent 0 8%, rgba(255,255,255,0.07) 8% 9%, transparent 9% 20%, rgba(255,255,255,0.05) 20% 21%, transparent 21% 40%, rgba(255,255,255,0.06) 40% 41%, transparent 41% 100%);
-  animation: moonSpin 120s linear infinite reverse;
 }
 .moon-pin {
-  position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px;
-  border-radius: 50%; background: var(--rust);
+  position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px;
+  border-radius: 50%; background: transparent;
+  border: none; padding: 0;
+  z-index: 3;
+  cursor: none;
+  display: grid; place-items: center;
+}
+.moon-pin::before {
+  content: "";
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--rust);
   box-shadow: 0 0 0 0 rgba(255,122,69,0.5);
   animation: sonar 2.2s ease-out infinite;
-  z-index: 2;
-  transform: rotate(calc(var(--spin, 0) * -1deg));
 }
-.moon-pin.live { background: var(--ice); }
+.moon-pin.live::before { background: var(--ice); box-shadow: 0 0 0 0 rgba(142,200,255,0.5); animation-name: sonarIce; }
+.moon-pin:focus-visible { outline: 2px solid var(--ice); outline-offset: 2px; }
+#moon h2 {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+  mix-blend-mode: normal;
+  text-shadow: 0 0 40px rgba(7,7,12,0.85);
+}
 .moon-crosshair {
   position: absolute; inset: 0; pointer-events: none; z-index: 1;
 }
@@ -1151,7 +1175,7 @@ body.is-coarse .fleet-card { cursor: pointer; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .moon-disc { animation: none; }
+  .moon-disc .moon-surface { animation: none; }
   .holo-foil::after, .glass-0::before, .glass-1::before, .glass-2::before, .glass-3::before, .glass-4::before { animation: none; }
 }
 
@@ -2907,11 +2931,11 @@ function Stats() {
 function MoonMap({ onOpen }) {
   const [hover, setHover] = useState(null)
   const [zoom, setZoom] = useState(null)
+  const zoomTimer = useRef(null)
   const { setLabel } = useCursorSafe()
   const pins = MOON_PINS
 
   const toXY = (lat, lon) => {
-    // Orthographic nearside projection (centered on 0°E / equator)
     const φ = (lat * Math.PI) / 180
     const λ = (lon * Math.PI) / 180
     const x = 50 + Math.cos(φ) * Math.sin(λ) * 46
@@ -2919,52 +2943,55 @@ function MoonMap({ onOpen }) {
     return { left: `${clamp(x, 6, 94)}%`, top: `${clamp(y, 6, 94)}%` }
   }
 
-  const openPin = (pin) => {
+  const openPin = useCallback((pin) => {
+    if (!pin) return
     const art = ARTIFACTS.find((a) => a.id === pin.id)
+    if (!art) return
+    setHover(pin)
     setZoom(pin.id)
-    setTimeout(() => {
-      if (art) onOpen(art)
+    setLabel('OPEN FILE')
+    if (zoomTimer.current) clearTimeout(zoomTimer.current)
+    zoomTimer.current = setTimeout(() => {
+      onOpen(art)
       setZoom(null)
-    }, 480)
-  }
+      setLabel('')
+    }, 420)
+  }, [onOpen, setLabel])
+
+  useEffect(() => () => { if (zoomTimer.current) clearTimeout(zoomTimer.current) }, [])
 
   useEffect(() => {
     const onKey = (e) => {
       if (!['ArrowLeft','ArrowRight','Enter'].includes(e.key)) return
       const idx = hover ? pins.findIndex((p) => p.id === hover.id) : -1
-      if (e.key === 'ArrowRight') {
-        const n = pins[(idx + 1 + pins.length) % pins.length]
-        setHover(n)
-      } else if (e.key === 'ArrowLeft') {
-        const n = pins[(idx - 1 + pins.length) % pins.length]
-        setHover(n)
-      } else if (e.key === 'Enter' && hover) {
-        openPin(hover)
-      }
+      if (e.key === 'ArrowRight') setHover(pins[(idx + 1 + pins.length) % pins.length])
+      else if (e.key === 'ArrowLeft') setHover(pins[(idx - 1 + pins.length) % pins.length])
+      else if (e.key === 'Enter' && hover) openPin(hover)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [hover, pins])
+  }, [hover, pins, openPin])
 
   const hp = hover ? toXY(hover.lat, hover.lon) : null
 
   return (
     <section className="section" id="moon">
       <span className="section-rail">07 · LUNAR MAP</span>
-      <span className="section-num">07</span>
+      <span className="section-num" aria-hidden>07</span>
       <p className="kicker"><ScrambleLine text="LROC ANCHOR POINTS · MEAN EARTH / POLAR AXIS" active /></p>
       <h2 className="display" style={{ fontSize:'clamp(2rem,5vw,3.5rem)', margin:'0.75rem 0 2rem' }}>
         Nearside beacons<br /><span className="outline-text">still on the limb</span>
       </h2>
       <div className="moon-map-wrap">
         <motion.div
-          className="moon-disc blueprint-grid"
-          animate={zoom ? { scale: 1.35, x: 20, y: -10 } : { scale: 1, x: 0, y: 0 }}
+          className="moon-disc"
+          animate={zoom ? { scale: 1.28, x: 12, y: -8 } : { scale: 1, x: 0, y: 0 }}
           transition={{ type: 'spring', ...SPRING }}
-          role="img"
           aria-label="Interactive map of NASA hardware sites on the Moon"
         >
-          <div className="tycho" aria-hidden />
+          <div className="moon-surface blueprint-grid" aria-hidden>
+            <div className="tycho" />
+          </div>
           {hover && hp && (
             <div className="moon-crosshair" aria-hidden>
               <span style={{ left: hp.left, top: 0, bottom: 0, width: 1, transform:'translateX(-0.5px)' }} />
@@ -2973,21 +3000,28 @@ function MoonMap({ onOpen }) {
           )}
           {pins.map((p) => {
             const pos = toXY(p.lat, p.lon)
+            const active = hover?.id === p.id
             return (
               <button
                 key={p.id}
+                type="button"
                 className={`moon-pin ${p.status === 'ACTIVE' ? 'live' : ''}`}
-                style={{ left: pos.left, top: pos.top }}
-                aria-label={`${p.mission} ${p.name}`}
+                style={{
+                  left: pos.left,
+                  top: pos.top,
+                  boxShadow: active ? '0 0 0 1px rgba(142,200,255,0.55)' : undefined,
+                }}
+                aria-label={`Open dossier: ${p.mission} ${p.name}`}
                 onMouseEnter={() => { setHover(p); setLabel('EXPLORE') }}
-                onMouseLeave={() => { setHover(null); setLabel('') }}
-                onFocus={() => setHover(p)}
-                onClick={() => openPin(p)}
+                onMouseLeave={() => { if (!zoom) { setHover((h) => (h?.id === p.id ? null : h)); setLabel('') } }}
+                onFocus={() => { setHover(p); setLabel('EXPLORE') }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); openPin(p) }}
+                onPointerUp={(e) => { if (e.pointerType === 'touch') openPin(p) }}
               />
             )
           })}
-          {hover && (
-            <div className="moon-tooltip glass-3" style={{ left: hp.left, top: `calc(${hp.top} + 16px)`, transform:'translateX(-50%)' }}>
+          {hover && hp && (
+            <div className="moon-tooltip glass-3" style={{ left: hp.left, top: `calc(${hp.top} + 18px)`, transform:'translateX(-50%)' }}>
               <div className="mono" style={{ fontSize:'0.6rem', color:'var(--ice)', marginBottom:4 }}>{hover.mission}</div>
               <div className="display" style={{ fontSize:'0.95rem' }}>{hover.name}</div>
               <Typewriter text={hover.note} active speed={20} className="mono" style={{ fontSize:'0.65rem', color:'var(--ink-dim)' }} />
@@ -3001,13 +3035,16 @@ function MoonMap({ onOpen }) {
               <h3 className="display" style={{ fontSize:'1.6rem', marginBottom:8 }}>{hover.name}</h3>
               <p className="mono" style={{ fontSize:'0.75rem', color:'var(--ink-dim)', marginBottom:12 }}>{hover.coords}</p>
               <p style={{ color:'var(--ink-dim)', lineHeight:1.6 }}>{hover.note}</p>
-              <p className="mono" style={{ fontSize:'0.65rem', marginTop:16, color:'var(--ink-mute)' }}>
-                STATUS · {hover.status} · ARROW KEYS TO STEP · ENTER TO OPEN
+              <p className="mono" style={{ fontSize:'0.65rem', marginTop:12, color:'var(--ink-mute)' }}>
+                STATUS · {hover.status} · ARROWS STEP · ENTER OPENS
               </p>
+              <div style={{ marginTop: '1.1rem' }}>
+                <MagneticButton onClick={() => openPin(hover)}>OPEN DOSSIER</MagneticButton>
+              </div>
             </>
           ) : (
             <p style={{ color:'var(--ink-dim)', lineHeight:1.6 }}>
-              Hover or focus a beacon to pull LROC-anchored coordinates.
+              Select a beacon to pull LROC-anchored coordinates.
               Pins mark Apollo LM/ALSEP/LRV sites, Surveyor 3, and active LRRR arrays
               from the NASA Catalogue of Manmade Material on the Moon.
             </p>
