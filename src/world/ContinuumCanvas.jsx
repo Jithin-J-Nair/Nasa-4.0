@@ -894,11 +894,13 @@ function BodySphere({
           />
         ))}
       </group>
-      {/* Limb atmosphere — soft Fresnel shell, not a flat glow sticker */}
-      <mesh scale={isMars ? 1.055 : 1.045}>
-        <sphereGeometry args={[1, 48, 48]} />
-        <primitive object={atmoMat} attach="material" />
-      </mesh>
+      {/* Mars only — Moon has no atmosphere; the Fresnel shell read as a grey-blue rim */}
+      {isMars && (
+        <mesh scale={1.055}>
+          <sphereGeometry args={[1, 48, 48]} />
+          <primitive object={atmoMat} attach="material" />
+        </mesh>
+      )}
     </group>
   )
 }
