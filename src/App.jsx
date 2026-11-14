@@ -26,13 +26,18 @@ import {
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
 import {
-  Magnet, ClickSpark,
-  GradientText, BlurText, OptionWheel, SplitText,
+  Magnet, ClickSpark, FadeContent, SpotlightCard, TrueFocus, GlareHover,
+  GradientText, BlurText, OptionWheel, SplitText, Noise, ShinyText, DecryptedText,
 } from './bits'
 const FleetShelf = lazy(() => import('./fleet/FleetShelf'))
 import './bits/GradientText/GradientText.css'
 import './bits/SplitText/SplitText.css'
 import './bits/OptionWheel/OptionWheel.css'
+import './bits/TrueFocus/TrueFocus.css'
+import './bits/SpotlightCard/SpotlightCard.css'
+import './bits/Noise/Noise.css'
+import './bits/ShinyText/ShinyText.css'
+import './bits/GlareHover/GlareHover.css'
 
 const ContinuumCanvas = lazy(() => import('./world/ContinuumCanvas'))
 
@@ -90,6 +95,28 @@ function useMediaQuery(query) {
 
 function useIsCoarse() {
   return useMediaQuery('(pointer: coarse)')
+}
+
+
+function FilmGrain({ reduced }) {
+  const coarse = useIsCoarse()
+  if (reduced) return null
+  return (
+    <Noise
+      fixed
+      opacity={coarse ? 0.028 : 0.045}
+      size={coarse ? 1.35 : 1.15}
+      fps={coarse ? 6 : 12}
+      blendMode="soft-light"
+      contrast={0.55}
+      dust={0}
+      scratches={0}
+      scanlines={0}
+      flicker={coarse ? 0 : 0.08}
+      zIndex={48}
+      className="sf-film-grain"
+    />
+  )
 }
 
 function usePrefersReduced() {
@@ -581,7 +608,22 @@ function Hero({ ready, reduced, onOpen }) {
           data-hero-kicker
           style={{ opacity: ready ? undefined : 1 }}
         >
-          Abandoned but not Forgotten
+          {ready ? (
+            <DecryptedText
+              text="Abandoned but not Forgotten"
+              animateOn="view"
+              sequential
+              speed={32}
+              maxIterations={8}
+              characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·"
+              className="hero-challenge-line__glyph"
+              parentClassName="hero-challenge-line__decrypt"
+              encryptedClassName="hero-challenge-line__cipher"
+              scrambleColor="#8ec8ff"
+            />
+          ) : (
+            'Abandoned but not Forgotten'
+          )}
         </p>
         <div data-hero-body style={{ marginBottom: '1.35rem', maxWidth: '40ch' }}>
           <p className="hero-body-blur" style={{ color: 'var(--ink-dim)', fontSize: 'clamp(1.05rem, 2.4vw, 1.3rem)', lineHeight: 1.5, margin: 0 }}>
@@ -595,13 +637,24 @@ function Hero({ ready, reduced, onOpen }) {
             maxOffset={18}
             disabled={shortViewport || coarse || reduced}
           >
-            <MagneticButton
-              href="#objective"
-              onMouseEnter={() => setLabel('ENTER')}
-              onMouseLeave={() => setLabel('')}
+            <GlareHover
+              width="auto"
+              height="auto"
+              background="transparent"
+              borderRadius="999px"
+              borderColor="transparent"
+              glareColor="#8ec8ff"
+              glareOpacity={shortViewport || coarse ? 0 : 0.32}
+              transitionDuration={650}
             >
-              MEET THE LEFTOVERS
-            </MagneticButton>
+              <MagneticButton
+                href="#objective"
+                onMouseEnter={() => setLabel('ENTER')}
+                onMouseLeave={() => setLabel('')}
+              >
+                MEET THE LEFTOVERS
+              </MagneticButton>
+            </GlareHover>
           </Magnet>
         </div>
       </div>
@@ -609,7 +662,16 @@ function Hero({ ready, reduced, onOpen }) {
       {/* Hero keeps Moon stage only — NASA leftover plate lives in Objective, not here */}
 
       <div className="hero-scroll-cue" data-hero-cue aria-hidden style={{ opacity: ready ? undefined : 0.7 }}>
-        <span>SCROLL THE JOURNEY</span>
+        <ShinyText
+          text="SCROLL THE JOURNEY"
+          color="#8b93a7"
+          shineColor="#e8eef5"
+          speed={2.4}
+          shineWidth={36}
+          softness={0.85}
+          trigger="loop"
+          className="hero-scroll-cue__shine"
+        />
         <span className="streak"><i /></span>
       </div>
     </section>
@@ -618,20 +680,55 @@ function Hero({ ready, reduced, onOpen }) {
 
 function ChallengeObjective({ reduced }) {
   const rootRef = useRef(null)
+  const coarse = useIsCoarse()
   useEffect(() => revealOnScroll(rootRef.current, { reduced }), [reduced])
   return (
     <section className="section challenge-objective" id="objective" ref={rootRef} aria-label="Challenge objective">
       <span className="section-rail" data-reveal>01 · OBJECTIVE</span>
       <span className="section-num" aria-hidden>01</span>
       <p className="kicker" data-reveal style={{ marginBottom: '0.85rem' }}>
-        <ScrambleLine text="NASA SPACE APPS 2026 · ABANDONED BUT NOT FORGOTTEN" active />
+        <DecryptedText
+          text="NASA SPACE APPS 2026 · ABANDONED BUT NOT FORGOTTEN"
+          animateOn="view"
+          sequential
+          speed={reduced || coarse ? 18 : 28}
+          maxIterations={reduced || coarse ? 4 : 10}
+          characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·"
+          className="objective-decrypt__glyph"
+          parentClassName="objective-decrypt"
+          encryptedClassName="objective-decrypt__cipher"
+          scrambleColor="#8ec8ff"
+        />
       </p>
-      <h2 className="display" data-reveal style={{ fontSize: 'clamp(2.1rem, 6vw, 4.4rem)', marginBottom: '1.25rem', maxWidth: '16ch' }}>
-        They stayed behind<br />
-        <span className="outline-text">so we could learn.</span>
-      </h2>
+      <div className="objective-focus-wrap" data-reveal>
+        {reduced || coarse ? (
+          <h2 className="display" style={{ fontSize: 'clamp(2.1rem, 6vw, 4.4rem)', marginBottom: '1.25rem', maxWidth: '16ch' }}>
+            They stayed behind<br />
+            <span className="outline-text">so we could learn.</span>
+          </h2>
+        ) : (
+          <TrueFocus
+            sentence="They stayed behind so we could learn."
+            borderColor="#8ec8ff"
+            glowColor="rgba(142, 200, 255, 0.35)"
+            blurAmount={4}
+            animationDuration={0.55}
+            pauseBetweenAnimations={1.15}
+            cornerSize={14}
+            borderWidth={2}
+            unfocusedOpacity={0.42}
+          />
+        )}
+      </div>
       <div className="objective-grid" data-reveal>
-        <div className="objective-copy">
+        <FadeContent
+          className="objective-copy"
+          blur
+          duration={0.9}
+          delay={0.05}
+          threshold={0.15}
+          once
+        >
           <LineReveal>
             <span style={{ color: 'var(--ink-dim)', fontSize: '1.12rem', lineHeight: 1.7, display: 'block' }}>
               Since the 1960s, NASA has left teammates across the solar system — landers that dug for ice,
@@ -655,22 +752,35 @@ function ChallengeObjective({ reduced }) {
             </a>
             <a href="#fleet">BROWSE NASA LEFTOVERS →</a>
           </p>
-        </div>
+        </FadeContent>
         {HERO_LEFTOVER?.image && (
-          <figure className="objective-figure">
-            <div className="nasa-media body-moon" style={{ aspectRatio: '4/5', marginBottom: 0 }}>
-              <img
-                src={HERO_LEFTOVER.image}
-                alt={HERO_LEFTOVER.imageAlt || HERO_LEFTOVER.name}
-                loading="lazy"
-                decoding="async"
-              />
-              <span className="credit">{HERO_LEFTOVER.credit} · {HERO_LEFTOVER.coords}</span>
-            </div>
-            <figcaption className="mono">
-              {HERO_LEFTOVER.name} · {HERO_LEFTOVER.coords} · still on the Moon
-            </figcaption>
-          </figure>
+          <FadeContent blur duration={1} delay={0.12} threshold={0.12} once className="objective-figure-fade">
+            <SpotlightCard
+              className="objective-spotlight"
+              spotlightColor="rgba(142, 200, 255, 0.22)"
+              intensity={0.22}
+              spotlightSize={280}
+              softness={0.75}
+              borderGlow={0.55}
+              proximity={64}
+              smoothing={0.28}
+            >
+              <figure className="objective-figure">
+                <div className="nasa-media body-moon" style={{ aspectRatio: '4/5', marginBottom: 0 }}>
+                  <img
+                    src={HERO_LEFTOVER.image}
+                    alt={HERO_LEFTOVER.imageAlt || HERO_LEFTOVER.name}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span className="credit">{HERO_LEFTOVER.credit} · {HERO_LEFTOVER.coords}</span>
+                </div>
+                <figcaption className="mono">
+                  {HERO_LEFTOVER.name} · {HERO_LEFTOVER.coords} · still on the Moon
+                </figcaption>
+              </figure>
+            </SpotlightCard>
+          </FadeContent>
         )}
       </div>
     </section>
@@ -686,7 +796,19 @@ function AtlasBridgeHeading({ atlasActive }) {
       aria-label="Where they still sit"
     >
       <p className="kicker">
-        <ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={atlasActive} />
+        {atlasActive ? (
+          <DecryptedText
+            text="IMAGE PLACEMENT · RESPECT THE COORDINATES"
+            animateOn="view"
+            sequential
+            speed={22}
+            maxIterations={8}
+            characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·"
+            scrambleColor="#8ec8ff"
+          />
+        ) : (
+          <ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={false} />
+        )}
       </p>
       <h2 className="display atlas-title">
         Where they<br /><span className="outline-text">still sit</span>
@@ -832,13 +954,23 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
     >
       <span className="section-rail">02B · ATLAS</span>
       <span className="section-num" aria-hidden>LOC</span>
-      <div className="atlas-stage-dock">
-        <p className="kicker atlas-stage-dock__kicker">LUNAR HARDWARE · SURVEYED SITES</p>
+      <FadeContent className="atlas-stage-dock" blur duration={0.85} threshold={0.12} once>
+        <p className="kicker atlas-stage-dock__kicker">
+          <DecryptedText
+            text="LUNAR HARDWARE · SURVEYED SITES"
+            animateOn="view"
+            sequential
+            speed={24}
+            maxIterations={8}
+            characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·"
+            scrambleColor="#8ec8ff"
+          />
+        </p>
         <p className="atlas-stage-dock__lede">
           Drag the Moon. Choose a leftover from the ice wheel — every pin is still waiting on the near side.
         </p>
         <p className="mono atlas-stage-dock__meta">{MOON_HOTSPOT_SITES.length} SITES · NASA CATALOGUE · LROC</p>
-      </div>
+      </FadeContent>
     </section>
   )
 }
@@ -1120,30 +1252,54 @@ function Footer() {
   const inView = useInView(ref, { once: true })
   return (
     <footer className="footer" ref={ref}>
-      <div className="footer-mark holo-foil">SILENT FLEET</div>
-      <div className="footer-links resources-strip">
-        {NASA_RESOURCES.map((r) => (
-          <a key={r.href} className="glass-2" href={r.href} target="_blank" rel="noreferrer">
-            {r.label.toUpperCase()} ↗
-          </a>
-        ))}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '1rem', alignItems: 'end' }}>
-        <div>
-          <div className="mono" style={{ fontSize: '0.7rem', color: 'var(--ink-mute)', marginBottom: 8 }}>MISSION CLOCK · {utc}</div>
-          <p className="mono" style={{ fontSize: '0.85rem', letterSpacing: '0.08em' }}>
-            <ScrambleLine text="THEY ARE STILL OUT THERE. SOME STILL SPEAK." active={inView} />
-            <span className="status-dot live" style={{ marginLeft: 10, verticalAlign: 'middle' }} />
-          </p>
-          
-          <p style={{ color: 'var(--ink-mute)', fontSize: '0.75rem', marginTop: 12, maxWidth: 520, lineHeight: 1.5 }}>
-            Built for NASA Space Apps 2026 — “Abandoned but not Forgotten.”
-            Facts cross-checked against NSSDCA, LROC, ALSJ, HiRISE & PDS.
-            Procedural visuals · AI-assisted code disclosed per challenge guidelines.
-          </p>
+      <FadeContent blur duration={0.9} threshold={0.2} once>
+        <div className="footer-mark holo-foil">
+          <ShinyText
+            text="SILENT FLEET"
+            color="#e8eef5"
+            shineColor="#8ec8ff"
+            speed={3.2}
+            shineWidth={42}
+            softness={0.9}
+            trigger="view"
+            className="footer-mark__shine"
+          />
         </div>
-        <MagneticButton href="#top">RETURN TO SURFACE</MagneticButton>
-      </div>
+        <div className="footer-links resources-strip">
+          {NASA_RESOURCES.map((r) => (
+            <a key={r.href} className="glass-2" href={r.href} target="_blank" rel="noreferrer">
+              {r.label.toUpperCase()} ↗
+            </a>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '1rem', alignItems: 'end' }}>
+          <div>
+            <div className="mono" style={{ fontSize: '0.7rem', color: 'var(--ink-mute)', marginBottom: 8 }}>MISSION CLOCK · {utc}</div>
+            <p className="mono" style={{ fontSize: '0.85rem', letterSpacing: '0.08em' }}>
+              {inView ? (
+                <DecryptedText
+                  text="THEY ARE STILL OUT THERE. SOME STILL SPEAK."
+                  animateOn="view"
+                  sequential
+                  speed={26}
+                  maxIterations={10}
+                  characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789."
+                  scrambleColor="#8ec8ff"
+                />
+              ) : (
+                <ScrambleLine text="THEY ARE STILL OUT THERE. SOME STILL SPEAK." active={false} />
+              )}
+              <span className="status-dot live" style={{ marginLeft: 10, verticalAlign: 'middle' }} />
+            </p>
+            <p style={{ color: 'var(--ink-mute)', fontSize: '0.75rem', marginTop: 12, maxWidth: 520, lineHeight: 1.5 }}>
+              Built for NASA Space Apps 2026 — “Abandoned but not Forgotten.”
+              Facts cross-checked against NSSDCA, LROC, ALSJ, HiRISE & PDS.
+              Procedural visuals · AI-assisted code disclosed per challenge guidelines.
+            </p>
+          </div>
+          <MagneticButton href="#top">RETURN TO SURFACE</MagneticButton>
+        </div>
+      </FadeContent>
     </footer>
   )
 }
@@ -1531,6 +1687,7 @@ export default function App() {
         style={{ minHeight: '100%' }}
       >
         <div className="sf-app" ref={mainRef}>
+          <FilmGrain reduced={reduced} />
           <ErrorBoundary fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
             {/* Mount during preloader so 8K GPU upload overlaps boot choreography */}
             <Suspense fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>

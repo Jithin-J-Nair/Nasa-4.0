@@ -1048,6 +1048,57 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .objective-link-row a { color: var(--ice); }
 .objective-link-row a:hover { color: var(--ink); }
 .objective-figure { margin: 0; }
+.objective-focus-wrap {
+  margin-bottom: 1.25rem;
+  max-width: 18ch;
+}
+.objective-focus-wrap .focus-container {
+  justify-content: flex-start;
+  gap: 0.28em 0.42em;
+  max-width: 16ch;
+}
+.objective-focus-wrap .focus-word {
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 6vw, 4.4rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  cursor: default;
+}
+.objective-spotlight.spotlight-card {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.objective-spotlight .spotlight-card__border {
+  border-radius: 0;
+  background: rgba(142, 200, 255, 0.12);
+}
+.objective-figure-fade { width: 100%; }
+.sf-film-grain {
+  pointer-events: none;
+}
+.hero-challenge-line__decrypt,
+.objective-decrypt {
+  display: inline-block;
+}
+.hero-challenge-line__cipher,
+.objective-decrypt__cipher {
+  color: rgba(142, 200, 255, 0.72);
+}
+.hero-scroll-cue__shine {
+  letter-spacing: inherit;
+  font: inherit;
+  text-transform: inherit;
+}
+.footer-mark__shine {
+  font: inherit;
+  letter-spacing: inherit;
+}
+
 .objective-figure figcaption {
   margin-top: 0.65rem;
   font-size: 0.62rem;
