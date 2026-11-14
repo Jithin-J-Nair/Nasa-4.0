@@ -12,7 +12,7 @@ import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
 import * as THREE from 'three'
 import { sampleActs, lerp, clamp } from './film'
-import { ATLAS_LOCK_PROGRESS, latLonToLocal, SITE_FOCUS } from './geo'
+import { latLonToLocal, SITE_FOCUS } from './geo'
 import { ARTIFACTS } from '../data/artifacts'
 
 const MOON_SITES = ARTIFACTS.filter((a) => a.body === 'moon' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
@@ -707,7 +707,7 @@ function BodySphere({
   // −π/2 puts lon 0 on +Z after SphereGeometry UV; aimLon rotates that meridian to camera
   const baseYaw = -Math.PI / 2
   const yawSmooth = useRef(baseYaw)
-  useFrame((s) => {
+  useFrame((s, dt) => {
     uniforms.uTime.value = s.clock.elapsedTime
     const g = gradeRef?.current
     if (g) {
@@ -721,12 +721,18 @@ function BodySphere({
     if (mesh.current) {
       const aim = aimLonRef?.current
       const spinMul = isMars ? (1 - (stormRef?.current ?? 0) * 0.92) : 1
-      const freeSpin = baseYaw + s.clock.elapsedTime * spin * spinMul
-      // Hold longitude under the hotspot so the site faces the lens
-      const target = aim != null && Number.isFinite(aim)
-        ? baseYaw - (aim * Math.PI) / 180
-        : freeSpin
-      yawSmooth.current = lerp(yawSmooth.current, target, aim != null ? 0.045 : 0.02)
+      const step = Math.min(0.05, Math.max(0.001, dt))
+      if (aim != null && Number.isFinite(aim)) {
+        // Shortest-path ease to face the hotspot — never jump via absolute freeSpin time
+        const target = baseYaw - (aim * Math.PI) / 180
+        let delta = target - yawSmooth.current
+        while (delta > Math.PI) delta -= Math.PI * 2
+        while (delta < -Math.PI) delta += Math.PI * 2
+        yawSmooth.current += delta * Math.min(1, 2.8 * step)
+      } else {
+        // Continuous dt spin (absolute elapsedTime freeSpin was the yaw glitch)
+        yawSmooth.current += spin * spinMul * step * 60
+      }
       mesh.current.rotation.y = yawSmooth.current
     }
   })
@@ -891,11 +897,12 @@ function FilmDirector({
   const desired = useMemo(() => new THREE.Vector3(), [])
   const inertia = useInertiaPointer(mouse, reduced)
   const lastDpr = useRef(1)
+  const atlasBlend = useRef(0)
+  const moonPos = useRef(new THREE.Vector3(1.35, -0.12, 0))
+  const moonScale = useRef(2.1)
 
   useFrame((state, dt) => {
-    const raw = typeof progress?.get === 'function' ? progress.get() : 0
-    // Hold moon intimacy pose while Atlas is on screen — default hero-scale framing
-    const p = atlasLock ? ATLAS_LOCK_PROGRESS : raw
+    const p = typeof progress?.get === 'function' ? progress.get() : 0
     const sample = sampleActs(p)
     onSample?.(sample)
 
@@ -906,14 +913,21 @@ function FilmDirector({
     darkRef.current = sample.dark
     gradeRef.current = sample.grade
 
-    const hot = focusSiteId || sample.hotspot || (p < 0.22 || atlasLock ? 'a11-lm' : null)
+    // Soft atlas presence — never snap film progress or moon pose
+    const step = Math.min(0.05, Math.max(0.001, dt))
+    atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 3.2 * step))
+    const ab = atlasBlend.current
+
+    const hot = focusSiteId || sample.hotspot || (ab > 0.2 || sample.focus === 'moon' ? 'a11-lm' : null)
     if (hotspotRef) hotspotRef.current = hot
     const focus = hot ? SITE_FOCUS[hot] : null
     if (moonAimRef) {
-      // Rotate existing hotspot to face the camera by Atlas (Tranquility / focused site)
-      if (focus?.body === 'moon') moonAimRef.current = focus.aimLon
-      else if (p < 0.22 || atlasLock) moonAimRef.current = 23.47
-      else moonAimRef.current = null
+      // Face hotspot while moon is the focus / Atlas is nearby — otherwise free spin
+      if (focus?.body === 'moon' && (ab > 0.05 || sample.focus === 'moon' || sample.focus === 'dive')) {
+        moonAimRef.current = focus.aimLon
+      } else {
+        moonAimRef.current = null
+      }
     }
     if (marsAimRef) {
       marsAimRef.current = focus?.body === 'mars' ? focus.aimLon : null
@@ -958,24 +972,38 @@ function FilmDirector({
 
     const f = sample.focus
     if (moonRef.current) {
-      const show = f === 'moon' || f === 'dive' || atlasLock
+      const show = f === 'moon' || f === 'dive' || ab > 0.02
       moonRef.current.visible = show || sample.event.dive > 0.05
-      if (atlasLock) {
-        // Keep Image-1 / hero scale while Atlas holds — stage-right for list + tooltips
-        moonRef.current.scale.setScalar(2.12)
-        moonRef.current.position.set(1.28, -0.1, 0)
-      } else if (f === 'dive') {
-        const s = lerp(2.0, 5.8, sample.event.dive)
-        moonRef.current.scale.setScalar(s)
-        moonRef.current.position.set(0.85, -0.1, -0.2)
+
+      let targetScale = 0.01
+      let tx = 0
+      let ty = 0
+      let tz = 0
+      if (f === 'dive') {
+        targetScale = lerp(2.0, 5.8, sample.event.dive)
+        tx = 0.85; ty = -0.1; tz = -0.2
       } else if (f === 'moon') {
-        // Hero: large Moon parked stage-right behind the brand
         const arrival = sample.act?.id === 'hero'
-        moonRef.current.scale.setScalar(arrival ? lerp(2.05, 2.2, sample.eased) : lerp(1.85, 2.05, sample.eased))
-        moonRef.current.position.set(arrival ? 1.35 : 0.55, arrival ? -0.12 : -0.06, 0)
-      } else {
-        moonRef.current.scale.setScalar(0.01)
+        targetScale = arrival ? lerp(2.05, 2.2, sample.eased) : lerp(1.85, 2.05, sample.eased)
+        tx = arrival ? 1.35 : 0.55
+        ty = arrival ? -0.12 : -0.06
+        tz = 0
       }
+      // Blend toward Atlas hero-scale park (no hard cut)
+      if (ab > 0.001) {
+        targetScale = lerp(targetScale < 0.05 ? 2.1 : targetScale, 2.12, ab)
+        tx = lerp(tx || 1.35, 1.28, ab)
+        ty = lerp(ty || -0.12, -0.1, ab)
+        tz = lerp(tz, 0, ab)
+      }
+
+      const poseDamp = Math.min(1, (reduced ? 8 : 4.5) * step)
+      moonScale.current = lerp(moonScale.current, targetScale, poseDamp)
+      moonPos.current.x = lerp(moonPos.current.x, tx, poseDamp)
+      moonPos.current.y = lerp(moonPos.current.y, ty, poseDamp)
+      moonPos.current.z = lerp(moonPos.current.z, tz, poseDamp)
+      moonRef.current.scale.setScalar(moonScale.current)
+      moonRef.current.position.copy(moonPos.current)
     }
     if (craterRef.current) {
       if (f === 'dive' || sample.event.dive > 0.08) {

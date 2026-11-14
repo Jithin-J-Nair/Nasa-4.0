@@ -309,40 +309,6 @@ function FilmJourney() {
   )
 }
 
-/** Keep film on the Moon until Atlas ends; dive/Mars only after. */
-function useAtlasGatedFilmProgress(scrollYProgress) {
-  const film = useMotionValue(0)
-  useEffect(() => {
-    const ATLAS_END = 0.2 // moon lock tip — matches ATLAS_LOCK_PROGRESS family
-    const read = () => {
-      const atlas = document.getElementById('atlas')
-      const doc = Math.max(1, document.documentElement.scrollHeight - window.innerHeight)
-      const y = scrollYProgress.get() * doc
-      if (!atlas) {
-        film.set(scrollYProgress.get())
-        return
-      }
-      const atlasEnd = atlas.offsetTop + atlas.offsetHeight * 0.72
-      if (y <= atlasEnd) {
-        const t = Math.max(0, Math.min(1, y / Math.max(1, atlasEnd)))
-        // Ease toward front-facing hotspot pose as Atlas approaches
-        film.set(t * ATLAS_END)
-      } else {
-        const t = Math.max(0, Math.min(1, (y - atlasEnd) / Math.max(1, doc - atlasEnd)))
-        film.set(ATLAS_END + t * (1 - ATLAS_END))
-      }
-    }
-    read()
-    const unsub = scrollYProgress.on('change', read)
-    window.addEventListener('resize', read, { passive: true })
-    return () => {
-      unsub()
-      window.removeEventListener('resize', read)
-    }
-  }, [scrollYProgress, film])
-  return film
-}
-
 function Hero({ ready, reduced, onOpen }) {
   const { setLabel } = useCursor()
   const rootRef = useRef(null)
@@ -1075,8 +1041,8 @@ export default function App() {
   const mobile = useMediaQuery('(max-width: 768px)')
   const reduced = usePrefersReduced()
   const { scrollYProgress } = useScroll()
-  const gatedProgress = useAtlasGatedFilmProgress(scrollYProgress)
-  const smoothProgress = useSpring(gatedProgress, { stiffness: 80, damping: 24, mass: 0.85 })
+  // One continuous scroll curve — never remap mid-flight (that caused the moon glitch)
+  const smoothProgress = useSpring(scrollYProgress, { stiffness: 70, damping: 28, mass: 0.95 })
 
   useEffect(() => {
     const style = document.createElement('style')
