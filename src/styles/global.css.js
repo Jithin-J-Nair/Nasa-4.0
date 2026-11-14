@@ -154,45 +154,6 @@ img, svg { display: block; max-width: 100%; }
 .sf-chrome.is-dying {
   filter: grayscale(0.35) brightness(0.72);
 }
-.film-scrubber {
-  position: fixed;
-  left: clamp(1.25rem, 4vw, 2rem);
-  bottom: 12px;
-  z-index: 260;
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  width: min(260px, 52vw);
-  background: rgba(6, 8, 14, 0.82);
-  border: 1px solid rgba(232, 238, 245, 0.14);
-  backdrop-filter: blur(10px);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  color: rgba(232, 238, 245, 0.7);
-}
-.film-scrubber input[type='range'] {
-  width: 100%;
-  accent-color: #ffe0c8;
-  pointer-events: auto;
-  cursor: pointer;
-}
-.film-scrubber__shots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.film-scrubber__shots button {
-  pointer-events: auto;
-  cursor: pointer;
-  border: 1px solid rgba(232, 238, 245, 0.16);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
-  font: inherit;
-  letter-spacing: 0.08em;
-  padding: 3px 6px;
-}
 .journey-hud.is-last-light .journey-hud__act {
   color: #ffb089;
   letter-spacing: 0.18em;
@@ -2572,12 +2533,6 @@ html.lenis, html.lenis body { height: auto; }
     font-size: clamp(1.15rem, 5.5vw, 1.65rem);
   }
 
-  .film-scrubber {
-    left: max(8px, env(safe-area-inset-left));
-    bottom: max(64px, calc(env(safe-area-inset-bottom) + 56px));
-    max-width: min(92vw, 280px);
-    font-size: 0.55rem;
-  }
 }
 
 /* Short viewport (split preview / landscape phone) — keep CTA on-screen, no earthquake padding */

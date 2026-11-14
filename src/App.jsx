@@ -21,7 +21,7 @@ import { FLEET_SHELF_CSS } from './styles/fleet-shelf.css.js'
 import {
   createScrollEngine, destroyScrollEngine, scrollToHash, playHeroIntro, playBootSequence,
   revealOnScroll, scheduleScrollRefresh, playMoonToMarsJourney,
-  createFilmRail, filmProgressRef, FILM_MARKERS, scrollToFilmMarker, scrollToFilmProgress, setFilmProgress,
+  createFilmRail, filmProgressRef, FILM_MARKERS, scrollToFilmMarker,
   pauseScrollEngine, resumeScrollEngine,
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
@@ -504,63 +504,6 @@ function FilmJourney({ label = 'JOURNEY' }) {
         </div>
       )}
     </section>
-  )
-}
-
-/** Dev-only film scrubber — rehearse the five owned shots */
-function FilmScrubber() {
-  const [p, setP] = useState(() => filmProgressRef.current)
-  useEffect(() => {
-    let id = 0
-    const tick = () => {
-      setP(filmProgressRef.current)
-      id = requestAnimationFrame(tick)
-    }
-    id = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(id)
-  }, [])
-  const jump = (v) => {
-    createFilmRail()
-    scheduleScrollRefresh(0)
-    requestAnimationFrame(() => {
-      scrollToFilmProgress(v, { immediate: true })
-      setP(v)
-    })
-  }
-  return (
-    <div className="film-scrubber" role="group" aria-label="Film scrubber">
-      <label className="mono" htmlFor="film-scrub">
-        FILM {p.toFixed(3)}
-      </label>
-      <input
-        id="film-scrub"
-        type="range"
-        min={0}
-        max={1}
-        step={0.001}
-        value={p}
-        onPointerDown={(e) => e.stopPropagation()}
-        onChange={(e) => jump(Number(e.target.value))}
-      />
-      <div className="film-scrubber__shots">
-        {[
-          ['ARRIVAL', 0.05],
-          ['ATLAS', 0.155],
-          ['LEAVE', 0.30],
-          ['MARS', 0.56],
-          ['LIGHT', 0.70],
-        ].map(([label, tip]) => (
-          <button
-            key={label}
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => jump(tip)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
   )
 }
 
@@ -1795,10 +1738,6 @@ export default function App() {
               {audioOn ? 'SOUND · ON' : 'SOUND'}
             </button>
           </div>
-
-          {!booting && import.meta.env.DEV && (
-            <FilmScrubber />
-          )}
 
           <div className="sf-chapters">
             <ErrorBoundary fallback={<section className="hero"><div className="hero-content"><h1 className="display display-xl">SILENT FLEET</h1></div></section>}>
