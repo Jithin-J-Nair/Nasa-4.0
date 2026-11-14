@@ -543,6 +543,77 @@ img, svg { display: block; max-width: 100%; }
   line-height: 1.5;
   margin: 0;
 }
+.challenge-motto {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.15rem, 2.8vw, 1.85rem);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--ice);
+  margin: 0 0 1rem;
+  max-width: 22ch;
+}
+.hero-leftover {
+  display: block;
+  width: min(100%, 420px);
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+  cursor: none;
+}
+body.is-coarse .hero-leftover { cursor: pointer; }
+.hero-leftover-media {
+  margin-bottom: 0.45rem !important;
+  aspect-ratio: 16 / 10;
+  border: 1px solid var(--line-bright);
+}
+.hero-leftover-caption {
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-mute);
+}
+.challenge-objective {
+  position: relative;
+  padding-top: clamp(4rem, 12vh, 7rem);
+  padding-bottom: clamp(4rem, 12vh, 7rem);
+}
+.objective-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: start;
+  margin-top: 0.5rem;
+}
+.objective-copy { max-width: 54ch; }
+.objective-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin-top: 1.75rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+}
+.objective-link-row a { color: var(--ice); }
+.objective-link-row a:hover { color: var(--ink); }
+.objective-figure { margin: 0; }
+.objective-figure figcaption {
+  margin-top: 0.65rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-mute);
+}
+.heartbeat-media {
+  margin-bottom: 0.85rem !important;
+  aspect-ratio: 16 / 10;
+  border-radius: 0;
+}
+@media (max-width: 860px) {
+  .objective-grid { grid-template-columns: 1fr; }
+  .objective-figure { max-width: 420px; }
+  .hero-leftover { width: min(100%, 360px); }
+}
 .sf-spark-root {
   position: relative;
   width: 100%;

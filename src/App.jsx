@@ -44,11 +44,39 @@ import '@fontsource/unbounded/600.css'
 import '@fontsource/unbounded/700.css'
 
 const EASE = [0.22, 1, 0.36, 1]
+const SPRING = { stiffness: 140, damping: 26, mass: 0.9 }
+const SPRING_SOFT = { stiffness: 90, damping: 24, mass: 1 }
 const HEARTBEATS = ['opportunity', 'a11-lm', 'voyager1']
   .map((id) => ARTIFACTS.find((a) => a.id === id))
   .filter(Boolean)
+const FILTERS = [
+  { id: 'all', label: 'ALL' },
+  { id: 'moon', label: 'MOON' },
+  { id: 'mars', label: 'MARS' },
+  { id: 'deep', label: 'DEEP' },
+  { id: 'active', label: 'LIVE' },
+]
+/** Hero challenge plate — NASA leftover hardware (Eagle LM) */
+const HERO_LEFTOVER = ARTIFACTS.find((a) => a.id === 'a11-lm')
 
 const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789░▒▓█/<>=+#*'
+
+function LineReveal({ children, delay = 0, className = '' }) {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true, margin: '-10% 0px' })
+  const reduced = usePrefersReduced()
+  return (
+    <span ref={ref} className={`line-mask ${className}`}>
+      <motion.span
+        initial={reduced ? false : { y: '110%' }}
+        animate={inView || reduced ? { y: 0 } : { y: '110%' }}
+        transition={{ duration: 0.9, ease: EASE, delay }}
+      >
+        {children}
+      </motion.span>
+    </span>
+  )
+}
 
 function useMediaQuery(query) {
   const [match, setMatch] = useState(() =>
@@ -215,8 +243,11 @@ function Nav({ progress }) {
     <nav className="nav" aria-label="Primary">
       <a href="#top" className="nav-brand" aria-label="Silent Fleet home">SILENT FLEET</a>
       <div className="nav-links">
+        <a href="#objective">OBJECTIVE</a>
         <a href="#journey">JOURNEY</a>
         <a href="#recover">RECOVER</a>
+        <a href="#fleet">FLEET</a>
+        <a href="#archive">ARCHIVE</a>
       </div>
       <motion.div className="nav-progress" style={{ scaleX, width: '100%' }} />
     </nav>
@@ -273,7 +304,7 @@ function FilmJourney() {
   )
 }
 
-function Hero({ ready, reduced }) {
+function Hero({ ready, reduced, onOpen }) {
   const { setLabel } = useCursor()
   const rootRef = useRef(null)
   useEffect(() => {
@@ -285,10 +316,17 @@ function Hero({ ready, reduced }) {
   return (
     <section className="hero" id="top" aria-label="Hero" ref={rootRef}>
       <div className="hero-content">
-        <p className="kicker" data-hero-kicker style={{ marginBottom: '1.5rem', opacity: ready ? undefined : 1 }}>
-          NASA SPACE APPS 2026 · ABANDONED BUT NOT FORGOTTEN
+        <p className="kicker" data-hero-kicker style={{ marginBottom: '1.15rem', opacity: ready ? undefined : 1 }}>
+          NASA SPACE APPS 2026 · DISCARDED EQUIPMENT STORYTELLING
         </p>
-        <h1 className="display display-xl" style={{ marginBottom: '1.35rem' }} aria-label="Silent Fleet">
+        <p
+          className="challenge-motto"
+          data-hero-kicker
+          style={{ opacity: ready ? undefined : 1 }}
+        >
+          Abandoned but not Forgotten
+        </p>
+        <h1 className="display display-xl" style={{ marginBottom: '1.1rem' }} aria-label="Silent Fleet">
           {ready ? (
             <>
               <BlurText
@@ -319,24 +357,36 @@ function Hero({ ready, reduced }) {
             </>
           )}
         </h1>
-        <span className="sr-only">Silent Fleet</span>
-        <div data-hero-body style={{ marginBottom: '2.25rem', maxWidth: '34ch' }}>
-          {ready ? (
-            <BlurText
-              text="Hardware NASA left behind — and the science that still belongs to it."
-              animateBy="words"
-              direction="top"
-              delay={40}
-              trigger="load"
-              className="hero-body-blur"
-            />
-          ) : (
-            <p style={{ color: 'var(--ink-dim)', fontSize: 'clamp(1.05rem, 2.4vw, 1.3rem)', lineHeight: 1.5 }}>
-              Hardware NASA left behind — and the science that still belongs to it.
-            </p>
-          )}
+        <span className="sr-only">Silent Fleet — Abandoned but not Forgotten</span>
+        <div data-hero-body style={{ marginBottom: '1.5rem', maxWidth: '38ch' }}>
+          <p className="hero-body-blur" style={{ color: 'var(--ink-dim)', fontSize: 'clamp(1.05rem, 2.4vw, 1.3rem)', lineHeight: 1.5, margin: 0 }}>
+            Hardware NASA left behind across the Moon, Mars, and deep space — and the science that still belongs to it.
+          </p>
         </div>
-        <div data-hero-cta style={{ opacity: ready ? undefined : 1 }}>
+        {HERO_LEFTOVER?.image && (
+          <button
+            type="button"
+            className="hero-leftover"
+            data-hero-cta
+            onClick={() => onOpen?.(HERO_LEFTOVER)}
+            onMouseEnter={() => setLabel('EAGLE')}
+            onMouseLeave={() => setLabel('')}
+            aria-label={`${HERO_LEFTOVER.name} — NASA leftover hardware`}
+          >
+            <div className="nasa-media hero-leftover-media">
+              <img
+                src={HERO_LEFTOVER.image}
+                alt={HERO_LEFTOVER.imageAlt || HERO_LEFTOVER.name}
+                decoding="async"
+              />
+              <span className="credit">{HERO_LEFTOVER.credit} · LEFT BEHIND · {HERO_LEFTOVER.year}</span>
+            </div>
+            <span className="hero-leftover-caption mono">
+              NASA LEFTOVER · {HERO_LEFTOVER.name.toUpperCase()} · {HERO_LEFTOVER.coords}
+            </span>
+          </button>
+        )}
+        <div data-hero-cta style={{ opacity: ready ? undefined : 1, marginTop: '1.5rem' }}>
           <Magnet padding={80} magnetStrength={2.4} maxOffset={18}>
             <GlareHover
               width="auto"
@@ -349,11 +399,11 @@ function Hero({ ready, reduced }) {
               transitionDuration={650}
             >
               <MagneticButton
-                href="#journey"
+                href="#objective"
                 onMouseEnter={() => setLabel('ENTER')}
                 onMouseLeave={() => setLabel('')}
               >
-                ENTER THE CONTINUUM
+                MEET THE LEFTOVERS
               </MagneticButton>
             </GlareHover>
           </Magnet>
@@ -367,6 +417,68 @@ function Hero({ ready, reduced }) {
   )
 }
 
+function ChallengeObjective({ reduced }) {
+  const rootRef = useRef(null)
+  useEffect(() => revealOnScroll(rootRef.current, { reduced }), [reduced])
+  return (
+    <section className="section challenge-objective" id="objective" ref={rootRef} aria-label="Challenge objective">
+      <span className="section-rail" data-reveal>01 · OBJECTIVE</span>
+      <span className="section-num" aria-hidden>01</span>
+      <p className="kicker" data-reveal style={{ marginBottom: '0.85rem' }}>
+        <ScrambleLine text="NASA SPACE APPS 2026 · ABANDONED BUT NOT FORGOTTEN" active />
+      </p>
+      <h2 className="display" data-reveal style={{ fontSize: 'clamp(2.1rem, 6vw, 4.4rem)', marginBottom: '1.25rem', maxWidth: '14ch' }}>
+        They stayed behind<br />
+        <span className="outline-text">so we could learn.</span>
+      </h2>
+      <div className="objective-grid" data-reveal>
+        <div className="objective-copy">
+          <LineReveal>
+            <span style={{ color: 'var(--ink-dim)', fontSize: '1.12rem', lineHeight: 1.7, display: 'block' }}>
+              Since the 1960s, NASA has left hardware across the solar system — landers, rovers,
+              experiment packages, and probes that finished their missions or simply kept going.
+              The NASA Catalogue of Manmade Material on the Moon alone lists hundreds of items still sitting in the dust.
+            </span>
+          </LineReveal>
+          <LineReveal delay={0.08}>
+            <span style={{ color: 'var(--ink-dim)', fontSize: '1.12rem', lineHeight: 1.7, display: 'block', marginTop: '1.1rem' }}>
+              This challenge asks storytellers to build a personal connection to those forgotten explorers —
+              and to leave inspired by the science they conducted. Accuracy matters: every coordinate
+              ties to NSSDCA, LROC, ALSJ, HiRISE, or PDS.
+            </span>
+          </LineReveal>
+          <p className="mono objective-link-row">
+            <a
+              href="https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details"
+              target="_blank"
+              rel="noreferrer"
+            >
+              CHALLENGE DETAILS ↗
+            </a>
+            <a href="#fleet">BROWSE NASA LEFTOVERS →</a>
+          </p>
+        </div>
+        {HERO_LEFTOVER?.image && (
+          <figure className="objective-figure">
+            <div className="nasa-media" style={{ aspectRatio: '4/5', marginBottom: 0 }}>
+              <img
+                src={HERO_LEFTOVER.image}
+                alt={HERO_LEFTOVER.imageAlt || HERO_LEFTOVER.name}
+                loading="lazy"
+                decoding="async"
+              />
+              <span className="credit">{HERO_LEFTOVER.credit}</span>
+            </div>
+            <figcaption className="mono">
+              {HERO_LEFTOVER.name} · Tranquility Base · still on the Moon
+            </figcaption>
+          </figure>
+        )}
+      </div>
+    </section>
+  )
+}
+
 function Heartbeats({ onOpen, reduced }) {
   const { setLabel } = useCursor()
   return (
@@ -375,7 +487,7 @@ function Heartbeats({ onOpen, reduced }) {
         <p className="kicker" style={{ marginBottom: '0.75rem' }}>THREE HEARTBEATS · STILL OUT THERE</p>
         <div className="heartbeat-focus">
           <TrueFocus
-            sentence="Recover them by name"
+            sentence="Know them by name"
             borderColor="#8ec8ff"
             glowColor="rgba(142,200,255,0.35)"
             blurAmount={reduced ? 0 : 4}
@@ -385,6 +497,9 @@ function Heartbeats({ onOpen, reduced }) {
             focusStyle="brackets"
           />
         </div>
+        <p style={{ color: 'var(--ink-dim)', maxWidth: '46ch', marginTop: '0.85rem', lineHeight: 1.55 }}>
+          Not scrap — teammates. Open a dossier. See the NASA image. Hear their last words.
+        </p>
         <div className="heartbeat-row" style={{ marginTop: '2rem' }}>
           {HEARTBEATS.map((a) => (
             <SpotlightCard
@@ -415,19 +530,196 @@ function Heartbeats({ onOpen, reduced }) {
                   onMouseLeave={() => setLabel('')}
                   style={{ width: '100%', background: 'transparent', border: 'none' }}
                 >
+                  {a.image && (
+                    <div className="nasa-media heartbeat-media">
+                      <img src={a.image} alt={a.imageAlt || a.name} loading="lazy" decoding="async" />
+                      <span className="credit">{a.credit}</span>
+                    </div>
+                  )}
                   <div className="mono" style={{ fontSize: '0.58rem', letterSpacing: '0.14em', color: 'var(--ink-mute)' }}>
-                    {a.mission} · {a.status}
+                    {a.mission} · {a.status} · {a.year}
                   </div>
                   <div className="tx">“{a.transmission}”</div>
                   <div style={{ color: 'var(--ink-dim)', fontSize: '0.88rem', lineHeight: 1.45 }}>
                     {a.science.slice(0, 110)}…
                   </div>
+                  <span className="mono" style={{ fontSize: '0.62rem', letterSpacing: '0.14em', color: 'var(--ice)', marginTop: '0.65rem', display: 'block' }}>
+                    OPEN NASA DOSSIER →
+                  </span>
                 </button>
               </GlareHover>
             </SpotlightCard>
           ))}
         </div>
       </FadeContent>
+    </section>
+  )
+}
+
+function FleetCard({ item, onOpen }) {
+  const { setLabel } = useCursor()
+  const bodyColor = item.body === 'mars' ? 'var(--rust)' : item.body === 'deep' ? 'var(--gold)' : 'var(--ice)'
+
+  return (
+    <motion.article
+      className="fleet-card glass-2 corner-brackets holo-foil"
+      style={{ '--chip': bodyColor }}
+      whileHover={{ scale: 1.02 }}
+      tabIndex={0}
+      role="button"
+      aria-label={`Open dossier ${item.name}`}
+      onClick={() => onOpen(item)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item) } }}
+      onMouseEnter={() => setLabel('OPEN FILE')}
+      onMouseLeave={() => setLabel('')}
+    >
+      <div>
+        {item.image && (
+          <div className="nasa-media" style={{ marginBottom: '0.9rem', aspectRatio: '16/11' }}>
+            <img src={item.image} alt={item.imageAlt || item.name} loading="lazy" decoding="async" />
+            <span className="credit">{item.credit}</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <span className="data-chip" style={{ '--chip': bodyColor }}>{item.mission}</span>
+          <span className={`status-dot ${item.status === 'ACTIVE' ? 'live' : item.status === 'COASTING' ? 'coast' : ''}`} title={item.status} />
+        </div>
+        <h3 className="display" style={{ fontSize: '1.35rem', marginBottom: '0.35rem' }}>{item.name}</h3>
+        <p className="mono" style={{ fontSize: '0.65rem', letterSpacing: '0.12em', color: 'var(--ink-mute)' }}>{item.codename}</p>
+      </div>
+      <div>
+        <p style={{ color: 'var(--ink-dim)', fontSize: '0.92rem', lineHeight: 1.5, marginBottom: '1rem' }}>{item.science.slice(0, 110)}…</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+          {item.tags.map((t) => (
+            <span key={t} className="mono" style={{ fontSize: '0.6rem', letterSpacing: '0.1em', padding: '0.25rem 0.5rem', border: '1px solid var(--line)', borderRadius: 6 }}>{t}</span>
+          ))}
+        </div>
+      </div>
+    </motion.article>
+  )
+}
+
+function Fleet({ onOpen }) {
+  const track = useRef(null)
+  const { setLabel } = useCursor()
+  const [rail, setRail] = useState(0)
+
+  useEffect(() => {
+    const el = track.current
+    if (!el) return undefined
+    const onScroll = () => {
+      const max = el.scrollWidth - el.clientWidth
+      setRail(max > 0 ? el.scrollLeft / max : 0)
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  return (
+    <section className="section fleet-section" id="fleet" style={{ paddingRight: 0, paddingLeft: 0 }} aria-label="Silent fleet leftovers">
+      <div style={{ padding: '0 clamp(1.25rem, 4vw, 4rem)' }}>
+        <span className="section-rail">03 · FLEET</span>
+        <span className="section-num" aria-hidden>03</span>
+        <p className="kicker"><ScrambleLine text="NASA LEFTOVERS · DRAG TO SURVEY" active /></p>
+        <h2 className="display" style={{ fontSize: 'clamp(2.2rem, 6vw, 4rem)', margin: '0.75rem 0 0.5rem' }}>
+          Fifteen files.<br /><span className="outline-text">One silent fleet.</span>
+        </h2>
+        <p style={{ color: 'var(--ink-dim)', maxWidth: '48ch', lineHeight: 1.55, marginBottom: '0.5rem' }}>
+          Real NASA photographs of hardware left on the Moon, Mars, and beyond. Each card opens a verified dossier.
+        </p>
+      </div>
+      <div
+        className="fleet-track"
+        ref={track}
+        onMouseEnter={() => setLabel('DRAG')}
+        onMouseLeave={() => setLabel('')}
+        style={{ paddingLeft: 'clamp(1.25rem, 4vw, 4rem)', paddingRight: 'clamp(1.25rem, 4vw, 4rem)' }}
+      >
+        {ARTIFACTS.map((a) => (
+          <FleetCard key={a.id} item={a} onOpen={onOpen} />
+        ))}
+      </div>
+      <div style={{ padding: '0 clamp(1.25rem, 4vw, 4rem)' }}>
+        <div className="fleet-rail" aria-hidden>
+          <i style={{ left: `calc(${rail * 100}% - 4px)` }} />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Archive({ onOpen }) {
+  const [filter, setFilter] = useState('all')
+  const { setLabel } = useCursor()
+  const filtered = useMemo(() => ARTIFACTS.filter((a) => {
+    if (filter === 'all') return true
+    if (filter === 'active') return a.status === 'ACTIVE' || a.status === 'COASTING'
+    return a.body === filter
+  }), [filter])
+  const activeIdx = FILTERS.findIndex((f) => f.id === filter)
+
+  return (
+    <section className="section" id="archive" aria-label="Archive of discarded equipment">
+      <span className="section-rail">04 · ARCHIVE</span>
+      <span className="section-num" aria-hidden>04</span>
+      <p className="kicker"><ScrambleLine text="FILTERED INDEX · NSSDCA CROSSWALK" active /></p>
+      <h2 className="display" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', margin: '0.75rem 0 0' }}>
+        Browse the <span className="grad-text">discarded</span>
+      </h2>
+      <div className="archive-filters glass-1" role="tablist" aria-label="Body filter">
+        <motion.div
+          className="indicator"
+          animate={{ x: activeIdx * 88, width: 84 }}
+          transition={{ type: 'spring', ...SPRING }}
+          style={{ width: 84 }}
+        />
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            role="tab"
+            aria-selected={filter === f.id}
+            onClick={() => setFilter(f.id)}
+            style={{ color: filter === f.id ? 'var(--ink)' : undefined, minWidth: 84 }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+      <motion.div className="archive-grid" layout>
+        <AnimatePresence mode="popLayout">
+          {filtered.map((a) => (
+            <motion.button
+              layout
+              key={a.id}
+              type="button"
+              className="archive-card glass-2 corner-brackets"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ type: 'spring', ...SPRING_SOFT }}
+              onClick={() => onOpen(a)}
+              onMouseEnter={() => setLabel('OPEN FILE')}
+              onMouseLeave={() => setLabel('')}
+              aria-label={`Open ${a.name}`}
+              style={{ textAlign: 'left', width: '100%', padding: 0, overflow: 'hidden', gap: 0 }}
+            >
+              {a.image && (
+                <div className="nasa-media" style={{ marginBottom: 0, aspectRatio: '16/9', borderRadius: 0 }}>
+                  <img src={a.image} alt={a.imageAlt || a.name} loading="lazy" decoding="async" />
+                  <span className="credit">{a.credit}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.85rem 1.1rem 0' }}>
+                <span className="mono" style={{ fontSize: '0.65rem', color: 'var(--ink-mute)' }}>{a.year} · {a.body.toUpperCase()}</span>
+                <span className={`status-dot ${a.status === 'ACTIVE' ? 'live' : a.status === 'COASTING' ? 'coast' : ''}`} />
+              </div>
+              <h3 className="display" style={{ fontSize: '1.25rem', padding: '0.35rem 1.1rem 0' }}>{a.name}</h3>
+              <p style={{ color: 'var(--ink-dim)', fontSize: '0.88rem', lineHeight: 1.5, flex: 1, padding: '0.5rem 1.1rem 1.15rem' }}>{a.story.slice(0, 120)}…</p>
+            </motion.button>
+          ))}
+        </AnimatePresence>
+      </motion.div>
     </section>
   )
 }
@@ -759,13 +1051,25 @@ export default function App() {
 
           <div className="sf-chapters">
             <ErrorBoundary fallback={<section className="hero"><div className="hero-content"><h1 className="display display-xl">SILENT FLEET</h1></div></section>}>
-              <Hero ready={ready && !booting} reduced={reduced} />
+              <Hero ready={ready && !booting} reduced={reduced} onOpen={openDossier} />
+            </ErrorBoundary>
+
+            <ErrorBoundary>
+              <ChallengeObjective reduced={reduced} />
             </ErrorBoundary>
 
             <FilmJourney />
 
             <ErrorBoundary>
               <Heartbeats onOpen={openDossier} reduced={reduced} />
+            </ErrorBoundary>
+
+            <ErrorBoundary>
+              <Fleet onOpen={openDossier} />
+            </ErrorBoundary>
+
+            <ErrorBoundary>
+              <Archive onOpen={openDossier} />
             </ErrorBoundary>
 
             <Footer />

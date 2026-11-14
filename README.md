@@ -40,10 +40,12 @@ npm run build && npm run preview
 
 ## Journey
 
-1. Hero — brand + Moon  
-2. Continuum — dive → Mars → storm → Pioneer  
-3. Recover — three heartbeats  
-4. Footer — NASA resources  
+1. Hero — motto **Abandoned but not Forgotten** + NASA leftover image (Eagle LM)  
+2. Objective — Space Apps discarded-equipment storytelling brief  
+3. Continuum — dive → Mars → storm → Pioneer  
+4. Recover — three heartbeats with NASA photos  
+5. Fleet / Archive — full leftover gallery + filters  
+6. Footer — NASA resources  
 
 ## AI disclosure
 
