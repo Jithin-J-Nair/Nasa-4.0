@@ -87,16 +87,21 @@ export function createScrollEngine({ onScroll } = {}) {
 }
 
 /** Smooth-scroll to a hash target (nav links) via Lenis, ScrollToPlugin fallback */
-export function scrollToHash(hash, { offset = -72 } = {}) {
+export function scrollToHash(hash, { offset = -72, duration } = {}) {
   const id = String(hash || '').replace(/^#/, '')
   if (!id) return
   const el = document.getElementById(id)
   if (!el) return
   if (lenis) {
-    lenis.scrollTo(el, { offset, immediate: false })
+    const opts = { offset, immediate: false }
+    if (Number.isFinite(duration)) {
+      opts.duration = duration
+      opts.easing = (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t))
+    }
+    lenis.scrollTo(el, opts)
   } else if (!prefersReducedMotion()) {
     gsap.to(window, {
-      duration: 0.95,
+      duration: Number.isFinite(duration) ? duration : 0.95,
       ease: 'power3.out',
       scrollTo: { y: el, offsetY: Math.abs(offset) },
       overwrite: true,
@@ -104,6 +109,81 @@ export function scrollToHash(hash, { offset = -72 } = {}) {
   } else {
     const y = el.getBoundingClientRect().top + window.scrollY + offset
     window.scrollTo({ top: y, behavior: 'auto' })
+  }
+}
+
+/**
+ * JOURNEY nav — GSAP-driven Moon zoom → warp corridor → Mars arrive.
+ * Drives Continuum film progress via filmDriveRef while Lenis scrolls the page.
+ * Uses gsap.utils.clamp / mapRange / interpolate for the cinematic beats.
+ */
+export function playMoonToMarsJourney({
+  filmDriveRef,
+  getProgress,
+  reduced = false,
+  onStart,
+  onComplete,
+} = {}) {
+  if (playMoonToMarsJourney._tl) {
+    playMoonToMarsJourney._tl.kill()
+    playMoonToMarsJourney._tl = null
+  }
+
+  const raw = typeof getProgress === 'function' ? getProgress() : 0
+  // Atlas→Journey: start from intimacy hold so the handoff is continuous
+  const atlasStart = gsap.utils.clamp(0.14, 0.22, Number.isFinite(raw) ? Math.max(raw, 0.155) : 0.155)
+  const state = { p: atlasStart }
+  if (filmDriveRef) filmDriveRef.current = atlasStart
+  onStart?.()
+
+  const write = () => {
+    if (filmDriveRef) filmDriveRef.current = state.p
+  }
+
+  if (reduced || prefersReducedMotion()) {
+    state.p = 0.56
+    write()
+    scrollToHash('#journey-mars', { offset: -80, duration: 0.6 })
+    const done = window.setTimeout(() => {
+      if (filmDriveRef) filmDriveRef.current = null
+      onComplete?.()
+    }, 700)
+    return () => window.clearTimeout(done)
+  }
+
+  // One continuous film drive — Atlas hold → Meridiani (no beat-to-beat zoom hits)
+  const marsHold = 0.56
+  write()
+
+  const tl = gsap.timeline({
+    defaults: { overwrite: 'auto' },
+    onComplete: () => {
+      scrollToHash('#journey-mars', { offset: -90, duration: 1.4 })
+      gsap.delayedCall(0.7, () => {
+        if (filmDriveRef) filmDriveRef.current = null
+        playMoonToMarsJourney._tl = null
+        onComplete?.()
+      })
+    },
+  })
+
+  tl.to(state, {
+    p: marsHold,
+    duration: 12.5,
+    ease: 'power1.inOut',
+    onUpdate: write,
+  }, 0)
+
+  // Page scroll rides alongside — long Lenis glide, no snap
+  scrollToHash('#journey', { offset: -72, duration: 2.8 })
+  gsap.delayedCall(2.6, () => {
+    scrollToHash('#journey-mars', { offset: -90, duration: 9.2 })
+  })
+
+  playMoonToMarsJourney._tl = tl
+  return () => {
+    tl.kill()
+    if (playMoonToMarsJourney._tl === tl) playMoonToMarsJourney._tl = null
   }
 }
 

@@ -11,7 +11,7 @@ import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@re
 import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
 import * as THREE from 'three'
-import { sampleActs, lerp, clamp, smoothstep } from './film'
+import { sampleActs, lerp, clamp, smoothstep, easeInOutCubic, easeOutExpo } from './film'
 import { ATLAS_HOLD_PROGRESS, latLonToLocal, SITE_FOCUS } from './geo'
 import { ARTIFACTS } from '../data/artifacts'
 
@@ -285,12 +285,16 @@ void main(){
   vColor = aColor;
   vec3 p = position;
   p += vec3(sin(uTime*0.01+aSeed), cos(uTime*0.012+aSeed*2.0), sin(uTime*0.008+aSeed))*0.12;
-  p *= 1.0 + uWarp * 0.15;
+  // Journey warp: forward streaks only — no radial zoom pulse
+  float w = uWarp;
+  vec3 radial = normalize(p + 1e-4);
+  p += radial * w * (2.0 + aSeed * 10.0);
+  p.z -= w * (18.0 + aSeed * 36.0);
   vec4 mv = modelViewMatrix * vec4(p,1.0);
   float tw = 0.7 + 0.3*sin(uTime*(0.5+aSeed*2.0)+aSeed*12.0);
-  vAlpha = tw * (1.0 - uWarp * 0.35) * (1.0 - uDark * 0.75);
-  // Pinpricks only — never soft bokeh orbs over the Moon
-  gl_PointSize = clamp(aSize * uPixelRatio * (72.0 / -mv.z), 0.6, 2.4);
+  vAlpha = tw * mix(1.0, 0.65 + w * 0.55, w) * (1.0 - uDark * 0.55);
+  float streak = 1.0 + w * (1.6 + aSeed * 3.2);
+  gl_PointSize = clamp(aSize * uPixelRatio * (72.0 / max(0.5, -mv.z)) * streak, 0.55, mix(2.2, 5.2, w));
   gl_Position = projectionMatrix * mv;
 }
 `
@@ -682,16 +686,16 @@ function SiteBeacon({
         {interactive && (
           <Html
             center
-            distanceFactor={2.35}
+            distanceFactor={site.body === 'mars' ? 3.4 : 2.35}
             zIndexRange={[80, 0]}
             style={{ pointerEvents: 'none' }}
             occlude={false}
             wrapperClass="hotspot-html"
           >
-            <div className="moon-hotspot" ref={uiRef} style={{ opacity: 0, visibility: 'hidden' }}>
+            <div className={`moon-hotspot ${site.body === 'mars' ? 'moon-hotspot--mars' : ''}`} ref={uiRef} style={{ opacity: 0, visibility: 'hidden' }}>
               <button
                 type="button"
-                className={`moon-hotspot-hit ${cardOpen ? 'on' : ''}`}
+                className={`moon-hotspot-hit ${site.body === 'mars' ? 'moon-hotspot-hit--mars' : ''} ${cardOpen ? 'on' : ''}`}
                 aria-label={`${site.name} at ${site.coords}`}
                 onMouseEnter={() => onHover?.(site)}
                 onFocus={() => onHover?.(site)}
@@ -1004,6 +1008,7 @@ function useInertiaPointer(mouse, reduced) {
 
 function FilmDirector({
   progress,
+  filmDriveRef,
   mouse,
   reduced,
   moonRef,
@@ -1043,38 +1048,54 @@ function FilmDirector({
   const atlasAimLon = useRef(null)
   const marsAimLon = useRef(null)
   const marsHemi = useRef(0)
-  const marsPos = useRef(new THREE.Vector3(2.72, 0.12, -0.45))
-  const marsScale = useRef(1)
+  /** 0 = center approach · 1 = right-limb lock — continuous rail, no hard jumps */
+  const marsSlide = useRef(0)
+  const marsPos = useRef(new THREE.Vector3(0.35, 0.1, -2.4))
+  const marsScale = useRef(0.4)
   const marsActiveRef = useRef(false)
 
   useFrame((state, dt) => {
     const raw = typeof progress?.get === 'function' ? progress.get() : 0
     const step = Math.min(0.05, Math.max(0.001, dt))
+    const drive = filmDriveRef?.current
+    const driven = Number.isFinite(drive)
 
     // Softer Atlas blend — Objective→Atlas eases instead of snapping the stage
-    atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 1.55 * step))
+    // Journey drive forces Atlas off so Moon→Mars can play
+    atlasBlend.current = lerp(atlasBlend.current, (!driven && atlasLock) ? 1 : 0, Math.min(1, (driven ? 4.2 : 1.55) * step))
     const ab = atlasBlend.current
     if (beaconsVisibleRef) beaconsVisibleRef.current = ab
 
-    // Soft-hold film while Atlas is on screen — never hard-snap progress
-    const filmTarget = atlasLock ? ATLAS_HOLD_PROGRESS : raw
-    filmP.current = lerp(filmP.current, filmTarget, Math.min(1, (atlasLock ? 1.35 : 3.6) * step))
+    // GSAP Journey drive wins; else soft-hold film while Atlas is on screen
+    const filmTarget = driven ? drive : (atlasLock ? ATLAS_HOLD_PROGRESS : raw)
+    const catchUp = driven ? 10 : (atlasLock ? 1.35 : 3.6)
+    filmP.current = lerp(filmP.current, filmTarget, Math.min(1, catchUp * step))
     const sample = sampleActs(filmP.current)
     onSample?.(sample)
 
     const f = sample.focus
-    const marsish = f === 'mars' || f === 'storm'
+    const transit = f === 'transit' || sample.act?.id === 'transit'
+    const journey = sample.journey || {
+      moonPresence: f === 'moon' || f === 'dive' ? 1 : 0,
+      marsPresence: f === 'mars' || f === 'storm' ? 1 : 0,
+      moonExit: 0,
+      marsApproach: 0,
+      warp: sample.event.warp,
+    }
+    const marsish = f === 'mars' || f === 'storm' || (transit && journey.marsPresence > 0.35)
     const atlasClear = ab > 0.35
     const marsLive = !atlasClear && marsish
+    // Meridiani stage (wheel / hotspots) — not during pure transit approach
+    const marsStage = !atlasClear && (f === 'mars' || f === 'storm')
 
     // Mute diegetic events with blend (not a binary lock) — no dust/bokeh bleed into Atlas
     const eventMute = 1 - ab
     diveRef.current = sample.event.dive * eventMute
     // Soft storm only — hard sheets were painting muddy polygons over Meridiani
-    stormRef.current = sample.event.storm * eventMute * (marsLive ? 0.28 : 1)
+    stormRef.current = sample.event.storm * eventMute * (marsStage ? 0.28 : 1)
     carrierRef.current = sample.event.carrier * eventMute
     warpRef.current = sample.event.warp * (0.08 + eventMute * 0.92)
-    darkRef.current = sample.dark * (0.08 + eventMute * 0.92) * (marsLive ? 0.45 : 1)
+    darkRef.current = sample.dark * (0.08 + eventMute * 0.92) * (marsStage ? 0.45 : (transit ? 0.7 : 1))
     // Force cool lunar grade as Atlas takes over — kills warm/red particle wash on the Moon
     if (ab > 0.45) {
       const g = sample.grade
@@ -1084,7 +1105,7 @@ function FilmDirector({
         exposure: lerp(g.exposure, 1.1, ab),
         grain: lerp(g.grain, 0.03, ab),
       }
-    } else if (marsLive) {
+    } else if (marsStage) {
       // Crisp Meridiani — readable surface, not a brown mud bath
       const g = sample.grade
       gradeRef.current = {
@@ -1097,34 +1118,43 @@ function FilmDirector({
       gradeRef.current = sample.grade
     }
 
-    if (marsActiveRef.current !== marsLive) {
-      marsActiveRef.current = marsLive
-      onMarsActive?.(marsLive)
+    if (marsActiveRef.current !== marsStage) {
+      marsActiveRef.current = marsStage
+      onMarsActive?.(marsStage)
     }
     if (marsBeaconsVisibleRef) {
-      marsBeaconsVisibleRef.current = marsLive && marsLock ? 1 : (marsLive ? 0.55 : 0)
+      marsBeaconsVisibleRef.current = marsStage && marsLock ? 1 : (marsStage ? 0.55 : 0)
     }
 
-    // Hemisphere push: scroll through Meridiani slides Mars to the right edge
-    let hemiTarget = 0
-    if (sample.act?.id === 'mars') {
-      hemiTarget = smoothstep(0.12, 0.92, sample.eased)
+    // Hemisphere / slide rail — one continuous 0→1 ease, never a step jump
+    let slideTarget = 0
+    if (transit) {
+      slideTarget = clamp(journey.marsApproach, 0, 1)
+    } else if (marsLock && marsStage) {
+      slideTarget = 1
+    } else if (sample.act?.id === 'mars') {
+      slideTarget = lerp(0.72, 1, smoothstep(0.05, 1, sample.eased))
     } else if (sample.act?.id === 'dust_storm' || f === 'storm') {
-      hemiTarget = 1
+      slideTarget = 1
     } else if (marsish) {
-      hemiTarget = sample.eased
+      slideTarget = lerp(0.55, 0.92, sample.eased)
     }
-    marsHemi.current = lerp(marsHemi.current, marsLive ? hemiTarget : 0, Math.min(1, 2.8 * step))
+    // Silk rail — slower catch-up kills the blocky center→right hit
+    const stageLockEarly = marsLock && marsStage
+    const slideRate = transit ? 1.55 : (stageLockEarly ? 1.85 : 2.1)
+    marsSlide.current = lerp(marsSlide.current, marsLive || (transit && journey.marsPresence > 0.02) ? slideTarget : 0, Math.min(1, slideRate * step))
+    marsHemi.current = marsSlide.current
     const hemi = marsHemi.current
+    const slide = easeInOutCubic(marsSlide.current)
 
     // Hero: free spin. From Objective→Atlas: ease the site onto the lens center.
     const hot = ab > 0.2
       ? (focusSiteId || sample.hotspot || 'a11-lm')
-      : (marsLive
+      : (marsStage
         ? (focusSiteId && SITE_FOCUS[focusSiteId]?.body === 'mars' ? focusSiteId : (sample.hotspot || 'opportunity'))
         : (sample.hotspot || null))
     if (hotspotRef) {
-      hotspotRef.current = ab > 0.4 || (marsLive && marsLock) ? hot : null
+      hotspotRef.current = ab > 0.4 || (marsStage && marsLock) ? hot : null
     }
     const focus = hot ? SITE_FOCUS[hot] : null
     if (moonAimRef) {
@@ -1145,7 +1175,7 @@ function FilmDirector({
       }
     }
     if (marsAimRef) {
-      if (marsLive && marsLock) {
+      if (marsStage && marsLock) {
         if (marsAimLon.current == null) {
           const entry = SITE_FOCUS[focusSiteId || 'opportunity']
           marsAimLon.current = entry?.body === 'mars'
@@ -1158,7 +1188,7 @@ function FilmDirector({
         marsAimRef.current = marsAimLon.current
       } else {
         marsAimLon.current = null
-        marsAimRef.current = !atlasLock && marsLive && focus?.body === 'mars'
+        marsAimRef.current = !atlasLock && marsStage && focus?.body === 'mars'
           ? focus.aimLon
           : null
       }
@@ -1175,41 +1205,58 @@ function FilmDirector({
     }
 
     // Moon acts: hard-lock X to center — parallax was shifting the disc right/left
-    const moonLock = f === 'moon' || f === 'dive' || ab > 0.02
+    // Transit early frames stay centered on the lunar zoom before the corridor opens
+    const moonLock = f === 'moon' || f === 'dive' || ab > 0.02 || (transit && journey.moonExit < 0.28)
     const mx = moonLock ? 0 : inertia.current.x * (0.1 + sample.event.warp * 0.08)
     const my = moonLock ? 0 : inertia.current.y * (0.06 + sample.event.warp * 0.05)
 
-    // Mars hemi: keep camera look left of Mars so only the left hemisphere stays in frame
+    // Locked Meridiani stage (Image 2): right-hemisphere Mars, room for the arc wheel
+    const marsStageLock = marsLock && marsStage
     const lookBaseX = moonLock ? 0 : sample.look[0] + mx * 0.04
-    const lookHemiX = marsLive
-      ? lerp(sample.look[0], sample.look[0] - 0.35, hemi)
-      : lookBaseX
+    // Look left of Mars center so ~50% of the body stays in frame
+    const lookHemiX = marsStageLock
+      ? 1.28
+      : marsStage
+        ? lerp(sample.look[0], 1.28, hemi)
+        : lookBaseX
 
-    desired.set(
-      moonLock ? 0 : sample.cam[0] + mx,
-      sample.cam[1] - my,
-      sample.cam[2],
-    )
+    if (marsStageLock) {
+      desired.set(0.55 + mx * 0.12, 0.1 - my * 0.35, 4.7)
+    } else {
+      desired.set(
+        moonLock ? 0 : sample.cam[0] + mx,
+        sample.cam[1] - my,
+        sample.cam[2],
+      )
+    }
 
-    const damp = sample.smash && ab < 0.25 ? 0.55 : (reduced ? 0.16 : 0.065)
+    // Journey uses a silkier follow so scale-level moves read as one continuous shot
+    const journeyDamp = transit
+      ? (reduced ? 0.12 : 0.038)
+      : marsStageLock
+        ? (reduced ? 0.14 : 0.055)
+        : (reduced ? 0.16 : 0.065)
+    const damp = sample.smash && ab < 0.25 ? 0.55 : journeyDamp
     camera.position.x = lerp(camera.position.x, desired.x, damp)
     camera.position.y = lerp(camera.position.y, desired.y, damp)
     camera.position.z = lerp(camera.position.z, desired.z, damp)
 
     if ('fov' in camera) {
-      camera.fov = lerp(camera.fov, sample.fov, sample.smash && ab < 0.25 ? 0.5 : 0.075)
+      const targetFov = marsStageLock ? 33 : sample.fov
+      const fovDamp = sample.smash && ab < 0.25 ? 0.5 : (transit ? 0.045 : 0.075)
+      camera.fov = lerp(camera.fov, targetFov, fovDamp)
       camera.updateProjectionMatrix()
     }
 
     look.set(
-      moonLock ? 0 : lookHemiX,
-      sample.look[1],
-      sample.look[2],
+      moonLock ? 0 : (transit ? sample.look[0] : lookHemiX),
+      marsStageLock ? 0.06 : sample.look[1],
+      marsStageLock ? -0.4 : sample.look[2],
     )
     camera.lookAt(look)
 
     if (moonRef.current) {
-      const show = f === 'moon' || f === 'dive' || ab > 0.02
+      const show = f === 'moon' || f === 'dive' || ab > 0.02 || (transit && journey.moonPresence > 0.02)
       moonRef.current.visible = show || sample.event.dive > 0.05
 
       let targetScale = 0.01
@@ -1221,16 +1268,23 @@ function FilmDirector({
         const nearPass = sample.act?.id === 'crater_dive'
         // Globe only — centered; near-pass eases in slightly larger scale (no mesh floor)
         if (nearPass) {
-          targetScale = lerp(1.88, 2.35, sample.event.dive)
+          targetScale = lerp(1.88, 2.42, sample.event.dive)
         } else {
           targetScale = arrival ? lerp(1.62, 1.72, sample.eased) : lerp(1.72, 1.88, sample.eased)
         }
         tx = 0
         ty = 0
         tz = 0
+      } else if (transit && journey.moonPresence > 0.01) {
+        // Soft fade-recede — no punch-in before leaving
+        const exit = journey.moonExit
+        targetScale = lerp(1.88, 0.06, easeInOutCubic(exit))
+        tx = lerp(0, -0.55, exit)
+        ty = lerp(0, 0.12, exit)
+        tz = lerp(0, -3.2, easeInOutCubic(exit))
       }
 
-      const poseDamp = Math.min(1, (reduced ? 8 : 4.5) * step)
+      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 2.4 : 4.5)) * step)
       moonScale.current = lerp(moonScale.current, targetScale, poseDamp)
       moonPos.current.x = lerp(moonPos.current.x, tx, poseDamp)
       moonPos.current.y = lerp(moonPos.current.y, ty, poseDamp)
@@ -1238,24 +1292,32 @@ function FilmDirector({
       moonRef.current.scale.setScalar(moonScale.current)
       moonRef.current.position.copy(moonPos.current)
     }
-    // Mars: start centered, scroll slides it to the right edge (hemisphere)
+    // Mars: one continuous center→right rail (no branch snaps)
     if (marsRef.current) {
-      marsRef.current.visible = marsLive
-      if (marsLive) {
-        const stormPush = f === 'storm' ? sample.event.storm : 0
-        const baseScale = lerp(1.05, 1.55, Math.max(sample.eased * 0.35, stormPush * 0.7))
-        const hemiScale = lerp(baseScale, baseScale * 1.45, hemi)
-        const baseX = 2.72
-        const hemiX = baseX + 1.85 * hemi
-        const poseDamp = Math.min(1, (reduced ? 7 : 3.8) * step)
+      const showMars = marsLive || (transit && journey.marsPresence > 0.02)
+      marsRef.current.visible = showMars
+      if (showMars) {
+        // Presence fades the disc in without a scale pop
+        const presence = transit
+          ? clamp(journey.marsPresence, 0, 1)
+          : 1
+        // Center → right: only ~50% of the body stays on screen at lock
+        const hemiX = lerp(0.22, 3.28, slide)
+        const ty = lerp(0.14, 0.04, slide)
+        const tz = lerp(-2.8, -0.5, slide)
+        const hemiScale = lerp(0.42, 1.72, slide) * lerp(0.55, 1, easeInOutCubic(presence))
+        const poseDamp = Math.min(1, (reduced ? 5.5 : 2.15) * step)
         marsScale.current = lerp(marsScale.current, hemiScale, poseDamp)
         marsPos.current.x = lerp(marsPos.current.x, hemiX, poseDamp)
-        marsPos.current.y = lerp(marsPos.current.y, 0.12, poseDamp)
-        marsPos.current.z = lerp(marsPos.current.z, -0.45, poseDamp)
+        marsPos.current.y = lerp(marsPos.current.y, ty, poseDamp)
+        marsPos.current.z = lerp(marsPos.current.z, tz, poseDamp)
         marsRef.current.scale.setScalar(marsScale.current)
         marsRef.current.position.copy(marsPos.current)
       } else {
-        marsRef.current.scale.setScalar(0.01)
+        // Soft park — keep last pose; only shrink when fully off
+        marsScale.current = lerp(marsScale.current, 0.01, Math.min(1, 2.2 * step))
+        marsRef.current.scale.setScalar(marsScale.current)
+        if (marsScale.current < 0.02) marsRef.current.visible = false
       }
     }
     if (pioneerRef.current) {
@@ -1327,6 +1389,7 @@ function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
 
 function ContinuumScene({
   progress,
+  filmDriveRef,
   mouse,
   mobile,
   reduced,
@@ -1393,6 +1456,7 @@ function ContinuumScene({
 
       <FilmDirector
         progress={progress}
+        filmDriveRef={filmDriveRef}
         mouse={mouse}
         reduced={reduced}
         moonRef={moonRef}
@@ -1495,6 +1559,7 @@ function MoonReadySignal({ onReady }) {
 
 export default function ContinuumCanvas({
   progress,
+  filmDriveRef,
   mouse,
   mobile,
   reduced,
@@ -1561,6 +1626,7 @@ export default function ContinuumCanvas({
       >
         <ContinuumScene
           progress={progress}
+          filmDriveRef={filmDriveRef}
           mouse={mouse}
           mobile={mobile}
           reduced={reduced}

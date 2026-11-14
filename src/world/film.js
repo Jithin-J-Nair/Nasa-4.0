@@ -1,6 +1,7 @@
 /**
  * FilmDirector — directed beats, not keyframe lerps.
  * Holds you feel. Smash that hurts. Darkness as punctuation.
+ * Journey: lunar zoom → void pullback → warp → Mars arrival.
  */
 
 export function clamp(n, a, b) { return Math.max(a, Math.min(b, n)) }
@@ -19,6 +20,16 @@ export function easeOutExpo(t) { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t) }
 export function easeInOutQuint(t) {
   return t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2
 }
+export function easeInOutCirc(t) {
+  return t < 0.5
+    ? (1 - Math.sqrt(1 - Math.pow(2 * t, 2))) / 2
+    : (Math.sqrt(1 - Math.pow(-2 * t + 2, 2)) + 1) / 2
+}
+/** Slow-in / long settle — cinematic camera moves */
+export function easeCinematic(t) {
+  const x = clamp(t, 0, 1)
+  return x * x * x * (x * (x * 6 - 15) + 10)
+}
 
 /** Flat plateaus = cinematic hold you feel in the body */
 export function easeHold(t, hold = 0.42) {
@@ -26,6 +37,64 @@ export function easeHold(t, hold = 0.42) {
   if (t > 1 - hold * 0.55) return 1
   return easeInOutCubic((t - hold) / (1 - hold * 1.55))
 }
+
+function lerp3(a, b, t) {
+  return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]
+}
+
+/**
+ * Multi-keyframe sampler — phase keys are 0..1 within an act.
+ * Uses cinematic ease between knots so forth/back scroll stays buttery.
+ */
+function samplePath(keys, local, easeFn = easeCinematic) {
+  const t = clamp(local, 0, 1)
+  if (t <= keys[0].t) {
+    return {
+      cam: keys[0].cam.slice(),
+      look: keys[0].look.slice(),
+      fov: keys[0].fov,
+      phase: keys[0].phase || 0,
+    }
+  }
+  const last = keys[keys.length - 1]
+  if (t >= last.t) {
+    return {
+      cam: last.cam.slice(),
+      look: last.look.slice(),
+      fov: last.fov,
+      phase: last.phase || 1,
+    }
+  }
+  let i = 0
+  while (i < keys.length - 1 && t > keys[i + 1].t) i++
+  const a = keys[i]
+  const b = keys[i + 1]
+  const u = easeFn((t - a.t) / Math.max(1e-5, b.t - a.t))
+  return {
+    cam: lerp3(a.cam, b.cam, u),
+    look: lerp3(a.look, b.look, u),
+    fov: lerp(a.fov, b.fov, u),
+    phase: lerp(a.phase ?? 0, b.phase ?? 1, u),
+  }
+}
+
+/**
+ * JOURNEY path — continuous dolly/glide (no FOV or Z punch in/out).
+ * Warp energy lives in star streaks + grade, not lens breathing.
+ * phase: 0 lunar hold · 0.3 leave · 0.55 corridor · 0.8 mars grow · 1 lock
+ */
+const TRANSIT_KEYS = [
+  // Match Atlas / near-side framing — soft lunar disc, no closer punch
+  { t: 0.00, cam: [0, 0.02, 5.35], look: [0, 0, 0], fov: 33, phase: 0 },
+  { t: 0.14, cam: [0.04, 0.05, 5.55], look: [0.08, 0.02, -0.55], fov: 33.5, phase: 0.12 },
+  { t: 0.28, cam: [0.28, 0.12, 6.15], look: [0.45, 0.05, -1.8], fov: 34, phase: 0.28 },
+  { t: 0.44, cam: [0.7, 0.2, 6.85], look: [1.15, 0.08, -3.6], fov: 34.5, phase: 0.48 },
+  { t: 0.58, cam: [1.15, 0.22, 7.15], look: [1.7, 0.1, -4.2], fov: 34.5, phase: 0.62 },
+  { t: 0.74, cam: [1.35, 0.18, 6.2], look: [1.95, 0.09, -1.8], fov: 34, phase: 0.78 },
+  { t: 0.88, cam: [0.75, 0.12, 4.95], look: [1.45, 0.07, -0.55], fov: 33.5, phase: 0.9 },
+  // Hand off: camera left, Mars right — ~50% body in frame
+  { t: 1.00, cam: [0.55, 0.1, 4.7], look: [1.28, 0.06, -0.4], fov: 33, phase: 1 },
+]
 
 /**
  * Signature acts. Each owns camera, grade, diegetic event intensity,
@@ -35,7 +104,7 @@ export const ACTS = [
   {
     id: 'hero',
     label: 'ARRIVAL',
-    range: [0.0, 0.10],
+    range: [0.0, 0.09],
     ease: easeHold,
     // Moon dead-center — equal starfield both limbs
     cam: { from: [0, 0.02, 6.8], to: [0, 0.02, 6.4], look: [0, 0, 0], fov: [36, 34] },
@@ -49,10 +118,10 @@ export const ACTS = [
   {
     id: 'intimacy',
     label: 'NEAR SIDE',
-    range: [0.10, 0.22],
+    range: [0.09, 0.18],
     ease: easeInOutCubic,
     // Slight centered zoom only — limbs stay visible both sides
-    cam: { from: [0, 0.02, 6.4], to: [0, 0.02, 5.35], look: [0, 0, 0], fov: [34, 32] },
+    cam: { from: [0, 0.02, 6.4], to: [0, 0.02, 5.15], look: [0, 0, 0], fov: [34, 31] },
     grade: { lift: [0.015, 0.02, 0.045], gain: [1.04, 1.05, 1.1], exposure: 1.02, grain: 0.04 },
     event: { dive: 0, storm: 0, carrier: 0, warp: 0.06 },
     dark: 0.04,
@@ -62,28 +131,41 @@ export const ACTS = [
     hotspot: 'a11-lm',
   },
   {
-    // Close lunar pass on the globe only — no local mesh floor / crater plane
+    // Soft lunar settle before Journey — no smash zoom
     id: 'crater_dive',
     label: 'NEAR PASS',
-    range: [0.22, 0.36],
-    ease: easeInQuart,
-    cam: { from: [0, 0.02, 5.35], to: [0, 0.02, 3.55], look: [0, 0, 0], fov: [32, 28] },
-    grade: { lift: [0.02, 0.025, 0.045], gain: [0.95, 0.97, 1.02], exposure: 0.92, grain: 0.06 },
-    event: { dive: 0.55, storm: 0, carrier: 0, warp: 0.35 },
-    dark: 0.18,
-    fog: [14, 70],
+    range: [0.18, 0.28],
+    ease: easeInOutCubic,
+    cam: { from: [0, 0.02, 5.15], to: [0, 0.02, 5.35], look: [0, 0, 0], fov: [31, 33] },
+    grade: { lift: [0.02, 0.025, 0.045], gain: [0.98, 1.0, 1.05], exposure: 0.98, grain: 0.05 },
+    event: { dive: 0.22, storm: 0, carrier: 0, warp: 0.12 },
+    dark: 0.1,
+    fog: [16, 78],
     focus: 'moon',
-    smash: 0.335,
     cue: 'dive',
+  },
+  {
+    // Continuous Atlas→Mars dolly — warp is stellar, not lens zoom
+    id: 'transit',
+    label: 'JOURNEY',
+    range: [0.28, 0.52],
+    ease: easeCinematic,
+    cam: { from: [0, 0.02, 5.35], to: [0.55, 0.1, 4.7], look: [1.28, 0.06, -0.4], fov: [33, 33] },
+    grade: { lift: [0.02, 0.02, 0.05], gain: [1.0, 1.0, 1.08], exposure: 0.9, grain: 0.05 },
+    event: { dive: 0.05, storm: 0, carrier: 0, warp: 0.72 },
+    dark: 0.18,
+    fog: [18, 110],
+    focus: 'transit',
+    cue: 'journey',
   },
   {
     id: 'mars',
     label: 'MERIDIANI',
-    range: [0.36, 0.50],
-    ease: easeOutExpo,
-    cam: { from: [3.05, 0.62, 5.1], to: [2.55, 0.22, 3.05], look: [2.72, 0.1, -0.45], fov: [50, 32] },
+    range: [0.52, 0.64],
+    ease: easeInOutCubic,
+    cam: { from: [0.55, 0.1, 4.7], to: [0.55, 0.1, 4.7], look: [1.28, 0.06, -0.4], fov: [33, 33] },
     grade: { lift: [0.09, 0.03, 0.01], gain: [1.22, 0.92, 0.72], exposure: 1.1, grain: 0.06 },
-    event: { dive: 0, storm: 0.04, carrier: 0, warp: 0.18 },
+    event: { dive: 0, storm: 0.04, carrier: 0, warp: 0.12 },
     dark: 0.08,
     fog: [10, 48],
     focus: 'mars',
@@ -93,9 +175,10 @@ export const ACTS = [
   {
     id: 'dust_storm',
     label: 'DUST STORM',
-    range: [0.50, 0.66],
+    range: [0.64, 0.76],
     ease: easeInOutQuint,
-    cam: { from: [2.55, 0.22, 3.05], to: [2.15, 0.55, 1.85], look: [2.45, 0.12, -0.2], fov: [32, 24] },
+    // Locked right-limb — grade/storm carry drama, not camera punch
+    cam: { from: [0.55, 0.1, 4.7], to: [0.52, 0.12, 4.55], look: [1.22, 0.07, -0.35], fov: [33, 32] },
     grade: { lift: [0.14, 0.05, 0.01], gain: [1.45, 0.55, 0.28], exposure: 0.28, grain: 0.28 },
     event: { dive: 0, storm: 1, carrier: 0, warp: 0.45 },
     dark: 0.92,
@@ -107,7 +190,7 @@ export const ACTS = [
   {
     id: 'carrier',
     label: 'CARRIER',
-    range: [0.66, 0.84],
+    range: [0.76, 0.88],
     ease: easeInOutCubic,
     cam: { from: [0.55, 0.55, 7.2], to: [0.12, 0.22, 4.6], look: [0, 0.08, -9.2], fov: [42, 32] },
     grade: { lift: [0.01, 0.02, 0.055], gain: [0.88, 0.94, 1.18], exposure: 0.88, grain: 0.07 },
@@ -121,7 +204,7 @@ export const ACTS = [
   {
     id: 'silence',
     label: 'SILENCE',
-    range: [0.84, 1.0],
+    range: [0.88, 1.0],
     ease: easeHold,
     cam: { from: [0.12, 0.22, 4.6], to: [0.28, 0.18, 3.7], look: [0.04, 0.1, -9.5], fov: [32, 28] },
     grade: { lift: [0.01, 0.015, 0.035], gain: [0.9, 0.94, 1.05], exposure: 0.72, grain: 0.04 },
@@ -143,13 +226,23 @@ export function sampleActs(progress) {
   const local = clamp((p - a0) / (a1 - a0), 0, 1)
   const e = act.ease(local)
 
-  const cam = [
+  let cam = [
     lerp(act.cam.from[0], act.cam.to[0], e),
     lerp(act.cam.from[1], act.cam.to[1], e),
     lerp(act.cam.from[2], act.cam.to[2], e),
   ]
-  const fov = lerp(act.cam.fov[0], act.cam.fov[1], e)
-  const look = act.cam.look
+  let fov = lerp(act.cam.fov[0], act.cam.fov[1], e)
+  let look = act.cam.look.slice ? act.cam.look.slice() : [...act.cam.look]
+  let transitPhase = 0
+
+  // Authored multi-beat journey — overrides linear from→to
+  if (act.id === 'transit') {
+    const path = samplePath(TRANSIT_KEYS, local, easeCinematic)
+    cam = path.cam
+    look = path.look
+    fov = path.fov
+    transitPhase = path.phase
+  }
 
   let grade = { ...act.grade }
   let event = { ...act.event }
@@ -159,7 +252,9 @@ export function sampleActs(progress) {
 
   if (i < ACTS.length - 1) {
     const next = ACTS[i + 1]
-    const edge = smoothstep(0.78, 1, local)
+    // Longer blend into / out of Journey so acts don't smash
+    const edgeStart = act.id === 'crater_dive' || act.id === 'transit' || next.id === 'transit' ? 0.62 : 0.78
+    const edge = smoothstep(edgeStart, 1, local)
     grade = {
       lift: act.grade.lift.map((v, k) => lerp(v, next.grade.lift[k], edge)),
       gain: act.grade.gain.map((v, k) => lerp(v, next.grade.gain[k], edge)),
@@ -177,13 +272,38 @@ export function sampleActs(progress) {
     fogFar = lerp(act.fog[1], next.fog[1], edge)
   }
 
-  // Near pass: gentle push on the globe — no local mesh bowl
+  // Near pass: soft presence only — no smash bowl
   if (act.id === 'crater_dive') {
     const bowl = Math.sin(local * Math.PI)
-    event.dive = Math.max(event.dive, bowl * 0.55)
-    event.warp = Math.max(event.warp, bowl * 0.35)
-    dark = Math.max(dark, bowl * 0.22)
+    event.dive = Math.max(event.dive, bowl * 0.22)
+    event.warp = Math.max(event.warp, bowl * 0.1)
+    dark = Math.max(dark, bowl * 0.08)
   }
+
+  // Journey: warp envelope is a single smooth arch — grade shifts, lens stays calm
+  if (act.id === 'transit') {
+    const leave = smoothstep(0.08, 0.42, local)
+    const warpPeak = Math.sin(smoothstep(0.2, 0.82, local) * Math.PI)
+    const approach = smoothstep(0.62, 1, local)
+    event.dive = lerp(0.12, 0.02, leave)
+    event.warp = leave * 0.2 + warpPeak * 0.78
+    event.storm = approach * 0.025
+    dark = 0.1 + leave * 0.12 + warpPeak * 0.1 - approach * 0.08
+    grade.exposure = lerp(0.92, 1.06, approach) * (1 - warpPeak * 0.08)
+    grade.lift = [
+      lerp(0.02, 0.07, approach),
+      lerp(0.02, 0.028, approach),
+      lerp(0.05, 0.02, approach),
+    ]
+    grade.gain = [
+      lerp(0.98, 1.16, approach),
+      lerp(1.0, 0.94, approach),
+      lerp(1.08, 0.8, approach),
+    ]
+    fogNear = lerp(16, 20, warpPeak)
+    fogFar = lerp(85, 130, warpPeak)
+  }
+
   // Storm: darkness owns the beat — Opportunity dying in the body
   if (act.id === 'dust_storm') {
     const smother = easeInOutQuint(local)
@@ -198,6 +318,24 @@ export function sampleActs(progress) {
   }
 
   const smash = act.smash != null && Math.abs(p - act.smash) < 0.014
+
+  // Body choreography hints for FilmDirector (0..1 weights)
+  let journey = {
+    moonPresence: act.focus === 'moon' || act.focus === 'dive' ? 1 : 0,
+    marsPresence: act.focus === 'mars' || act.focus === 'storm' ? 1 : 0,
+    moonExit: 0,
+    marsApproach: 0,
+    warp: event.warp,
+  }
+  if (act.id === 'transit') {
+    journey = {
+      moonPresence: 1 - smoothstep(0.15, 0.55, local),
+      marsPresence: smoothstep(0.42, 0.78, local),
+      moonExit: smoothstep(0.1, 0.55, local),
+      marsApproach: smoothstep(0.48, 1, local),
+      warp: event.warp,
+    }
+  }
 
   return {
     index: i,
@@ -217,5 +355,7 @@ export function sampleActs(progress) {
     cue: act.cue,
     hotspot: act.hotspot || null,
     smash,
+    transitPhase,
+    journey,
   }
 }

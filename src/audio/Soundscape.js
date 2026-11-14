@@ -238,6 +238,10 @@ export function createSoundscape() {
       if (cue === 'dive') rushDive()
       if (cue === 'opportunity_death') scoreOpportunityDeath()
       if (cue === 'mars') ping(500, 0.03, 0.45)
+      if (cue === 'journey') {
+        rushDive()
+        ping(280, 0.04, 1.4)
+      }
       if (cue === 'carrier') ping(210, 0.04, 0.8)
       if (cue === 'carrier_lost') scoreCarrierLost()
       if (cue === 'near') ping(640, 0.025, 0.35)

@@ -18,7 +18,7 @@ import { preloadContinuumModule, preloadCriticalMoon, preloadPlanetTextures } fr
 import { GLOBAL_CSS } from './styles/global.css.js'
 import {
   createScrollEngine, destroyScrollEngine, scrollToHash, playHeroIntro, playBootSequence,
-  revealOnScroll, scheduleScrollRefresh,
+  revealOnScroll, scheduleScrollRefresh, playMoonToMarsJourney,
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
 import {
@@ -284,7 +284,7 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
   )
 }
 
-function Nav({ progress, onNavAtlas }) {
+function Nav({ progress, onNavAtlas, onNavJourney }) {
   const scaleX = useSpring(progress, { stiffness: 90, damping: 24 })
   return (
     <nav className="nav" aria-label="Primary">
@@ -299,7 +299,14 @@ function Nav({ progress, onNavAtlas }) {
         >
           ATLAS
         </a>
-        <a href="#journey">JOURNEY</a>
+        <a
+          href="#journey"
+          onClick={(e) => {
+            onNavJourney?.(e)
+          }}
+        >
+          JOURNEY
+        </a>
         <a href="#recover">RECOVER</a>
         <a href="#fleet">FLEET</a>
       </div>
@@ -308,10 +315,26 @@ function Nav({ progress, onNavAtlas }) {
   )
 }
 
-function FilmJourney() {
+function FilmJourney({ label = 'JOURNEY' }) {
+  const phase =
+    label === 'NEAR PASS' || label === 'NEAR SIDE' ? 'Lunar zoom'
+      : label === 'JOURNEY' ? 'Transit corridor'
+        : label === 'MERIDIANI' || label === 'DUST STORM' ? 'Mars arrival'
+          : 'Continuum'
   return (
     <section id="journey" className="journey-spacer" aria-label="Film continuum journey">
-      <span className="section-rail" style={{ position: 'sticky', top: '30vh' }}>FILM · CONTINUUM</span>
+      {/* Scroll beat markers — GSAP Journey nav lands on these */}
+      <span id="journey-dive" className="journey-beat" style={{ top: '10%' }} aria-hidden />
+      <span id="journey-transit" className="journey-beat" style={{ top: '42%' }} aria-hidden />
+      <span id="journey-mars" className="journey-beat" style={{ top: '74%' }} aria-hidden />
+      <div className="journey-hud" aria-hidden>
+        <span className="section-rail journey-hud__rail">FILM · CONTINUUM</span>
+        <p className="journey-hud__act mono">{label}</p>
+        <p className="journey-hud__phase">{phase}</p>
+        <div className="journey-hud__meter" data-label={label}>
+          <span className="journey-hud__meter-fill" />
+        </div>
+      </div>
     </section>
   )
 }
@@ -521,15 +544,15 @@ function MarsHotspotWheel({ active, selectedId, onSelect }) {
           textColor="#8a8680"
           activeColor="#ffe0c8"
           side="left"
-          fontSize={1.45}
-          spacing={1.55}
-          curve={1.1}
-          tilt={7.5}
-          blur={1.15}
-          fade={0.2}
-          minOpacity={0.14}
+          fontSize={2.05}
+          spacing={1.72}
+          curve={2.35}
+          tilt={14}
+          blur={1.35}
+          fade={0.18}
+          minOpacity={0.12}
           smoothing={520}
-          inset={36}
+          inset={28}
           loop={false}
           draggable
           soundUrl=""
@@ -1047,6 +1070,10 @@ export default function App() {
   const mainRef = useRef(null)
   const soundRef = useRef(null)
   const moonReadyResolve = useRef(null)
+  /** GSAP Journey drive — number while playing, null = follow scroll */
+  const filmDriveRef = useRef(null)
+  const journeyPlayingRef = useRef(false)
+  const killJourneyRef = useRef(null)
   const moonReadyPromise = useMemo(
     () => new Promise((resolve) => { moonReadyResolve.current = resolve }),
     [],
@@ -1056,7 +1083,8 @@ export default function App() {
   const reduced = usePrefersReduced()
   const { scrollYProgress } = useScroll()
   // Soft spring — lower work per frame while staying continuous with Lenis
-  const smoothProgress = useSpring(scrollYProgress, { stiffness: 48, damping: 26, mass: 0.85 })
+  // Soft mass — Journey Moon→Mars reads as one continuous cinematic push
+  const smoothProgress = useSpring(scrollYProgress, { stiffness: 32, damping: 28, mass: 1.15 })
 
   useEffect(() => {
     const style = document.createElement('style')
@@ -1091,6 +1119,11 @@ export default function App() {
   }, [])
 
   const onAtlasActive = useCallback((on) => {
+    // Journey cinematic owns the stage — don't let Atlas IO re-freeze the film
+    if (journeyPlayingRef.current) {
+      setAtlasLock(false)
+      return
+    }
     setAtlasLock(on)
     if (on) setMarsLock(false)
     if (!on) setCardSiteId(null)
@@ -1117,6 +1150,10 @@ export default function App() {
 
   const onNavAtlas = useCallback((e) => {
     e.preventDefault()
+    killJourneyRef.current?.()
+    killJourneyRef.current = null
+    journeyPlayingRef.current = false
+    filmDriveRef.current = null
     setAtlasLock(true)
     setMarsLock(false)
     setFocusSiteId('a11-lm')
@@ -1125,6 +1162,32 @@ export default function App() {
     scrollToHash('#atlas-bridge')
     history.replaceState(null, '', '#atlas')
   }, [])
+
+  const onNavJourney = useCallback((e) => {
+    e.preventDefault()
+    killJourneyRef.current?.()
+    journeyPlayingRef.current = true
+    setAtlasLock(false)
+    setMarsLock(false)
+    setCardSiteId(null)
+    setFocusSiteId('a11-lm')
+    history.replaceState(null, '', '#journey')
+    killJourneyRef.current = playMoonToMarsJourney({
+      filmDriveRef,
+      getProgress: () => (typeof smoothProgress?.get === 'function' ? smoothProgress.get() : 0),
+      reduced,
+      onStart: () => {
+        journeyPlayingRef.current = true
+        setAtlasLock(false)
+      },
+      onComplete: () => {
+        journeyPlayingRef.current = false
+        setFocusSiteId('opportunity')
+        setCardSiteId('opportunity')
+        killJourneyRef.current = null
+      },
+    })
+  }, [reduced, smoothProgress])
 
   const onFocusSite = useCallback((id) => {
     if (id) setFocusSiteId(id)
@@ -1168,6 +1231,10 @@ export default function App() {
     window.addEventListener('load', onLoad)
     return () => {
       window.removeEventListener('load', onLoad)
+      killJourneyRef.current?.()
+      killJourneyRef.current = null
+      filmDriveRef.current = null
+      journeyPlayingRef.current = false
       destroyScrollEngine()
     }
   }, [booting])
@@ -1220,6 +1287,7 @@ export default function App() {
             <Suspense fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
               <ContinuumCanvas
                 progress={smoothProgress}
+                filmDriveRef={filmDriveRef}
                 mouse={mouse}
                 mobile={mobile}
                 reduced={reduced}
@@ -1275,7 +1343,7 @@ export default function App() {
             />
           )}
 
-          <Nav progress={smoothProgress} onNavAtlas={onNavAtlas} />
+          <Nav progress={smoothProgress} onNavAtlas={onNavAtlas} onNavJourney={onNavJourney} />
 
           <button
             type="button"
@@ -1315,7 +1383,7 @@ export default function App() {
 
               <div className="story-seam story-seam--into-film" aria-hidden />
 
-              <FilmJourney />
+              <FilmJourney label={actLabel} />
 
               <div className="story-seam story-seam--into-recover" aria-hidden />
 

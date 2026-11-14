@@ -218,10 +218,76 @@ img, svg { display: block; max-width: 100%; }
   background: rgba(142,200,255,0.08);
 }
 .journey-spacer {
-  height: 520vh;
+  height: 720vh;
   pointer-events: none;
   position: relative;
   margin-top: clamp(-2rem, -4vh, 0);
+}
+.journey-beat {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+.journey-hud {
+  position: sticky;
+  top: 28vh;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding-left: clamp(1rem, 4vw, 2.5rem);
+  max-width: min(42ch, 86vw);
+  pointer-events: none;
+}
+.journey-hud__rail {
+  opacity: 0.5;
+  letter-spacing: 0.28em;
+}
+.journey-hud__act {
+  margin: 0;
+  font-size: clamp(0.72rem, 1.4vw, 0.85rem);
+  letter-spacing: 0.22em;
+  color: rgba(232, 240, 255, 0.88);
+  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
+}
+.journey-hud__phase {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 3.2vw, 2.1rem);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: rgba(255, 248, 240, 0.92);
+  text-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+}
+.journey-hud__meter {
+  margin-top: 0.55rem;
+  width: min(220px, 48vw);
+  height: 1px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.journey-hud__meter-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, rgba(142, 200, 255, 0.15), rgba(255, 210, 170, 0.85));
+  animation: journeyMeter 14s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
+}
+.journey-hud__meter[data-label='JOURNEY'] .journey-hud__meter-fill {
+  animation-duration: 8s;
+}
+.journey-hud__meter[data-label='MERIDIANI'] .journey-hud__meter-fill,
+.journey-hud__meter[data-label='DUST STORM'] .journey-hud__meter-fill {
+  background: linear-gradient(90deg, rgba(255, 160, 110, 0.2), rgba(255, 200, 150, 0.9));
+}
+@keyframes journeyMeter {
+  from { transform: scaleX(0.12); opacity: 0.55; }
+  to { transform: scaleX(1); opacity: 1; }
 }
 .story-plate .journey-spacer .section-rail {
   opacity: 0.45;
@@ -797,19 +863,19 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   transition: opacity 1.05s cubic-bezier(0.22, 1, 0.36, 1), visibility 1.05s;
 }
 
-/* Mars Meridiani — hotspot wheel docks left while Mars holds the right hemisphere */
+/* Mars Meridiani — large arc hotspot wheel docks left */
 .mars-hotspot-wheel-hud {
   position: fixed;
   left: 0;
   top: var(--nav-h);
   bottom: 0;
   z-index: 120;
-  width: min(44vw, 460px);
+  width: min(56vw, 620px);
   pointer-events: none;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 0 0 4rem;
+  padding: 0 0 3rem;
   opacity: 0;
   visibility: hidden;
   transform: translate3d(-14px, 0, 0);
@@ -826,8 +892,8 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 }
 .mars-hotspot-wheel-kicker {
   pointer-events: none;
-  margin: 0 0 0.85rem;
-  padding-left: 2rem;
+  margin: 0 0 0.65rem;
+  padding-left: 1.6rem;
   color: rgba(255, 200, 160, 0.55);
   letter-spacing: 0.18em;
   font-size: 0.62rem;
@@ -835,12 +901,17 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 }
 .mars-hotspot-wheel {
   pointer-events: auto;
-  height: min(72vh, 600px);
-  font-family: var(--font-display);
-  letter-spacing: -0.03em;
+  height: min(84vh, 760px);
+  /* Build default body face — Space Grotesk */
+  font-family: var(--font-body);
+  font-weight: 500;
+  letter-spacing: -0.02em;
 }
 .mars-hotspot-wheel .option-wheel__item {
   text-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 18px rgba(0, 0, 0, 0.45);
+}
+.mars-hotspot-wheel .option-wheel__item--selected {
+  font-weight: 600;
 }
 @media (max-width: 768px) {
   .mars-hotspot-wheel-hud { display: none; }
@@ -950,6 +1021,19 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   cursor: pointer;
   padding: 0;
   transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.moon-hotspot-hit--mars {
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-color: rgba(255, 210, 170, 0.75);
+  background: rgba(255, 180, 120, 0.35);
+  box-shadow: 0 0 0 1px rgba(255, 180, 120, 0.12), 0 0 8px rgba(255, 160, 90, 0.28);
+}
+.moon-hotspot-hit--mars.on,
+.moon-hotspot-hit--mars:hover,
+.moon-hotspot-hit--mars:focus-visible {
+  transform: scale(1.08);
 }
 .moon-hotspot-hit.on,
 .moon-hotspot-hit:hover,
