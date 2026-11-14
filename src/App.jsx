@@ -705,7 +705,27 @@ function ChallengeObjective({ reduced }) {
           scrambleColor="#8ec8ff"
         />
       </p>
-      <div className="objective-media-row" data-reveal>
+      <div className="objective-hero-row" data-reveal>
+        <div className="objective-focus-wrap">
+          {reduced || coarse ? (
+            <h2 className="display objective-headline">
+              They stayed behind{' '}
+              <span className="outline-text">so we could learn.</span>
+            </h2>
+          ) : (
+            <TrueFocus
+              sentence="They stayed behind so we could learn."
+              borderColor="#8ec8ff"
+              glowColor="rgba(142, 200, 255, 0.35)"
+              blurAmount={4}
+              animationDuration={0.55}
+              pauseBetweenAnimations={1.15}
+              cornerSize={14}
+              borderWidth={2}
+              unfocusedOpacity={0.42}
+            />
+          )}
+        </div>
         <div className="objective-figure-fade">
           <SpotlightCard
             className="objective-spotlight"
@@ -720,41 +740,21 @@ function ChallengeObjective({ reduced }) {
             <figure className="objective-figure">
               <div className="nasa-media body-moon objective-figure__media">
                 <img
-                  src="/images/eagle-descent.jpg"
-                  alt={HERO_LEFTOVER?.imageAlt || 'Apollo 11 Lunar Module Eagle descent stage on the Moon'}
+                  src="/images/eagle-aldrin-portrait.jpg"
+                  alt="Apollo 11 astronaut Buzz Aldrin on the Moon — gold visor and bootprints in the regolith"
                   loading="eager"
                   decoding="async"
                 />
                 <span className="credit">
-                  {HERO_LEFTOVER?.credit || 'NASA / JSC'} · {HERO_LEFTOVER?.coords || '0.67416° N, 23.47314° E'}
+                  {HERO_LEFTOVER?.credit || 'NASA / Apollo 11'} · {HERO_LEFTOVER?.coords || '0.67416° N, 23.47314° E'}
                 </span>
               </div>
               <figcaption className="mono">
-                {HERO_LEFTOVER?.name || 'Eagle Descent Stage'} · still on the Moon
+                Buzz Aldrin · Tranquility Base · still on the Moon
               </figcaption>
             </figure>
           </SpotlightCard>
         </div>
-      </div>
-      <div className="objective-focus-wrap" data-reveal>
-        {reduced || coarse ? (
-          <h2 className="display objective-headline">
-            They stayed behind{' '}
-            <span className="outline-text">so we could learn.</span>
-          </h2>
-        ) : (
-          <TrueFocus
-            sentence="They stayed behind so we could learn."
-            borderColor="#8ec8ff"
-            glowColor="rgba(142, 200, 255, 0.35)"
-            blurAmount={4}
-            animationDuration={0.55}
-            pauseBetweenAnimations={1.15}
-            cornerSize={14}
-            borderWidth={2}
-            unfocusedOpacity={0.42}
-          />
-        )}
       </div>
       <div className="objective-copy" data-reveal>
         <LineReveal>

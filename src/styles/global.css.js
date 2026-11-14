@@ -1169,13 +1169,16 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   margin-bottom: 0;
   background: transparent;
 }
-.objective-media-row {
-  display: flex;
-  justify-content: flex-end;
-  margin: 0.35rem 0 1.15rem;
+.objective-hero-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(200px, 0.72fr);
+  gap: clamp(1.25rem, 3.5vw, 2.75rem);
+  align-items: center;
+  margin: 0.35rem 0 1.35rem;
 }
 .objective-copy {
-  max-width: 62ch;
+  max-width: min(62ch, 100%);
+  width: 100%;
 }
 .objective-cta-row {
   margin-top: 1.75rem;
@@ -1201,33 +1204,39 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .objective-link-row a:hover { color: var(--ink); }
 .objective-figure { margin: 0; }
 .objective-figure__media.nasa-media {
-  aspect-ratio: 4 / 5;
+  /* Vertical plate — pre-cropped so visor + bootprints stay in frame */
+  aspect-ratio: 3 / 4;
   margin-bottom: 0;
-  max-height: min(52vh, 480px);
+  max-height: min(62vh, 560px);
   width: 100%;
   border-radius: 0;
 }
+.objective-figure__media.nasa-media img {
+  object-fit: cover;
+  object-position: 42% 46%;
+}
 .objective-headline {
-  font-size: clamp(2.2rem, 5.8vw, 4.5rem);
+  font-size: clamp(2.2rem, 5.2vw, 4.1rem);
   margin: 0;
-  max-width: none;
+  max-width: 11ch;
   line-height: 1.05;
   letter-spacing: -0.03em;
 }
 .objective-focus-wrap {
-  margin: 0 0 1.35rem;
+  margin: 0;
   max-width: none;
   width: 100%;
+  align-self: center;
 }
 .objective-focus-wrap .focus-container {
   justify-content: flex-start;
-  gap: 0.18em 0.42em;
-  max-width: none;
+  gap: 0.16em 0.38em;
+  max-width: 12ch;
   width: 100%;
 }
 .objective-focus-wrap .focus-word {
   font-family: var(--font-display);
-  font-size: clamp(2rem, 5.4vw, 4.2rem);
+  font-size: clamp(2rem, 4.8vw, 3.8rem);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -1246,8 +1255,9 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   background: rgba(142, 200, 255, 0.12);
 }
 .objective-figure-fade {
-  width: min(42vw, 440px);
-  max-width: 100%;
+  width: 100%;
+  max-width: min(34vw, 380px);
+  justify-self: end;
   flex-shrink: 0;
 }
 .sf-film-grain {
@@ -1283,14 +1293,29 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   border-radius: 0;
 }
 @media (max-width: 860px) {
-  .objective-media-row { justify-content: flex-end; }
-  .objective-figure-fade { width: min(78vw, 380px); }
-  .objective-figure__media { max-height: min(42vh, 360px); }
+  .objective-hero-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .objective-figure-fade {
+    max-width: min(72vw, 320px);
+    justify-self: end;
+  }
+  .objective-figure__media.nasa-media {
+    max-height: min(48vh, 420px);
+  }
+  .objective-focus-wrap .focus-container {
+    max-width: none;
+  }
   .objective-focus-wrap .focus-word {
     font-size: clamp(1.75rem, 7.5vw, 2.75rem);
   }
+  .objective-headline {
+    max-width: none;
+  }
 }
 .nasa-media.body-moon img { object-position: 50% 42%; }
+.objective-figure__media.body-moon img { object-position: 42% 46%; }
 .nasa-media.body-mars img { object-position: 50% 55%; }
 .nasa-media.body-deep img { object-position: 50% 40%; }
 
