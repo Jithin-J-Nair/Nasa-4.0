@@ -44,7 +44,11 @@ export function equirectXY(lat, lon, { pad = 4 } = {}) {
 /** Film tip held while Atlas is on screen — mid-intimacy, clear of dive edge-blend. */
 export const ATLAS_HOLD_PROGRESS = 0.155
 
-/** Aim targets — NSSDC / LROC Mean Earth–Polar Axis (match artifacts.js lat/lon). */
+/**
+ * Aim targets — must stay 1:1 with artifacts.js lat/lon.
+ * Moon: NSSDC / LROC DE421 Mean Earth–Polar Axis.
+ * Mars: NSSDCA / NASA IAU 2000 planetocentric east lon (stored west-negative when W).
+ */
 export const SITE_FOCUS = {
   'a11-lm': { body: 'moon', aimLon: 23.47314, aimLat: 0.67416 },
   'a12-alsep': { body: 'moon', aimLon: -23.4249, aimLat: -3.0098 },
@@ -54,8 +58,8 @@ export const SITE_FOCUS = {
   'a16-lrv': { body: 'moon', aimLon: 15.5037, aimLat: -8.9729 },
   'a17-lrv': { body: 'moon', aimLon: 30.7769, aimLat: 20.1896 },
   'a11-lrrr': { body: 'moon', aimLon: 23.47307, aimLat: 0.67345 },
-  opportunity: { body: 'mars', aimLon: -5.5043, aimLat: -2.2795 },
-  spirit: { body: 'mars', aimLon: 175.4726, aimLat: -14.5684 },
+  opportunity: { body: 'mars', aimLon: -5.527, aimLat: -1.946 },
+  spirit: { body: 'mars', aimLon: 175.4729, aimLat: -14.5692 },
   phoenix: { body: 'mars', aimLon: -125.7492, aimLat: 68.2188 },
   insight: { body: 'mars', aimLon: 135.6234, aimLat: 4.5024 },
   sojourner: { body: 'mars', aimLon: -33.22, aimLat: 19.13 },

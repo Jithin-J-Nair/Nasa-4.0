@@ -1,7 +1,9 @@
 /**
- * Leftover hardware — Moon lat/lon are Mean Earth / Polar Axis (DE421),
- * matching NSSDC lunar_sites + LROC anthropogenic coordinates.
+ * Leftover hardware coordinates (hotspot pins).
+ * Moon: Mean Earth / Polar Axis DE421 — NSSDC lunar_sites + LROC Wagner et al. 2017.
+ * Mars: IAU 2000 planetocentric — NSSDCA / NASA mission landing figures.
  * @see https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html
+ * @see https://lroc.im-ldi.com/images/938
  */
 export const ARTIFACTS = [
   {
@@ -144,7 +146,8 @@ export const ARTIFACTS = [
     id: 'spirit', body: 'mars', status: 'SILENT', year: 2004, mission: 'MER-A Spirit',
     name: 'Spirit Rover',
     codename: 'GUSEV CRATER',
-    coords: '14.5684° S, 175.4726° E', lat: -14.5684, lon: 175.4726,
+    // NASA MOLA IAU 2000 cartographic landing (Columbia Memorial Station)
+    coords: '14.5692° S, 175.4729° E', lat: -14.5692, lon: 175.4729,
     mass: '185 kg', duration: '6 y 2 m · 7.7 km',
     science: 'Confirmed ancient hydrothermal alteration; Columbia Hills revealed water-altered rocks.',
     story: 'Spirit was meant to last 90 sols. She climbed Husband Hill, survived dust storms, and became stuck in soft soil at Troy in 2009. Engineers tried every wheel dance they knew. The last whisper arrived 22 March 2010. HiRISE still finds her — a bright speck on the floor of Gusev, solar panels coated in rust-colored dust.',
@@ -161,7 +164,8 @@ export const ARTIFACTS = [
     id: 'opportunity', body: 'mars', status: 'SILENT', year: 2004, mission: 'MER-B Opportunity',
     name: 'Opportunity Rover',
     codename: 'MERIDIANI PLANUM',
-    coords: '2.2795° S, 5.5043° W', lat: -2.2795, lon: -5.5043,
+    // NSSDCA Eagle Crater landing (IAU 2000): 1.946° S, 354.473° E
+    coords: '1.946° S, 5.527° W', lat: -1.946, lon: -5.527,
     mass: '185 kg', duration: '14 y 138 d · 45.16 km',
     science: 'Hematite blueberries proved long-lived surface water; Endeavour rim mapped Noachian clay.',
     story: 'Opportunity rolled farther than any extraterrestrial rover in history — a marathon across Meridiani\'s etched plains. She found evidence of ancient acidic lakes, wintered in Victoria Crater, and climbed into Endeavour. A global dust storm in 2018 blocked her sun. NASA declared the mission complete after more than a thousand recovery commands went unanswered.',

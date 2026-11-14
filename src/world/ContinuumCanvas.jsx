@@ -1033,6 +1033,7 @@ function FilmDirector({
   const filmP = useRef(0)
   const moonPos = useRef(new THREE.Vector3(0, 0, 0))
   const moonScale = useRef(1.66)
+  const atlasAimLon = useRef(null)
 
   useFrame((state, dt) => {
     const raw = typeof progress?.get === 'function' ? progress.get() : 0
@@ -1065,16 +1066,27 @@ function FilmDirector({
     if (hotspotRef) hotspotRef.current = ab > 0.4 ? hot : null
     const focus = hot ? SITE_FOCUS[hot] : null
     if (moonAimRef) {
-      // Engage aim once intimacy starts so rotation arrives ready by Atlas
-      const shouldAim = focus?.body === 'moon' && (
-        ab > 0.08
-        || sample.act?.id === 'intimacy'
-        || !!sample.hotspot
-      )
-      moonAimRef.current = shouldAim ? focus.aimLon : null
+      if (atlasLock) {
+        // Freeze facing for the whole Atlas session — hover must not chase the pin
+        if (atlasAimLon.current == null) {
+          const entry = SITE_FOCUS[focusSiteId || 'a11-lm']
+          atlasAimLon.current = entry?.body === 'moon'
+            ? entry.aimLon
+            : SITE_FOCUS['a11-lm'].aimLon
+        }
+        moonAimRef.current = atlasAimLon.current
+      } else {
+        atlasAimLon.current = null
+        const shouldAim = focus?.body === 'moon' && (
+          ab > 0.08
+          || sample.act?.id === 'intimacy'
+          || !!sample.hotspot
+        )
+        moonAimRef.current = shouldAim ? focus.aimLon : null
+      }
     }
     if (marsAimRef) {
-      marsAimRef.current = ab > 0.2 && focus?.body === 'mars' ? focus.aimLon : null
+      marsAimRef.current = !atlasLock && ab > 0.2 && focus?.body === 'mars' ? focus.aimLon : null
     }
 
     const targetDpr = clamp(

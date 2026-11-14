@@ -592,10 +592,6 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
     return () => io.disconnect()
   }, [onActiveChange, onCardSite, onFocusSite])
 
-  useEffect(() => {
-    if (cardSiteId) onFocusSite?.(cardSiteId)
-  }, [cardSiteId, onFocusSite])
-
   return (
     <section
       ref={sectionRef}
@@ -1052,9 +1048,9 @@ export default function App() {
     if (id) setFocusSiteId(id)
   }, [])
 
+  // Hover opens the card only — never retarget moon aim (that made pins chase the cursor)
   const onHotspotHover = useCallback((site) => {
     setCardSiteId(site.id)
-    setFocusSiteId(site.id)
   }, [])
 
   const onHotspotLeave = useCallback((site) => {
