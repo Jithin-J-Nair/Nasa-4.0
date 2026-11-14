@@ -98,69 +98,6 @@ img, svg { display: block; max-width: 100%; }
   border-color: rgba(142,200,255,0.45);
   background: rgba(142,200,255,0.08);
 }
-.world-caption {
-  position: fixed;
-  left: clamp(1.25rem, 5vw, 4.5rem);
-  bottom: clamp(5.5rem, 14vh, 8rem);
-  z-index: 40;
-  max-width: min(640px, 90vw);
-  pointer-events: none;
-  display: grid;
-  grid-template-columns: minmax(0, 168px) minmax(0, 1fr);
-  gap: 0.9rem 1.1rem;
-  align-items: end;
-}
-.world-caption.is-mars { left: auto; right: clamp(1.25rem, 5vw, 4.5rem); }
-.world-caption.is-deep { left: 50%; right: auto; transform: translateX(-50%); bottom: clamp(6rem, 16vh, 9rem); }
-.world-caption-media {
-  pointer-events: auto;
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: none;
-  text-align: left;
-}
-body.is-coarse .world-caption-media { cursor: pointer; }
-.world-caption-media .nasa-media {
-  margin: 0;
-  aspect-ratio: 4 / 5;
-  border: 1px solid var(--line-bright);
-  border-radius: 4px;
-}
-.world-caption-copy { pointer-events: none; min-width: 0; }
-.world-caption .kicker { margin-bottom: 0.65rem; color: var(--ice); }
-.world-caption h2 {
-  font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
-  font-size: clamp(1.6rem, 4.2vw, 2.8rem);
-  margin-bottom: 0.65rem;
-}
-.world-caption p {
-  color: var(--ink-dim);
-  font-size: clamp(0.95rem, 1.6vw, 1.1rem);
-  line-height: 1.55;
-  max-width: 42ch;
-}
-.world-caption .caption-coords {
-  margin-top: 0.55rem;
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  color: var(--ink-mute);
-}
-@media (max-width: 720px) {
-  .world-caption {
-    grid-template-columns: 1fr;
-    left: 1rem !important;
-    right: 1rem !important;
-    transform: none !important;
-    max-width: none;
-  }
-  .world-caption-media .nasa-media { aspect-ratio: 16 / 10; max-width: 220px; }
-}
 .journey-spacer {
   height: 520vh;
   pointer-events: none;
@@ -810,9 +747,6 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .heartbeat-row {
   margin-top: 2.5rem;
 }
-.world-caption h2 {
-  font-size: clamp(2rem, 5.5vw, 3.6rem) !important;
-}
 .section {
   background: transparent;
 }
@@ -1247,22 +1181,6 @@ html.lenis, html.lenis body { height: auto; }
   .display-xl { font-size: clamp(2.6rem, 14vw, 4.5rem); }
 }
 
-.world-caption .dossier-link {
-  pointer-events: auto;
-  margin-top: 1rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.16em;
-  color: var(--ice);
-  border-bottom: 1px solid rgba(142,200,255,0.35);
-  padding-bottom: 0.2rem;
-  background: none;
-  cursor: none;
-}
-body.is-coarse .world-caption .dossier-link { cursor: pointer; }
 .heartbeats {
   padding: clamp(3rem, 8vw, 5rem) clamp(1.25rem, 4vw, 4rem);
 }

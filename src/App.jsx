@@ -13,7 +13,6 @@ import {
   useInView,
 } from 'framer-motion'
 import { createSoundscape } from './audio/Soundscape'
-import { activeCaption } from './world/film'
 import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
 import { nearsideXY, equirectXY } from './world/geo'
 import { GLOBAL_CSS } from './styles/global.css.js'
@@ -254,78 +253,6 @@ function Nav({ progress }) {
       </div>
       <motion.div className="nav-progress" style={{ scaleX, width: '100%' }} />
     </nav>
-  )
-}
-
-function WorldCaption({ progress, onOpen }) {
-  const [cap, setCap] = useState(null)
-  useEffect(() => {
-    const unsub = progress.on('change', (v) => {
-      const next = activeCaption(v)
-      setCap((prev) => (prev?.at === next?.at ? prev : next))
-    })
-    setCap(activeCaption(progress.get()))
-    return () => unsub()
-  }, [progress])
-
-  const dossier = cap?.dossier ? ARTIFACTS.find((a) => a.id === cap.dossier) : null
-  const placeClass = dossier
-    ? `is-${dossier.body}`
-    : cap?.kicker?.includes('MARS')
-      ? 'is-mars'
-      : cap?.kicker?.includes('DEEP') || cap?.kicker?.includes('CARRIER')
-        ? 'is-deep'
-        : 'is-moon'
-
-  return (
-    <AnimatePresence mode="wait">
-      {cap && (
-        <motion.div
-          key={cap.at}
-          className={`world-caption ${placeClass}`}
-          initial={{ opacity: 0, y: 18, filter: 'blur(8px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          exit={{ opacity: 0, y: -10, filter: 'blur(6px)' }}
-          transition={{ duration: 0.55, ease: EASE }}
-        >
-          {dossier?.image && (
-            <button
-              type="button"
-              className="world-caption-media"
-              onClick={() => onOpen(dossier)}
-              aria-label={`Open dossier ${dossier.name} at ${dossier.coords}`}
-            >
-              <div className={`nasa-media body-${dossier.body}`}>
-                <img
-                  src={dossier.image}
-                  alt={dossier.imageAlt || dossier.name}
-                  loading="lazy"
-                  decoding="async"
-                />
-                <span className="credit">{dossier.credit} · {dossier.coords}</span>
-              </div>
-            </button>
-          )}
-          <div className="world-caption-copy">
-            <p className="kicker">{cap.kicker}</p>
-            <h2>{cap.title}</h2>
-            <p>{cap.body}</p>
-            {dossier && (
-              <p className="mono caption-coords">{dossier.codename} · {dossier.coords}</p>
-            )}
-            {dossier && (
-              <button
-                type="button"
-                className="dossier-link"
-                onClick={() => onOpen(dossier)}
-              >
-                RECOVER DOSSIER · {dossier.name.toUpperCase()}
-              </button>
-            )}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
   )
 }
 
@@ -1147,7 +1074,6 @@ export default function App() {
           {booting && <Preloader onDone={onBootDone} reduced={reduced} />}
 
           <Nav progress={smoothProgress} />
-          {!booting && <WorldCaption progress={smoothProgress} onOpen={openDossier} />}
 
           <button
             type="button"
