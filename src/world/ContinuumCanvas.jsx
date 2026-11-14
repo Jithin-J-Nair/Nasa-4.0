@@ -1075,10 +1075,11 @@ function FilmDirector({
       warp: sample.event.warp,
     }
     const marsish = f === 'mars' || f === 'storm' || (transit && journey.marsPresence > 0.35)
-    const atlasClear = ab > 0.35
-    const marsLive = !atlasClear && marsish
+    // Atlas chrome may linger in IO — never let it mute Mars once the film tip is past dive
+    const atlasClear = ab > 0.35 && filmP.current < 0.22
+    const marsLive = (!atlasClear && marsish) || (transit && journey.marsPresence > 0.02) || f === 'mars' || f === 'storm'
     // Meridiani stage (wheel / hotspots) — not during pure transit approach
-    const marsStage = !atlasClear && (f === 'mars' || f === 'storm')
+    const marsStage = (f === 'mars' || f === 'storm') && filmP.current >= 0.22
 
     // Mute diegetic events with blend (not a binary lock) — no dust/bokeh bleed into Atlas
     const eventMute = 1 - ab

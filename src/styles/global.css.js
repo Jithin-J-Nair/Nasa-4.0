@@ -103,6 +103,16 @@ img, svg { display: block; max-width: 100%; }
   position: relative;
   z-index: 2;
 }
+/* Boot: freeze page scroll so preloader end cannot yank a mid-scroll user to top mid-gesture */
+.sf-app.is-booting {
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  touch-action: none;
+}
+.sf-app.is-booting .sf-chapters {
+  pointer-events: none;
+}
 /* Footer only — never content-visibility inside the continuous story plate */
 .sf-chapters > .footer {
   content-visibility: auto;

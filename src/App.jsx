@@ -21,7 +21,7 @@ import { FLEET_SHELF_CSS } from './styles/fleet-shelf.css.js'
 import {
   createScrollEngine, destroyScrollEngine, scrollToHash, playHeroIntro, playBootSequence,
   revealOnScroll, scheduleScrollRefresh, playMoonToMarsJourney,
-  createFilmRail, filmProgressRef, scrollToFilmMarker, scrollToFilmProgress, setFilmProgress,
+  createFilmRail, filmProgressRef, FILM_MARKERS, scrollToFilmMarker, scrollToFilmProgress, setFilmProgress,
   pauseScrollEngine, resumeScrollEngine,
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
@@ -412,7 +412,7 @@ function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
           OBJECTIVE
         </a>
         <a href="#atlas" role="listitem" onClick={go(onNavAtlas)}>ATLAS</a>
-        <a href="#journey" role="listitem" onClick={go(onNavJourney)}>JOURNEY</a>
+        <a href="#journey" role="listitem" onClick={go(onNavJourney)}>MARS</a>
         <a href="#fleet" role="listitem" onClick={go(onNavCoda)}>FLEET</a>
       </div>
       <motion.div className="nav-progress" style={{ scaleX, width: '100%' }} />
@@ -456,8 +456,8 @@ function FilmJourney({ label = 'JOURNEY' }) {
   const silence = silenceAct && journeyLive
   const phase =
     label === 'NEAR PASS' || label === 'NEAR SIDE' ? 'Lunar zoom'
-      : label === 'JOURNEY' ? 'Transit corridor'
-        : label === 'MERIDIANI' || label === 'LAST LIGHT' || label === 'DUST STORM' ? 'Mars arrival'
+      : label === 'JOURNEY' ? 'Moon → Mars corridor'
+        : label === 'MERIDIANI' || label === 'LAST LIGHT' || label === 'DUST STORM' ? 'Mars · Meridiani'
           : silenceAct ? 'Voyager 1 · interstellar'
             : 'Continuum'
   return (
@@ -939,7 +939,7 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
         wasOn = on
       },
       // Grow root upward so Atlas begins while Objective is still dissolving
-      { threshold: [0, 0.08, 0.2, 0.4, 0.65], rootMargin: '28% 0px 0px 0px' },
+      { threshold: [0, 0.08, 0.2, 0.4, 0.65], rootMargin: '28% 0px -42% 0px' },
     )
     io.observe(el)
     return () => io.disconnect()
@@ -967,7 +967,7 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
           />
         </p>
         <p className="atlas-stage-dock__lede">
-          Drag the Moon. Choose a leftover from the ice wheel — every pin is still waiting on the near side.
+          Drag the Moon. Choose a leftover from the ice wheel — then keep scrolling the continuum into Meridiani Planum.
         </p>
         <p className="mono atlas-stage-dock__meta">{MOON_HOTSPOT_SITES.length} SITES · NASA CATALOGUE · LROC</p>
       </FadeContent>
@@ -1483,8 +1483,14 @@ export default function App() {
     if (sample?.label) setActLabel((prev) => (prev === sample.label ? prev : sample.label))
     const kill = sample?.chromeKill ?? 0
     setChromeKill((prev) => (Math.abs(prev - kill) < 0.02 ? prev : kill))
+    const tip = filmProgressRef.current || 0
+    // Film tip past dive owns the stage — clear Atlas freeze so Meridiani can land
+    if (tip >= FILM_MARKERS.dive) {
+      setAtlasLock((prev) => (prev ? false : prev))
+    }
+    const atlasBlocks = tip < FILM_MARKERS.dive && atlasLock
     // Mars HUD only while film focus is Meridiani/storm — impossible on Recover (film tip ≥ 1)
-    const marsOn = !atlasLock && (sample?.focus === 'mars' || sample?.focus === 'storm')
+    const marsOn = !atlasBlocks && (sample?.focus === 'mars' || sample?.focus === 'storm')
     setMarsLock((prev) => (prev === marsOn ? prev : marsOn))
     if (!marsOn) {
       setCardSiteId((id) => {
@@ -1501,6 +1507,11 @@ export default function App() {
   const onAtlasActive = useCallback((on) => {
     // Journey cinematic owns the stage — don't let Atlas IO re-freeze the film
     if (journeyPlayingRef.current) {
+      setAtlasLock(false)
+      return
+    }
+    // Once the film tip leaves Near Side, Atlas IO must not keep Mars locked out
+    if (on && filmProgressRef.current >= FILM_MARKERS.dive) {
       setAtlasLock(false)
       return
     }
@@ -1686,7 +1697,7 @@ export default function App() {
         className="sf-spark-root"
         style={{ minHeight: '100%' }}
       >
-        <div className="sf-app" ref={mainRef}>
+        <div className={`sf-app${booting ? ' is-booting' : ''}`} ref={mainRef}>
           <FilmGrain reduced={reduced} />
           <ErrorBoundary fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
             {/* Mount during preloader so 8K GPU upload overlaps boot choreography */}
