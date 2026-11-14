@@ -976,6 +976,7 @@ function FilmDirector({
   progress,
   mouse,
   reduced,
+  mobile = false,
   moonRef,
   marsRef,
   pioneerRef,
@@ -1226,9 +1227,13 @@ function FilmDirector({
       camera.updateProjectionMatrix()
     }
 
+    // Mobile silence: bias look upward so Voyager sits in the open sky above the coda copy
+    const lookY = marsStageLock
+      ? 0.06
+      : (f === 'pioneer' && mobile ? sample.look[1] + 1.05 : sample.look[1])
     look.set(
       moonLock ? 0 : (transit ? sample.look[0] : lookHemiX),
-      marsStageLock ? 0.06 : sample.look[1],
+      lookY,
       marsStageLock ? -0.4 : sample.look[2],
     )
     camera.lookAt(look)
@@ -1301,17 +1306,27 @@ function FilmDirector({
     if (pioneerRef.current) {
       const show = !atlasClear && f === 'pioneer'
       pioneerRef.current.visible = show
-      // Frame NASA Voyager for the silence camera (look ~ -9.2)
-      const craftScale = show ? lerp(1.35, 1.85, sample.eased) : 0.01
-      pioneerRef.current.position.set(0.55, 0.02, -8.55)
+      // Desktop: mid frame. Mobile: lift into the blank sky above silence copy.
+      const craftScale = show
+        ? (mobile ? lerp(1.2, 1.55, sample.eased) : lerp(1.35, 1.85, sample.eased))
+        : 0.01
+      const craftX = mobile ? 0.08 : 0.55
+      const craftY = mobile ? 1.55 : 0.02
+      const craftZ = mobile ? -7.85 : -8.55
+      pioneerRef.current.position.set(craftX, craftY, craftZ)
       pioneerRef.current.scale.setScalar(
         lerp(pioneerRef.current.scale.x || craftScale, craftScale, Math.min(1, 3.2 * step)),
       )
     }
     // Lighting lockstep with events — keep a readable sun on Voyager (pioneer)
     if (sunRef.current) {
-      sunRef.current.position.set(marsish ? 4.0 : f === 'pioneer' ? 3.2 : 6.0, marsish ? 3.2 : f === 'pioneer' ? 3.6 : 2.5, f === 'pioneer' ? 4.5 : 3)
-      const base = sample.grade.exposure * (f === 'storm' ? 0.35 : f === 'pioneer' ? 1.85 : 1.4)
+      const pioneerSunY = f === 'pioneer' ? (mobile ? 4.4 : 3.6) : 2.5
+      sunRef.current.position.set(
+        marsish ? 4.0 : f === 'pioneer' ? 3.2 : 6.0,
+        marsish ? 3.2 : pioneerSunY,
+        f === 'pioneer' ? 4.5 : 3,
+      )
+      const base = sample.grade.exposure * (f === 'storm' ? 0.35 : f === 'pioneer' ? (mobile ? 2.15 : 1.85) : 1.4)
       const darkMul = f === 'pioneer' ? (1 - sample.dark * 0.35) : (1 - sample.dark * 0.92)
       const carrierMul = f === 'pioneer' ? (1 - sample.event.carrier * 0.12) : (1 - sample.event.carrier * 0.55)
       sunRef.current.intensity = base * darkMul * carrierMul
@@ -1459,6 +1474,7 @@ function ContinuumScene({
         progress={progress}
         mouse={mouse}
         reduced={reduced}
+        mobile={mobile}
         moonRef={moonRef}
         marsRef={marsRef}
         pioneerRef={pioneerRef}

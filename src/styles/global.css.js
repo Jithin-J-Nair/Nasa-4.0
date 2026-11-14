@@ -447,12 +447,23 @@ img, svg { display: block; max-width: 100%; }
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-end;
-    gap: 1rem;
-    padding-bottom: 5.5rem;
+    gap: 0.85rem;
+    /* Reserve upper ~42% as clear sky for Voyager — copy stays bottom */
+    padding-top: 42svh;
+    padding-bottom: max(5.5rem, calc(env(safe-area-inset-bottom) + 4.5rem));
+    background:
+      linear-gradient(0deg, rgba(3, 4, 10, 0.82) 0%, rgba(3, 4, 10, 0.35) 38%, transparent 58%);
   }
   .silence-coda__copy {
     max-width: none;
     margin-top: 0;
+  }
+  .silence-coda__title {
+    font-size: clamp(1.55rem, 7.2vw, 2.25rem);
+  }
+  .silence-coda__lede {
+    font-size: 0.88rem;
+    max-width: 36ch;
   }
   .light-day--silence {
     max-width: none;
