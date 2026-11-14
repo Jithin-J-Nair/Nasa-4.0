@@ -571,36 +571,47 @@ function SiteBeacon({
   hotspotRef,
   color = '#8ec8ff',
   interactive = false,
+  visibleRef,
   cardOpen = false,
   onHover,
   onLeave,
   onOpen,
 }) {
   const ref = useRef()
+  const groupRef = useRef()
+  const uiRef = useRef()
   const pos = useMemo(() => latLonToLocal(site.lat, site.lon, 1.012), [site.lat, site.lon])
   useFrame((s) => {
-    if (!ref.current) return
+    if (!ref.current || !groupRef.current) return
+    // Hero / film: beacons stay off. Atlas blend reveals them.
+    const show = (visibleRef?.current ?? 0) > 0.42 && interactive
+    groupRef.current.visible = show
+    if (uiRef.current) {
+      uiRef.current.style.opacity = show ? '1' : '0'
+      uiRef.current.style.pointerEvents = show ? 'auto' : 'none'
+      uiRef.current.style.visibility = show ? 'visible' : 'hidden'
+    }
+    if (!show) return
     const active = hotspotRef?.current === site.id || cardOpen
-    const pulse = active ? 0.55 + Math.sin(s.clock.elapsedTime * 4.2) * 0.35 : interactive ? 0.32 : 0.18
-    ref.current.scale.setScalar(active ? 1.55 + pulse * 0.35 : interactive ? 1.05 : 0.72)
+    const pulse = active ? 0.5 + Math.sin(s.clock.elapsedTime * 3.6) * 0.22 : 0.28
+    ref.current.scale.setScalar(active ? 1.15 + pulse * 0.2 : 0.85)
     ref.current.material.opacity = pulse
-    ref.current.visible = true
   })
   return (
-    <group position={pos}>
+    <group ref={groupRef} position={pos} visible={false}>
       <mesh ref={ref} renderOrder={2}>
-        <sphereGeometry args={[0.018, 12, 12]} />
+        <sphereGeometry args={[0.0075, 10, 10]} />
         <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
       </mesh>
       {interactive && (
         <Html
           center
-          distanceFactor={5.5}
+          distanceFactor={2.4}
           zIndexRange={[40, 0]}
-          style={{ pointerEvents: 'auto' }}
+          style={{ pointerEvents: 'none' }}
           occlude={false}
         >
-          <div className="moon-hotspot">
+          <div className="moon-hotspot" ref={uiRef} style={{ opacity: 0, visibility: 'hidden' }}>
             <button
               type="button"
               className={`moon-hotspot-hit ${cardOpen ? 'on' : ''}`}
@@ -648,6 +659,7 @@ function BodySphere({
   sites = [],
   hotspotRef,
   aimLonRef,
+  beaconsVisibleRef,
   hotspotsInteractive = false,
   cardSiteId = null,
   onHotspotHover,
@@ -728,10 +740,10 @@ function BodySphere({
         let delta = target - yawSmooth.current
         while (delta > Math.PI) delta -= Math.PI * 2
         while (delta < -Math.PI) delta += Math.PI * 2
-        yawSmooth.current += delta * Math.min(1, 2.8 * step)
+        yawSmooth.current += delta * Math.min(1, 2.4 * step)
       } else {
-        // Continuous dt spin (absolute elapsedTime freeSpin was the yaw glitch)
-        yawSmooth.current += spin * spinMul * step * 60
+        // Gentle continuous spin (~0.02 rad/s) — same feel as the locked hero tip
+        yawSmooth.current += spin * spinMul * step
       }
       mesh.current.rotation.y = yawSmooth.current
     }
@@ -758,6 +770,7 @@ function BodySphere({
             hotspotRef={hotspotRef}
             color={beaconColor}
             interactive={hotspotsInteractive}
+            visibleRef={beaconsVisibleRef}
             cardOpen={cardSiteId === site.id}
             onHover={onHotspotHover}
             onLeave={onHotspotLeave}
@@ -866,6 +879,15 @@ function useInertiaPointer(mouse, reduced) {
   return state
 }
 
+/** Atlas hold — hero-scale Continuum Moon, readable hotspots, no crater-dive crop */
+const ATLAS_FRAME = {
+  cam: [-0.48, 0.12, 4.55],
+  look: [1.18, -0.08, 0],
+  fov: 36,
+  moon: [1.28, -0.1, 0],
+  scale: 2.08,
+}
+
 function FilmDirector({
   progress,
   mouse,
@@ -888,6 +910,7 @@ function FilmDirector({
   hotspotRef,
   moonAimRef,
   marsAimRef,
+  beaconsVisibleRef,
   onSample,
   atlasLock = false,
   focusSiteId = null,
@@ -900,6 +923,7 @@ function FilmDirector({
   const atlasBlend = useRef(0)
   const moonPos = useRef(new THREE.Vector3(1.35, -0.12, 0))
   const moonScale = useRef(2.1)
+  const atlasFov = useRef(40)
 
   useFrame((state, dt) => {
     const p = typeof progress?.get === 'function' ? progress.get() : 0
@@ -913,24 +937,25 @@ function FilmDirector({
     darkRef.current = sample.dark
     gradeRef.current = sample.grade
 
-    // Soft atlas presence — never snap film progress or moon pose
+    // Soft atlas presence — never snap film progress
     const step = Math.min(0.05, Math.max(0.001, dt))
-    atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 3.2 * step))
+    atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 2.8 * step))
     const ab = atlasBlend.current
+    if (beaconsVisibleRef) beaconsVisibleRef.current = ab
 
-    const hot = focusSiteId || sample.hotspot || (ab > 0.2 || sample.focus === 'moon' ? 'a11-lm' : null)
-    if (hotspotRef) hotspotRef.current = hot
+    // Hero free-spins with no hotspot. Atlas (or film intimacy hotspot) aims & marks.
+    const inAtlas = ab > 0.2
+    const hot = inAtlas
+      ? (focusSiteId || 'a11-lm')
+      : (sample.hotspot || null)
+    if (hotspotRef) hotspotRef.current = inAtlas ? hot : null
     const focus = hot ? SITE_FOCUS[hot] : null
     if (moonAimRef) {
-      // Face hotspot while moon is the focus / Atlas is nearby — otherwise free spin
-      if (focus?.body === 'moon' && (ab > 0.05 || sample.focus === 'moon' || sample.focus === 'dive')) {
-        moonAimRef.current = focus.aimLon
-      } else {
-        moonAimRef.current = null
-      }
+      if (inAtlas && focus?.body === 'moon') moonAimRef.current = focus.aimLon
+      else moonAimRef.current = null
     }
     if (marsAimRef) {
-      marsAimRef.current = focus?.body === 'mars' ? focus.aimLon : null
+      marsAimRef.current = inAtlas && focus?.body === 'mars' ? focus.aimLon : null
     }
 
     const targetDpr = clamp(
@@ -943,30 +968,33 @@ function FilmDirector({
       lastDpr.current = targetDpr
     }
 
-    const mx = inertia.current.x * (0.22 + sample.event.warp * 0.18)
-    const my = inertia.current.y * (0.14 + sample.event.warp * 0.12)
+    const mx = inertia.current.x * (0.22 + sample.event.warp * 0.18) * (1 - ab * 0.7)
+    const my = inertia.current.y * (0.14 + sample.event.warp * 0.12) * (1 - ab * 0.7)
 
+    // Film camera, soft-blended into Atlas hero-scale frame (fixes dive crop at Atlas)
     desired.set(
-      sample.cam[0] + mx,
-      sample.cam[1] - my,
-      sample.cam[2] + Math.abs(mx) * 0.05,
+      lerp(sample.cam[0] + mx, ATLAS_FRAME.cam[0] + mx * 0.35, ab),
+      lerp(sample.cam[1] - my, ATLAS_FRAME.cam[1] - my * 0.35, ab),
+      lerp(sample.cam[2] + Math.abs(mx) * 0.05, ATLAS_FRAME.cam[2], ab),
     )
 
-    // Smash: hard snap into crater
-    const damp = sample.smash ? 0.55 : (reduced ? 0.16 : 0.065)
+    // Smash: hard snap into crater — but never while Atlas owns the lens
+    const damp = ab > 0.4 ? (reduced ? 0.14 : 0.08) : sample.smash ? 0.55 : (reduced ? 0.16 : 0.065)
     camera.position.x = lerp(camera.position.x, desired.x, damp)
     camera.position.y = lerp(camera.position.y, desired.y, damp)
     camera.position.z = lerp(camera.position.z, desired.z, damp)
 
     if ('fov' in camera) {
-      camera.fov = lerp(camera.fov, sample.fov, sample.smash ? 0.5 : 0.075)
+      const targetFov = lerp(sample.fov, ATLAS_FRAME.fov, ab)
+      atlasFov.current = lerp(atlasFov.current, targetFov, sample.smash && ab < 0.2 ? 0.5 : 0.075)
+      camera.fov = atlasFov.current
       camera.updateProjectionMatrix()
     }
 
     look.set(
-      sample.look[0] + mx * 0.08,
-      sample.look[1] - my * 0.05,
-      sample.look[2],
+      lerp(sample.look[0] + mx * 0.08, ATLAS_FRAME.look[0], ab),
+      lerp(sample.look[1] - my * 0.05, ATLAS_FRAME.look[1], ab),
+      lerp(sample.look[2], ATLAS_FRAME.look[2], ab),
     )
     camera.lookAt(look)
 
@@ -979,7 +1007,7 @@ function FilmDirector({
       let tx = 0
       let ty = 0
       let tz = 0
-      if (f === 'dive') {
+      if (f === 'dive' && ab < 0.5) {
         targetScale = lerp(2.0, 5.8, sample.event.dive)
         tx = 0.85; ty = -0.1; tz = -0.2
       } else if (f === 'moon') {
@@ -991,10 +1019,11 @@ function FilmDirector({
       }
       // Blend toward Atlas hero-scale park (no hard cut)
       if (ab > 0.001) {
-        targetScale = lerp(targetScale < 0.05 ? 2.1 : targetScale, 2.12, ab)
-        tx = lerp(tx || 1.35, 1.28, ab)
-        ty = lerp(ty || -0.12, -0.1, ab)
-        tz = lerp(tz, 0, ab)
+        const baseScale = targetScale < 0.05 ? ATLAS_FRAME.scale : targetScale
+        targetScale = lerp(baseScale, ATLAS_FRAME.scale, ab)
+        tx = lerp(tx || ATLAS_FRAME.moon[0], ATLAS_FRAME.moon[0], ab)
+        ty = lerp(ty || ATLAS_FRAME.moon[1], ATLAS_FRAME.moon[1], ab)
+        tz = lerp(tz, ATLAS_FRAME.moon[2], ab)
       }
 
       const poseDamp = Math.min(1, (reduced ? 8 : 4.5) * step)
@@ -1118,6 +1147,7 @@ function ContinuumScene({
   const hotspotRef = useRef(null)
   const moonAimRef = useRef(null)
   const marsAimRef = useRef(null)
+  const beaconsVisibleRef = useRef(0)
   // Full masters — bytes warmed during preloader (see preloadTextures.js)
   const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_8k.jpg'
   const moonHeight = mobile ? '/textures/moon_height_2k.jpg' : '/textures/moon_height_4k.jpg'
@@ -1154,6 +1184,7 @@ function ContinuumScene({
         hotspotRef={hotspotRef}
         moonAimRef={moonAimRef}
         marsAimRef={marsAimRef}
+        beaconsVisibleRef={beaconsVisibleRef}
         onSample={onSample}
         atlasLock={atlasLock}
         focusSiteId={focusSiteId}
@@ -1179,6 +1210,7 @@ function ContinuumScene({
           sites={MOON_SITES}
           hotspotRef={hotspotRef}
           aimLonRef={moonAimRef}
+          beaconsVisibleRef={beaconsVisibleRef}
           hotspotsInteractive={hotspotsInteractive}
           cardSiteId={cardSiteId}
           onHotspotHover={onHotspotHover}

@@ -743,36 +743,39 @@ body.is-coarse .atlas-site { cursor: pointer; }
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 22px;
-  height: 22px;
-  margin: -11px 0 0 -11px;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  background: rgba(255, 122, 69, 0.35);
-  box-shadow: 0 0 0 4px rgba(255, 122, 69, 0.12), 0 0 18px rgba(142, 200, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(142, 200, 255, 0.28);
+  box-shadow: 0 0 0 2px rgba(142, 200, 255, 0.1), 0 0 10px rgba(142, 200, 255, 0.22);
   pointer-events: auto;
   cursor: pointer;
   padding: 0;
+  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 .moon-hotspot-hit.on,
 .moon-hotspot-hit:hover,
 .moon-hotspot-hit:focus-visible {
-  background: rgba(142, 200, 255, 0.55);
+  background: rgba(142, 200, 255, 0.72);
   border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(142, 200, 255, 0.18), 0 0 14px rgba(142, 200, 255, 0.4);
+  transform: scale(1.15);
   outline: none;
 }
 .moon-hotspot-card {
   position: absolute;
-  left: 18px;
-  top: -12px;
-  width: min(260px, 68vw);
-  padding: 0.7rem 0.75rem 0.85rem;
-  border-radius: 12px;
+  left: 14px;
+  top: -10px;
+  width: min(220px, 62vw);
+  padding: 0.55rem 0.6rem 0.7rem;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(7, 7, 12, 0.92);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
-  box-shadow: 0 22px 50px -24px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.9);
   pointer-events: auto;
   text-align: left;
   color: var(--ink);
