@@ -803,30 +803,41 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   left: 0;
   top: var(--nav-h);
   bottom: 0;
-  z-index: 96;
-  width: min(42vw, 420px);
+  z-index: 120;
+  width: min(44vw, 460px);
   pointer-events: none;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 0 0 4rem;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(-12px, 0, 0);
+  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.55s;
+}
+.mars-wheel-hud.is-on {
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(0, 0, 0);
+  pointer-events: none;
 }
 .mars-wheel-kicker {
   pointer-events: none;
-  margin: 0 0 0.75rem;
-  padding-left: 1.75rem;
-  color: var(--ink-mute);
-  letter-spacing: 0.16em;
+  margin: 0 0 0.85rem;
+  padding-left: 2rem;
+  color: rgba(255, 200, 160, 0.55);
+  letter-spacing: 0.18em;
   font-size: 0.62rem;
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
 }
 .mars-option-wheel {
   pointer-events: auto;
-  height: min(70vh, 560px);
+  height: min(72vh, 600px);
   font-family: var(--font-display);
   letter-spacing: -0.03em;
 }
 .mars-option-wheel .option-wheel__item {
-  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 18px rgba(0, 0, 0, 0.45);
 }
 @media (max-width: 768px) {
   .mars-wheel-hud { display: none; }
@@ -886,17 +897,40 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   left: 50%;
   top: 14px;
   transform: translateX(-50%);
-  width: min(220px, 62vw);
+  width: min(240px, 68vw);
+  max-height: min(70vh, 420px);
+  overflow: auto;
   padding: 0.55rem 0.6rem 0.7rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(7, 7, 12, 0.92);
+  background: rgba(7, 7, 12, 0.94);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.9);
   pointer-events: auto;
   text-align: left;
   color: var(--ink);
+  z-index: 5;
+}
+/* Edge-aware — keep the full dossier card inside the viewport */
+.moon-hotspot-card[data-edge~="edge-left"] {
+  left: auto;
+  right: 18px;
+  transform: none;
+}
+.moon-hotspot-card[data-edge~="edge-right"] {
+  left: 18px;
+  transform: none;
+}
+.moon-hotspot-card[data-edge~="edge-below"] {
+  top: 14px;
+}
+.moon-hotspot-card[data-edge~="edge-above"] {
+  top: auto;
+  bottom: 18px;
+}
+.hotspot-html {
+  z-index: 90 !important;
 }
 .moon-hotspot-card .nasa-media {
   margin-bottom: 0.55rem;

@@ -571,11 +571,23 @@ function SiteBeacon({
   const ref = useRef()
   const groupRef = useRef()
   const uiRef = useRef()
+  const cardRef = useRef()
   const pos = useMemo(() => latLonToLocal(site.lat, site.lon, 1.012), [site.lat, site.lon])
+  const worldPos = useMemo(() => new THREE.Vector3(), [])
+  const worldNrm = useMemo(() => new THREE.Vector3(), [])
+  const toCam = useMemo(() => new THREE.Vector3(), [])
   useFrame((s) => {
     if (!ref.current || !groupRef.current) return
-    // Hero / film: beacons stay off. Atlas blend reveals them.
-    const show = (visibleRef?.current ?? 0) > 0.42 && interactive
+    // Front-face only — never paint a pin floating in empty sky behind the globe
+    groupRef.current.getWorldPosition(worldPos)
+    worldNrm.copy(pos).normalize()
+    if (groupRef.current.parent) {
+      worldNrm.transformDirection(groupRef.current.parent.matrixWorld)
+    }
+    toCam.copy(s.camera.position).sub(worldPos).normalize()
+    const facing = worldNrm.dot(toCam) > 0.12
+
+    const show = facing && (visibleRef?.current ?? 0) > 0.42 && interactive
     groupRef.current.visible = show
     if (uiRef.current) {
       uiRef.current.style.opacity = show ? '1' : '0'
@@ -583,6 +595,17 @@ function SiteBeacon({
       uiRef.current.style.visibility = show ? 'visible' : 'hidden'
     }
     if (!show) return
+
+    // Keep dossier card fully inside the viewport (pins near screen edges)
+    if (cardRef.current && cardOpen) {
+      const rect = worldPos.clone().project(s.camera)
+      const nx = (rect.x + 1) * 0.5
+      const ny = 1 - (rect.y + 1) * 0.5
+      const edgeX = nx > 0.62 ? 'edge-left' : nx < 0.28 ? 'edge-right' : 'edge-center'
+      const edgeY = ny < 0.28 ? 'edge-below' : ny > 0.72 ? 'edge-above' : 'edge-mid'
+      cardRef.current.dataset.edge = `${edgeX} ${edgeY}`
+    }
+
     const active = hotspotRef?.current === site.id || cardOpen
     const pulse = active ? 0.5 + Math.sin(s.clock.elapsedTime * 3.6) * 0.22 : 0.28
     ref.current.scale.setScalar(active ? 1.15 + pulse * 0.2 : 0.85)
@@ -591,16 +614,17 @@ function SiteBeacon({
   return (
     <group ref={groupRef} position={pos} visible={false}>
       <mesh ref={ref} renderOrder={2}>
-        <sphereGeometry args={[0.0075, 10, 10]} />
+        <sphereGeometry args={[0.0075, 12, 12]} />
         <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
       </mesh>
       {interactive && (
         <Html
           center
-          distanceFactor={2.4}
-          zIndexRange={[40, 0]}
+          distanceFactor={2.35}
+          zIndexRange={[80, 0]}
           style={{ pointerEvents: 'none' }}
           occlude={false}
+          wrapperClass="hotspot-html"
         >
           <div className="moon-hotspot" ref={uiRef} style={{ opacity: 0, visibility: 'hidden' }}>
             <button
@@ -614,7 +638,13 @@ function SiteBeacon({
               onClick={() => onOpen?.(site)}
             />
             {cardOpen && (
-              <article className="moon-hotspot-card" role="dialog" aria-label={site.name}>
+              <article
+                ref={cardRef}
+                className="moon-hotspot-card"
+                data-edge="edge-center edge-mid"
+                role="dialog"
+                aria-label={site.name}
+              >
                 {site.image && (
                   <div className={`nasa-media body-${site.body}`}>
                     <img src={site.image} alt={site.imageAlt || site.name} loading="lazy" decoding="async" />
@@ -680,8 +710,8 @@ function BodySphere({
     uTime: { value: 0 },
     uBody: { value: body },
     // Gentle relief from albedo-derived height — readable, not potato
-    uHeightScale: { value: isMars ? 0.010 : 0.0055 },
-    uBump: { value: isMars ? 2.05 : 1.45 },
+    uHeightScale: { value: isMars ? 0.014 : 0.0055 },
+    uBump: { value: isMars ? 2.45 : 1.45 },
     uRim: { value: new THREE.Color(rim) },
     uExposure: { value: 1 },
     uSunDir: { value: new THREE.Vector3(0.85, 0.32, 0.42) },
@@ -699,8 +729,8 @@ function BodySphere({
     fragmentShader: ATMO_FRAG,
     uniforms: {
       uColor: { value: new THREE.Color(rim) },
-      uIntensity: { value: isMars ? 0.55 : 0.42 },
-      uPower: { value: isMars ? 3.2 : 4.0 },
+      uIntensity: { value: isMars ? 0.38 : 0.42 },
+      uPower: { value: isMars ? 3.8 : 4.0 },
     },
     transparent: true,
     depthWrite: false,
@@ -743,8 +773,8 @@ function BodySphere({
     }
   })
 
-  const segs = mobile ? 96 : 192
-  const beaconColor = isMars ? '#ff7a45' : '#8ec8ff'
+  const segs = mobile ? 96 : (isMars ? 256 : 192)
+  const beaconColor = isMars ? '#ff9a6a' : '#8ec8ff'
   return (
     <group ref={groupRef}>
       <group ref={mesh}>
@@ -772,10 +802,10 @@ function BodySphere({
           />
         ))}
       </group>
-      {/* Mars only — Moon has no atmosphere; the Fresnel shell read as a grey-blue rim */}
+      {/* Mars only — soft limb glow, high tessellation so the rim stays premium */}
       {isMars && (
-        <mesh scale={1.055}>
-          <sphereGeometry args={[1, 48, 48]} />
+        <mesh scale={1.048}>
+          <sphereGeometry args={[1, mobile ? 48 : 96, mobile ? 48 : 96]} />
           <primitive object={atmoMat} attach="material" />
         </mesh>
       )}
@@ -935,13 +965,19 @@ function FilmDirector({
     const sample = sampleActs(filmP.current)
     onSample?.(sample)
 
+    const f = sample.focus
+    const marsish = f === 'mars' || f === 'storm'
+    const atlasClear = ab > 0.35
+    const marsLive = !atlasClear && marsish
+
     // Mute diegetic events with blend (not a binary lock) — no dust/bokeh bleed into Atlas
     const eventMute = 1 - ab
     diveRef.current = sample.event.dive * eventMute
-    stormRef.current = sample.event.storm * eventMute
+    // Soft storm only — hard sheets were painting muddy polygons over Meridiani
+    stormRef.current = sample.event.storm * eventMute * (marsLive ? 0.28 : 1)
     carrierRef.current = sample.event.carrier * eventMute
     warpRef.current = sample.event.warp * (0.08 + eventMute * 0.92)
-    darkRef.current = sample.dark * (0.08 + eventMute * 0.92)
+    darkRef.current = sample.dark * (0.08 + eventMute * 0.92) * (marsLive ? 0.45 : 1)
     // Force cool lunar grade as Atlas takes over — kills warm/red particle wash on the Moon
     if (ab > 0.45) {
       const g = sample.grade
@@ -951,14 +987,19 @@ function FilmDirector({
         exposure: lerp(g.exposure, 1.1, ab),
         grain: lerp(g.grain, 0.03, ab),
       }
+    } else if (marsLive) {
+      // Crisp Meridiani — readable surface, not a brown mud bath
+      const g = sample.grade
+      gradeRef.current = {
+        lift: g.lift.map((v, i) => lerp(v, [0.04, 0.02, 0.01][i], 0.55)),
+        gain: g.gain.map((v, i) => lerp(v, [1.12, 0.95, 0.78][i], 0.55)),
+        exposure: lerp(g.exposure, 1.05, 0.4),
+        grain: lerp(g.grain, 0.04, 0.5),
+      }
     } else {
       gradeRef.current = sample.grade
     }
 
-    const f = sample.focus
-    const marsish = f === 'mars' || f === 'storm'
-    const atlasClear = ab > 0.35
-    const marsLive = !atlasClear && marsish
     if (marsActiveRef.current !== marsLive) {
       marsActiveRef.current = marsLive
       onMarsActive?.(marsLive)
@@ -1146,13 +1187,21 @@ function FilmDirector({
     }
     if (fogRef.current) {
       // Atlas hold: keep the near-side surface readable (no haze wall)
-      fogRef.current.near = lerp(sample.fog[0], 22, ab)
-      fogRef.current.far = lerp(sample.fog[1], 90, ab)
+      // Mars hemi: deep clear space — no muddy brown fog wall on the left
+      const marsClear = marsLive ? lerp(1, 0.35, sample.event.storm) : 1
+      fogRef.current.near = lerp(sample.fog[0] * marsClear, 22, ab)
+      fogRef.current.far = lerp(Math.max(sample.fog[1], marsLive ? 55 : sample.fog[1]), 90, ab)
       const fogCol = marsish
-        ? new THREE.Color().setRGB(0.12 + sample.event.storm * 0.15, 0.05, 0.02)
+        ? new THREE.Color().setRGB(
+          0.035 + sample.event.storm * 0.08,
+          0.018 + sample.event.storm * 0.02,
+          0.012,
+        )
         : new THREE.Color().setRGB(0.01, 0.01, 0.025)
       fogRef.current.color.copy(fogCol)
-      scene.background = fogCol.clone().multiplyScalar(0.35 + sample.dark * 0.4)
+      scene.background = marsLive
+        ? new THREE.Color().setRGB(0.012, 0.01, 0.014)
+        : fogCol.clone().multiplyScalar(0.35 + sample.dark * 0.4)
     }
 
     gl.toneMappingExposure = lerp(gl.toneMappingExposure, sample.grade.exposure * (1 - sample.dark * 0.35), 0.1)
@@ -1268,8 +1317,8 @@ function ContinuumScene({
       />
 
       <Starfield count={mobile ? 1800 : 3200} warpRef={warpRef} darkRef={darkRef} />
-      {!mobile && <DustField count={900} stormRef={stormRef} />}
-      {!mobile && <DustSheets stormRef={stormRef} darkRef={darkRef} sunDirRef={sunDirRef} />}
+      {/* Dust only during deep storm smother — never the muddy Meridiani polygon sheets */}
+      {!mobile && <DustField count={700} stormRef={stormRef} />}
 
       {/* Moon Suspense is separate so Mars 8K never blocks hero readiness */}
       <Suspense fallback={null}>

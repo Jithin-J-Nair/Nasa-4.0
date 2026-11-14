@@ -495,36 +495,41 @@ function AtlasBridgeHeading({ atlasActive }) {
 
 /** Left-side OptionWheel during Meridiani — picks Mars hardware & aims the globe */
 function MarsWheelHud({ active, selectedId, onSelect }) {
-  if (!active) return null
   const defaultIdx = Math.max(0, MARS_WHEEL_SITES.findIndex((s) => s.id === selectedId))
   return (
-    <div className="mars-wheel-hud" aria-label="Mars hardware wheel">
+    <div
+      className={`mars-wheel-hud ${active ? 'is-on' : ''}`}
+      aria-hidden={!active}
+      aria-label="Mars hardware wheel"
+    >
       <p className="kicker mars-wheel-kicker">MERIDIANI · SELECT HARDWARE</p>
-      <OptionWheel
-        key={active ? 'mars-on' : 'mars-off'}
-        items={MARS_WHEEL_LABELS}
-        defaultSelected={defaultIdx >= 0 ? defaultIdx : 1}
-        textColor="rgba(232,238,245,0.42)"
-        activeColor="#ffb890"
-        side="left"
-        fontSize={1.35}
-        spacing={1.55}
-        curve={1.05}
-        tilt={7}
-        blur={1.6}
-        fade={0.28}
-        minOpacity={0.08}
-        smoothing={220}
-        inset={28}
-        loop={false}
-        draggable
-        soundUrl=""
-        className="mars-option-wheel"
-        onChange={(index) => {
-          const site = MARS_WHEEL_SITES[index]
-          if (site) onSelect?.(site)
-        }}
-      />
+      {active && (
+        <OptionWheel
+          key={`mars-wheel-${defaultIdx}`}
+          items={MARS_WHEEL_LABELS}
+          defaultSelected={defaultIdx >= 0 ? defaultIdx : 1}
+          textColor="#8a8680"
+          activeColor="#ffe0c8"
+          side="left"
+          fontSize={1.45}
+          spacing={1.5}
+          curve={1.1}
+          tilt={7.5}
+          blur={1.25}
+          fade={0.22}
+          minOpacity={0.14}
+          smoothing={200}
+          inset={36}
+          loop={false}
+          draggable
+          soundUrl=""
+          className="mars-option-wheel"
+          onChange={(index) => {
+            const site = MARS_WHEEL_SITES[index]
+            if (site) onSelect?.(site)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -1065,7 +1070,14 @@ export default function App() {
   const onFilmSample = useCallback((sample) => {
     soundRef.current?.setFilm(sample)
     if (sample?.label) setActLabel((prev) => (prev === sample.label ? prev : sample.label))
-  }, [])
+    // Dual-path Mars stage lock — don't rely only on the R3F callback
+    const marsOn = sample?.focus === 'mars' || sample?.focus === 'storm'
+    if (atlasLock) {
+      setMarsLock(false)
+    } else {
+      setMarsLock(!!marsOn)
+    }
+  }, [atlasLock])
 
   const onMoonReady = useCallback(() => {
     moonReadyResolve.current?.()
