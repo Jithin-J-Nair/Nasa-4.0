@@ -1205,7 +1205,7 @@ function ArtifactModal({ item, onClose }) {
           {item.codename} · {item.coords}
         </p>
         {item.image && (
-          <div className="nasa-media">
+          <div className={`nasa-media${item.imagePortrait ? ' nasa-media--portrait' : ''}`}>
             <img src={item.image} alt={item.imageAlt || item.name} loading="lazy" />
             <span className="credit">{item.credit}</span>
           </div>

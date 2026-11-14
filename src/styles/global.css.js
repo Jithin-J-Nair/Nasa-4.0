@@ -1632,11 +1632,12 @@ body.is-coarse .hero-leftover { cursor: pointer; }
     overflow: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .moon-hotspot-card--split {
-    grid-template-columns: 1fr minmax(96px, 38%);
-  }
-  .moon-hotspot-card__media {
-    max-height: 132px;
+  .moon-hotspot-card--split .moon-hotspot-card__media {
+    width: 104px;
+    min-width: 104px;
+    max-width: 104px;
+    height: 139px;
+    flex-basis: 104px;
   }
 }
 .moon-hotspot-card {
@@ -1663,23 +1664,44 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   color: var(--ink);
   z-index: 5;
 }
-/* Image right; copy wide below */
+/* Vertical still on the right of the title; blurb wide below */
 .moon-hotspot-card--split {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
 }
+.moon-hotspot-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.moon-hotspot-card__intro {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-top: 0.1rem;
+}
 .moon-hotspot-card--split .moon-hotspot-card__media {
-  order: 1;
-  align-self: flex-end;
-  width: min(42%, 148px);
-  margin: 0 0 0 auto !important;
-  aspect-ratio: 4 / 5 !important;
+  flex: 0 0 132px;
+  width: 132px;
+  min-width: 132px;
+  max-width: 132px;
+  height: 176px;
+  margin: 0 !important;
+  aspect-ratio: 3 / 4 !important;
   border-radius: 8px;
-  max-height: 168px;
+  overflow: hidden;
+}
+.moon-hotspot-card--split .moon-hotspot-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 42% 46%;
+}
+.moon-hotspot-card--split .moon-hotspot-card__media--portrait img {
+  object-position: 42% 46%;
 }
 .moon-hotspot-card--split .moon-hotspot-card__copy {
-  order: 2;
   min-width: 0;
   width: 100%;
 }
@@ -2212,6 +2234,13 @@ body.is-coarse .fleet-card { cursor: pointer; }
   aspect-ratio: 16/10;
   background: #0a0a12;
   margin-bottom: 1rem;
+}
+.nasa-media--portrait {
+  aspect-ratio: 3 / 4;
+  max-width: min(360px, 100%);
+}
+.nasa-media--portrait img {
+  object-position: 42% 46%;
 }
 .nasa-media img {
   width: 100%; height: 100%; object-fit: cover;

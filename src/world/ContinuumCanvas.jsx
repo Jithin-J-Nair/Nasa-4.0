@@ -796,16 +796,20 @@ function SiteBeacon({
                   role="dialog"
                   aria-label={site.name}
                 >
-                  {site.image && (
-                    <div className={`nasa-media body-${site.body} moon-hotspot-card__media`}>
-                      <img src={site.image} alt={site.imageAlt || site.name} loading="lazy" decoding="async" />
-                      <span className="credit">{site.credit}</span>
+                  <div className="moon-hotspot-card__top">
+                    <div className="moon-hotspot-card__intro">
+                      <p className="kicker">{site.mission} · {site.status}</p>
+                      <h3>{site.name}</h3>
+                      <p className="mono coords">{site.coords}</p>
                     </div>
-                  )}
+                    {site.image && (
+                      <div className={`nasa-media body-${site.body} moon-hotspot-card__media${site.imagePortrait ? ' moon-hotspot-card__media--portrait' : ''}`}>
+                        <img src={site.image} alt={site.imageAlt || site.name} loading="lazy" decoding="async" />
+                        <span className="credit">{site.credit}</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="moon-hotspot-card__copy">
-                    <p className="kicker">{site.mission} · {site.status}</p>
-                    <h3>{site.name}</h3>
-                    <p className="mono coords">{site.coords}</p>
                     <p className="blurb">{site.science}</p>
                     <button type="button" className="mono open moon-hotspot-open" onClick={openDossier}>
                       OPEN DOSSIER →
