@@ -65,6 +65,7 @@ img, svg { display: block; max-width: 100%; }
   pointer-events: none;
 }
 .continuum-canvas.is-hotspots {
+  /* Above chapter scroll layer so Html hotspot cards paint; title HUD is z=8 */
   z-index: 3;
   pointer-events: none;
 }
@@ -621,15 +622,15 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .location-atlas {
   position: relative;
   z-index: 2;
-  /* Scroll sentinel — title HUD is fixed at App root above the Continuum */
   min-height: 100vh;
   min-height: 100dvh;
   height: 100vh;
   height: 100dvh;
-  padding: calc(var(--nav-h) + 1rem) clamp(1.25rem, 5vw, 5rem) 1.5rem;
+  padding: calc(var(--nav-h) + 1.25rem) clamp(1.25rem, 5vw, 5rem) 1.5rem;
   box-sizing: border-box;
   background: transparent;
   overflow: hidden;
+  pointer-events: none;
 }
 .atlas-overlay {
   max-width: min(460px, 92vw);
@@ -637,19 +638,29 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   flex-direction: column;
   gap: 0.85rem;
 }
+.atlas-overlay--flow {
+  position: relative;
+  z-index: 2;
+  padding-top: 0.5rem;
+  transition: opacity 180ms ease;
+}
+.location-atlas.is-locked .atlas-overlay--flow {
+  opacity: 0;
+}
 .atlas-overlay--hud {
-  /* Sibling of Continuum (z=3), not inside .sf-chapters (z=2) — stays visible with hotspots */
   position: fixed;
   top: calc(var(--nav-h) + 0.75rem);
   left: clamp(1.25rem, 5vw, 5rem);
   z-index: 8;
   max-width: min(420px, 86vw);
   pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 220ms ease, visibility 220ms ease;
 }
-.atlas-overlay--hud .atlas-tabs,
-.atlas-overlay--hud .atlas-site-list,
-.atlas-overlay--hud .atlas-site {
-  pointer-events: auto;
+.atlas-overlay--hud.is-on {
+  opacity: 1;
+  visibility: visible;
 }
 .atlas-heading {
   flex: 0 0 auto;

@@ -538,13 +538,16 @@ function Heartbeats({ onOpen, reduced }) {
   )
 }
 
-/** Fixed above the Continuum canvas — stays visible while Atlas moon animates / hotspots open */
+/** Fixed copy — always above Continuum while Atlas is locked (moon may animate under it) */
 function AtlasTitleHud({ active }) {
-  if (!active) return null
   return (
-    <div className="atlas-overlay atlas-overlay--hud" role="presentation">
+    <div
+      className={`atlas-overlay atlas-overlay--hud ${active ? 'is-on' : ''}`}
+      role="presentation"
+      aria-hidden={!active}
+    >
       <header className="atlas-heading">
-        <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active /></p>
+        <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={!!active} /></p>
         <h2 className="display atlas-title">
           Where they<br /><span className="outline-text">still sit</span>
         </h2>
@@ -557,7 +560,7 @@ function AtlasTitleHud({ active }) {
   )
 }
 
-function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) {
+function LocationAtlas({ locked = false, onActiveChange, onFocusSite, onCardSite, cardSiteId }) {
   const sectionRef = useRef(null)
 
   useEffect(() => {
@@ -566,8 +569,7 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
     let wasOn = false
     const io = new IntersectionObserver(
       ([entry]) => {
-        // Own the viewport before locking — heading HUD lives at App root above the canvas
-        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.45
+        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.35
         onActiveChange?.(on)
         if (on && !wasOn) {
           onFocusSite?.('a11-lm')
@@ -576,7 +578,7 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
         if (!on && wasOn) onCardSite?.(null)
         wasOn = on
       },
-      { threshold: [0.3, 0.45, 0.6, 0.8], rootMargin: '-4% 0px -4% 0px' },
+      { threshold: [0.2, 0.35, 0.5, 0.7], rootMargin: '0px' },
     )
     io.observe(el)
     return () => io.disconnect()
@@ -589,14 +591,25 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
   return (
     <section
       ref={sectionRef}
-      className="section location-atlas body-moon"
+      className={`section location-atlas body-moon ${locked ? 'is-locked' : ''}`}
       id="atlas"
       aria-label="Hardware locations"
     >
       <span className="section-rail">02B · ATLAS</span>
       <span className="section-num" aria-hidden>LOC</span>
-      {/* Scroll sentinel + a11y title — visible HUD is AtlasTitleHud at App root */}
-      <h2 className="sr-only">Where they still sit</h2>
+      {/* In-flow title — always present when you scroll here; HUD takes over once locked */}
+      <div className="atlas-overlay atlas-overlay--flow" aria-hidden={locked}>
+        <header className="atlas-heading">
+          <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={!locked} /></p>
+          <h2 className="display atlas-title">
+            Where they<br /><span className="outline-text">still sit</span>
+          </h2>
+          <p className="atlas-lede">
+            Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
+            Hover a hotspot on the Moon for the NASA image and exact location.
+          </p>
+        </header>
+      </div>
     </section>
   )
 }
@@ -1175,6 +1188,7 @@ export default function App() {
 
             <ErrorBoundary>
               <LocationAtlas
+                locked={atlasLock}
                 onActiveChange={onAtlasActive}
                 onFocusSite={onFocusSite}
                 onCardSite={setCardSiteId}
