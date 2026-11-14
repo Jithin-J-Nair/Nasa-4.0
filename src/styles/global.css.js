@@ -910,6 +910,13 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   font-family: var(--font-body);
   font-weight: 500;
   letter-spacing: -0.02em;
+  /* Contain wheel gestures so Lenis cannot scroll the Meridiani stage away */
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+.mars-hotspot-wheel .option-wheel__item {
+  cursor: pointer;
+  pointer-events: auto;
 }
 .mars-hotspot-wheel .option-wheel__item {
   text-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 18px rgba(0, 0, 0, 0.45);

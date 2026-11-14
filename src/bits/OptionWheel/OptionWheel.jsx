@@ -58,12 +58,15 @@ const OptionWheel = ({
   const wheelTimerRef = useRef(null)
   const dragRef = useRef(null)
   const dragMovedRef = useRef(false)
+  /** After a real drag, swallow the synthetic click that follows pointerup */
+  const suppressClickRef = useRef(false)
   const audioRef = useRef(null)
   const audioUrlRef = useRef('')
   const lastTickRef = useRef(0)
   const suppressExternalRef = useRef(false)
   const [selectedIndex, setSelectedIndex] = useState(initial)
   const [isDragging, setIsDragging] = useState(false)
+  const DRAG_THRESHOLD = 10
 
   const remPx = typeof window !== 'undefined'
     ? parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
@@ -207,7 +210,9 @@ const OptionWheel = ({
     const el = rootRef.current
     if (!el) return undefined
     const onWheel = (e) => {
+      // Keep Lenis/page scroll from stealing the Meridiani stage
       e.preventDefault()
+      e.stopPropagation()
       const cfg = cfgRef.current
       const delta = e.deltaMode === 1 ? e.deltaY * 24 : e.deltaY
       const step = Math.max(-1, Math.min(1, delta / cfg.rowH))
@@ -222,12 +227,30 @@ const OptionWheel = ({
     }
   }, [applyTarget])
 
+  const goToIndex = useCallback(
+    (index) => {
+      const cfg = cfgRef.current
+      const cur = targetRef.current
+      let d = index - (((cur % cfg.count) + cfg.count) % cfg.count)
+      if (cfg.loop && cfg.count > 1) {
+        if (d > cfg.count / 2) d -= cfg.count
+        else if (d < -cfg.count / 2) d += cfg.count
+      }
+      velRef.current *= 0.35
+      applyTarget(cur + d, true)
+    },
+    [applyTarget],
+  )
+
   const handlePointerDown = useCallback((e) => {
     if (!cfgRef.current.draggable) return
+    // Ignore non-primary buttons; allow item hit targets to own the gesture
+    if (e.button != null && e.button !== 0) return
     dragRef.current = { y: e.clientY, start: targetRef.current, id: e.pointerId }
     dragMovedRef.current = false
+    suppressClickRef.current = false
     velRef.current = 0
-    setIsDragging(true)
+    // Don't set isDragging until threshold — keeps cursor + click semantics clean
   }, [])
 
   const handlePointerMove = useCallback(
@@ -235,8 +258,9 @@ const OptionWheel = ({
       const drag = dragRef.current
       if (!drag) return
       const dy = e.clientY - drag.y
-      if (!dragMovedRef.current && Math.abs(dy) > 4) {
+      if (!dragMovedRef.current && Math.abs(dy) > DRAG_THRESHOLD) {
         dragMovedRef.current = true
+        setIsDragging(true)
         rootRef.current?.setPointerCapture(drag.id)
       }
       if (dragMovedRef.current) {
@@ -249,26 +273,28 @@ const OptionWheel = ({
 
   const handlePointerEnd = useCallback(() => {
     if (!dragRef.current) return
+    const moved = dragMovedRef.current
     dragRef.current = null
     setIsDragging(false)
-    if (dragMovedRef.current) applyTarget(targetRef.current, true)
+    if (moved) {
+      // Real drag — snap + block the trailing click on the label
+      suppressClickRef.current = true
+      applyTarget(targetRef.current, true)
+    }
+    // Tiny jitter clicks: leave suppressClick false so onClick can select
+    dragMovedRef.current = false
   }, [applyTarget])
 
   const handleItemClick = useCallback(
-    (index) => {
-      if (dragMovedRef.current) return
-      const cfg = cfgRef.current
-      const cur = targetRef.current
-      let d = index - (((cur % cfg.count) + cfg.count) % cfg.count)
-      if (cfg.loop && cfg.count > 1) {
-        if (d > cfg.count / 2) d -= cfg.count
-        else if (d < -cfg.count / 2) d += cfg.count
+    (index, e) => {
+      e?.stopPropagation?.()
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false
+        return
       }
-      // Soften velocity so a mid-flight reverse still feels continuous
-      velRef.current *= 0.35
-      applyTarget(cur + d, true)
+      goToIndex(index)
     },
-    [applyTarget],
+    [goToIndex],
   )
 
   const handleKeyDown = useCallback(
@@ -326,7 +352,7 @@ const OptionWheel = ({
           role="option"
           aria-selected={selectedIndex === index}
           className={`option-wheel__item${selectedIndex === index ? ' option-wheel__item--selected' : ''}`}
-          onClick={() => handleItemClick(index)}
+          onClick={(e) => handleItemClick(index, e)}
         >
           {label}
         </div>
