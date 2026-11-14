@@ -363,14 +363,21 @@ img, svg { display: block; max-width: 100%; }
 .journey-hud.is-silence .journey-hud__phase {
   color: rgba(200, 220, 255, 0.88);
 }
+/* Sticky inside the journey rail — scrolls away; never fixed over Recover/Archive */
 .silence-coda {
-  position: fixed;
-  inset: 0;
-  z-index: 35;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  box-sizing: border-box;
   pointer-events: none;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
+  gap: 1.25rem;
   padding:
     calc(var(--nav-h) + 1.5rem)
     clamp(1rem, 3vw, 2rem)
@@ -379,6 +386,10 @@ img, svg { display: block; max-width: 100%; }
   background:
     linear-gradient(90deg, rgba(3, 4, 10, 0.55) 0%, transparent 42%),
     linear-gradient(0deg, rgba(3, 4, 10, 0.72) 0%, transparent 38%);
+}
+.journey-spacer.is-silence-live .journey-hud {
+  opacity: 0;
+  visibility: hidden;
 }
 .silence-coda__copy {
   max-width: min(34rem, 52vw);

@@ -399,20 +399,41 @@ function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
 }
 
 function FilmJourney({ label = 'JOURNEY' }) {
-  const silence = label === 'SILENCE' || label === 'CARRIER'
+  const rootRef = useRef(null)
+  const [journeyLive, setJourneyLive] = useState(true)
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined
+    // Hide as soon as Recover/Fleet enter — never leave a fixed ghost over later chapters
+    const io = new IntersectionObserver(
+      ([e]) => setJourneyLive(!!e?.isIntersecting),
+      { threshold: 0, rootMargin: '0px 0px -18% 0px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  const silenceAct = label === 'SILENCE' || label === 'CARRIER'
+  const silence = silenceAct && journeyLive
   const phase =
     label === 'NEAR PASS' || label === 'NEAR SIDE' ? 'Lunar zoom'
       : label === 'JOURNEY' ? 'Transit corridor'
         : label === 'MERIDIANI' || label === 'LAST LIGHT' || label === 'DUST STORM' ? 'Mars arrival'
-          : silence ? 'Voyager 1 · interstellar'
+          : silenceAct ? 'Voyager 1 · interstellar'
             : 'Continuum'
   return (
-    <section id="journey" className="journey-spacer" aria-label="Film continuum journey">
+    <section
+      ref={rootRef}
+      id="journey"
+      className={`journey-spacer${silence ? ' is-silence-live' : ''}`}
+      aria-label="Film continuum journey"
+    >
       <span id="journey-dive" className="journey-beat" style={{ top: '10%' }} aria-hidden />
       <span id="journey-transit" className="journey-beat" style={{ top: '42%' }} aria-hidden />
       <span id="journey-mars" className="journey-beat" style={{ top: '74%' }} aria-hidden />
       <span id="journey-last-light" className="journey-beat" style={{ top: '88%' }} aria-hidden />
-      <div className={`journey-hud ${label === 'LAST LIGHT' ? 'is-last-light' : ''} ${silence ? 'is-silence' : ''}`} aria-hidden>
+      <div className={`journey-hud ${label === 'LAST LIGHT' ? 'is-last-light' : ''} ${silenceAct ? 'is-silence' : ''}`} aria-hidden>
         <span className="section-rail journey-hud__rail">FILM · CONTINUUM</span>
         <p className="journey-hud__act mono">{label}</p>
         <p className="journey-hud__phase">{phase}</p>
