@@ -11,17 +11,17 @@ import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@re
 import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
 import * as THREE from 'three'
-import { sampleActs, lerp, clamp } from './film'
+import { sampleActs, lerp, clamp, smoothstep } from './film'
 import { ATLAS_HOLD_PROGRESS, latLonToLocal, SITE_FOCUS } from './geo'
 import { ARTIFACTS } from '../data/artifacts'
 
 const MOON_SITES = ARTIFACTS.filter((a) => a.body === 'moon' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
 const MARS_SITES = ARTIFACTS.filter((a) => a.body === 'mars' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
 
-/** Atlas-only: click-hold drag rotates the Moon on Y. Stays centered; default yaw = 0 (site facing). */
-const ATLAS_DRAG_SLOP = 8
+/** Click-hold drag rotates a planet on Y (Moon Atlas / Mars Meridiani). */
+const PLANET_DRAG_SLOP = 8
 
-function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
+function usePlanetYawDrag(enabled, reduced, onDraggingChange) {
   const yaw = useRef(0)
   const targetYaw = useRef(0)
   const dragging = useRef(false)
@@ -33,7 +33,7 @@ function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
   const { gl, size } = useThree()
 
   useEffect(() => {
-    if (!atlasLock || reduced) {
+    if (!enabled || reduced) {
       targetYaw.current = 0
       dragging.current = false
       pending.current = false
@@ -75,7 +75,7 @@ function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
       if (pending.current && !dragging.current) {
         const ax = e.clientX - originX.current
         const ay = e.clientY - originY.current
-        if (Math.abs(ax) < ATLAS_DRAG_SLOP && Math.abs(ay) < ATLAS_DRAG_SLOP) return
+        if (Math.abs(ax) < PLANET_DRAG_SLOP && Math.abs(ay) < PLANET_DRAG_SLOP) return
         // Vertical intent → abandon so Lenis / pan-y can scroll
         if (Math.abs(ay) > Math.abs(ax)) {
           clearDrag(e)
@@ -95,7 +95,7 @@ function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
       if (!dragging.current) return
       const dx = e.clientX - lastClientX.current
       lastClientX.current = e.clientX
-      // Drag left → surface moves left (right-to-left spin); drag right → left-to-right
+      // Drag left → surface moves left; drag right → left-to-right
       const radPerPx = (Math.PI * 1.25) / Math.max(1, size.width)
       targetYaw.current += dx * radPerPx
     }
@@ -117,12 +117,11 @@ function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
       activePointer.current = null
       onDraggingChange?.(false)
     }
-  }, [atlasLock, reduced, gl, size.width, onDraggingChange])
+  }, [enabled, reduced, gl, size.width, onDraggingChange])
 
   useFrame((_, dt) => {
     const step = Math.min(0.05, Math.max(0.001, dt))
-    if (!atlasLock) {
-      // Leave Atlas → ease back to default facing (offset 0)
+    if (!enabled) {
       targetYaw.current = lerp(targetYaw.current, 0, Math.min(1, 3.5 * step))
     }
     yaw.current = lerp(yaw.current, targetYaw.current, Math.min(1, (dragging.current ? 22 : 12) * step))
@@ -898,8 +897,11 @@ function FilmDirector({
   moonAimRef,
   marsAimRef,
   beaconsVisibleRef,
+  marsBeaconsVisibleRef,
   onSample,
+  onMarsActive,
   atlasLock = false,
+  marsLock = false,
   focusSiteId = null,
 }) {
   const { camera, gl, scene } = useThree()
@@ -912,6 +914,11 @@ function FilmDirector({
   const moonPos = useRef(new THREE.Vector3(0, 0, 0))
   const moonScale = useRef(1.66)
   const atlasAimLon = useRef(null)
+  const marsAimLon = useRef(null)
+  const marsHemi = useRef(0)
+  const marsPos = useRef(new THREE.Vector3(2.72, 0.12, -0.45))
+  const marsScale = useRef(1)
+  const marsActiveRef = useRef(false)
 
   useFrame((state, dt) => {
     const raw = typeof progress?.get === 'function' ? progress.get() : 0
@@ -948,11 +955,39 @@ function FilmDirector({
       gradeRef.current = sample.grade
     }
 
+    const f = sample.focus
+    const marsish = f === 'mars' || f === 'storm'
+    const atlasClear = ab > 0.35
+    const marsLive = !atlasClear && marsish
+    if (marsActiveRef.current !== marsLive) {
+      marsActiveRef.current = marsLive
+      onMarsActive?.(marsLive)
+    }
+    if (marsBeaconsVisibleRef) {
+      marsBeaconsVisibleRef.current = marsLive && marsLock ? 1 : (marsLive ? 0.55 : 0)
+    }
+
+    // Hemisphere push: scroll through Meridiani slides Mars to the right edge
+    let hemiTarget = 0
+    if (sample.act?.id === 'mars') {
+      hemiTarget = smoothstep(0.12, 0.92, sample.eased)
+    } else if (sample.act?.id === 'dust_storm' || f === 'storm') {
+      hemiTarget = 1
+    } else if (marsish) {
+      hemiTarget = sample.eased
+    }
+    marsHemi.current = lerp(marsHemi.current, marsLive ? hemiTarget : 0, Math.min(1, 2.8 * step))
+    const hemi = marsHemi.current
+
     // Hero: free spin. From Objective→Atlas: ease the site onto the lens center.
     const hot = ab > 0.2
       ? (focusSiteId || sample.hotspot || 'a11-lm')
-      : (sample.hotspot || null)
-    if (hotspotRef) hotspotRef.current = ab > 0.4 ? hot : null
+      : (marsLive
+        ? (focusSiteId && SITE_FOCUS[focusSiteId]?.body === 'mars' ? focusSiteId : (sample.hotspot || 'opportunity'))
+        : (sample.hotspot || null))
+    if (hotspotRef) {
+      hotspotRef.current = ab > 0.4 || (marsLive && marsLock) ? hot : null
+    }
     const focus = hot ? SITE_FOCUS[hot] : null
     if (moonAimRef) {
       if (atlasLock) {
@@ -975,7 +1010,23 @@ function FilmDirector({
       }
     }
     if (marsAimRef) {
-      marsAimRef.current = !atlasLock && ab > 0.2 && focus?.body === 'mars' ? focus.aimLon : null
+      if (marsLive && marsLock) {
+        if (marsAimLon.current == null) {
+          const entry = SITE_FOCUS[focusSiteId || 'opportunity']
+          marsAimLon.current = entry?.body === 'mars'
+            ? entry.aimLon
+            : SITE_FOCUS.opportunity.aimLon
+        }
+        // Wheel / focusSiteId may retarget — update locked aim when site is mars
+        const entry = SITE_FOCUS[focusSiteId]
+        if (entry?.body === 'mars') marsAimLon.current = entry.aimLon
+        marsAimRef.current = marsAimLon.current
+      } else {
+        marsAimLon.current = null
+        marsAimRef.current = !atlasLock && marsLive && focus?.body === 'mars'
+          ? focus.aimLon
+          : null
+      }
     }
 
     const targetDpr = clamp(
@@ -988,13 +1039,17 @@ function FilmDirector({
       lastDpr.current = targetDpr
     }
 
-    const f = sample.focus
     // Moon acts: hard-lock X to center — parallax was shifting the disc right/left
     const moonLock = f === 'moon' || f === 'dive' || ab > 0.02
     const mx = moonLock ? 0 : inertia.current.x * (0.1 + sample.event.warp * 0.08)
     const my = moonLock ? 0 : inertia.current.y * (0.06 + sample.event.warp * 0.05)
 
-    // Single centered camera track — look stays on moon origin
+    // Mars hemi: keep camera look left of Mars so only the left hemisphere stays in frame
+    const lookBaseX = moonLock ? 0 : sample.look[0] + mx * 0.04
+    const lookHemiX = marsLive
+      ? lerp(sample.look[0], sample.look[0] - 0.35, hemi)
+      : lookBaseX
+
     desired.set(
       moonLock ? 0 : sample.cam[0] + mx,
       sample.cam[1] - my,
@@ -1012,7 +1067,7 @@ function FilmDirector({
     }
 
     look.set(
-      moonLock ? 0 : sample.look[0] + mx * 0.04,
+      moonLock ? 0 : lookHemiX,
       sample.look[1],
       sample.look[2],
     )
@@ -1048,16 +1103,22 @@ function FilmDirector({
       moonRef.current.scale.setScalar(moonScale.current)
       moonRef.current.position.copy(moonPos.current)
     }
-    // Atlas owns the stage — kill Mars / Pioneer bleed from film edge-blend
-    const atlasClear = ab > 0.35
+    // Mars: start centered, scroll slides it to the right edge (hemisphere)
     if (marsRef.current) {
-      const show = !atlasClear && (f === 'mars' || f === 'storm')
-      marsRef.current.visible = show
-      if (show) {
-        marsRef.current.position.set(2.72, 0.12, -0.45)
-        // Storm: push into Meridiani — place, not overlay
+      marsRef.current.visible = marsLive
+      if (marsLive) {
         const stormPush = f === 'storm' ? sample.event.storm : 0
-        marsRef.current.scale.setScalar(lerp(0.95, 1.55, Math.max(sample.eased * 0.35, stormPush * 0.7)))
+        const baseScale = lerp(1.05, 1.55, Math.max(sample.eased * 0.35, stormPush * 0.7))
+        const hemiScale = lerp(baseScale, baseScale * 1.45, hemi)
+        const baseX = 2.72
+        const hemiX = baseX + 1.85 * hemi
+        const poseDamp = Math.min(1, (reduced ? 7 : 3.8) * step)
+        marsScale.current = lerp(marsScale.current, hemiScale, poseDamp)
+        marsPos.current.x = lerp(marsPos.current.x, hemiX, poseDamp)
+        marsPos.current.y = lerp(marsPos.current.y, 0.12, poseDamp)
+        marsPos.current.z = lerp(marsPos.current.z, -0.45, poseDamp)
+        marsRef.current.scale.setScalar(marsScale.current)
+        marsRef.current.position.copy(marsPos.current)
       } else {
         marsRef.current.scale.setScalar(0.01)
       }
@@ -1071,7 +1132,6 @@ function FilmDirector({
     if (beamActiveRef) beamActiveRef.current = !atlasClear && f === 'pioneer'
 
     // Lighting lockstep with events
-    const marsish = f === 'mars' || f === 'storm'
     if (sunRef.current) {
       sunRef.current.position.set(marsish ? 4.0 : 6.0, marsish ? 3.2 : 2.5, 3)
       const base = sample.grade.exposure * (f === 'storm' ? 0.35 : 1.4)
@@ -1129,14 +1189,17 @@ function ContinuumScene({
   reduced,
   onSample,
   onMoonReady,
+  onMarsActive,
   atlasLock = false,
+  marsLock = false,
   focusSiteId = null,
-  hotspotsInteractive = false,
+  moonHotspotsInteractive = false,
+  marsHotspotsInteractive = false,
   cardSiteId = null,
   onHotspotHover,
   onHotspotLeave,
   onHotspotOpen,
-  onAtlasDraggingChange,
+  onPlanetDraggingChange,
 }) {
   const moonRef = useRef()
   const marsRef = useRef()
@@ -1157,7 +1220,9 @@ function ContinuumScene({
   const moonAimRef = useRef(null)
   const marsAimRef = useRef(null)
   const beaconsVisibleRef = useRef(0)
-  const atlasYawRef = useAtlasMoonDrag(atlasLock, reduced, onAtlasDraggingChange)
+  const marsBeaconsVisibleRef = useRef(0)
+  const moonYawRef = usePlanetYawDrag(atlasLock, reduced, onPlanetDraggingChange)
+  const marsYawRef = usePlanetYawDrag(marsLock && !atlasLock, reduced, onPlanetDraggingChange)
   // Full masters — bytes warmed during preloader (see preloadTextures.js)
   const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_8k.jpg'
   const moonHeight = mobile ? '/textures/moon_height_2k.jpg' : '/textures/moon_height_4k.jpg'
@@ -1194,8 +1259,11 @@ function ContinuumScene({
         moonAimRef={moonAimRef}
         marsAimRef={marsAimRef}
         beaconsVisibleRef={beaconsVisibleRef}
+        marsBeaconsVisibleRef={marsBeaconsVisibleRef}
         onSample={onSample}
+        onMarsActive={onMarsActive}
         atlasLock={atlasLock}
+        marsLock={marsLock}
         focusSiteId={focusSiteId}
       />
 
@@ -1219,9 +1287,9 @@ function ContinuumScene({
           sites={MOON_SITES}
           hotspotRef={hotspotRef}
           aimLonRef={moonAimRef}
-          yawOffsetRef={atlasYawRef}
+          yawOffsetRef={moonYawRef}
           beaconsVisibleRef={beaconsVisibleRef}
-          hotspotsInteractive={hotspotsInteractive}
+          hotspotsInteractive={moonHotspotsInteractive}
           cardSiteId={cardSiteId}
           onHotspotHover={onHotspotHover}
           onHotspotLeave={onHotspotLeave}
@@ -1245,6 +1313,13 @@ function ContinuumScene({
           sites={MARS_SITES}
           hotspotRef={hotspotRef}
           aimLonRef={marsAimRef}
+          yawOffsetRef={marsYawRef}
+          beaconsVisibleRef={marsBeaconsVisibleRef}
+          hotspotsInteractive={marsHotspotsInteractive}
+          cardSiteId={cardSiteId}
+          onHotspotHover={onHotspotHover}
+          onHotspotLeave={onHotspotLeave}
+          onHotspotOpen={onHotspotOpen}
         />
       </Suspense>
 
@@ -1270,9 +1345,12 @@ export default function ContinuumCanvas({
   active = true,
   onSample,
   onMoonReady,
+  onMarsActive,
   atlasLock = false,
+  marsLock = false,
   focusSiteId = null,
-  hotspotsInteractive = false,
+  moonHotspotsInteractive = false,
+  marsHotspotsInteractive = false,
   cardSiteId = null,
   onHotspotHover,
   onHotspotLeave,
@@ -1290,20 +1368,23 @@ export default function ContinuumCanvas({
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [])
   const frameloop = reduced || !pageVisible ? 'demand' : 'always'
-  const [atlasDragging, setAtlasDragging] = useState(false)
-  const onAtlasDraggingChange = useCallback((on) => {
-    setAtlasDragging(!!on)
+  const [planetDragging, setPlanetDragging] = useState(false)
+  const onPlanetDraggingChange = useCallback((on) => {
+    setPlanetDragging(!!on)
   }, [])
+
+  const anyHotspots = moonHotspotsInteractive || marsHotspotsInteractive
+  const anyDrag = atlasLock || marsLock
 
   return (
     <div
       className={[
         'continuum-canvas',
-        hotspotsInteractive ? 'is-hotspots' : '',
-        atlasLock ? 'is-atlas-drag' : '',
-        atlasDragging ? 'is-dragging' : '',
+        anyHotspots ? 'is-hotspots' : '',
+        anyDrag ? 'is-atlas-drag' : '',
+        planetDragging ? 'is-dragging' : '',
       ].filter(Boolean).join(' ')}
-      aria-hidden={!hotspotsInteractive}
+      aria-hidden={!anyHotspots}
     >
       <Canvas
         dpr={mobile ? [1, 1.25] : [1, 1.5]}
@@ -1328,14 +1409,17 @@ export default function ContinuumCanvas({
           reduced={reduced}
           onSample={onSample}
           onMoonReady={onMoonReady}
+          onMarsActive={onMarsActive}
           atlasLock={atlasLock}
+          marsLock={marsLock}
           focusSiteId={focusSiteId}
-          hotspotsInteractive={hotspotsInteractive}
+          moonHotspotsInteractive={moonHotspotsInteractive}
+          marsHotspotsInteractive={marsHotspotsInteractive}
           cardSiteId={cardSiteId}
           onHotspotHover={onHotspotHover}
           onHotspotLeave={onHotspotLeave}
           onHotspotOpen={onHotspotOpen}
-          onAtlasDraggingChange={onAtlasDraggingChange}
+          onPlanetDraggingChange={onPlanetDraggingChange}
         />
       </Canvas>
     </div>

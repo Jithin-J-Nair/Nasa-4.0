@@ -796,6 +796,41 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   pointer-events: none;
   transition: opacity 1.05s cubic-bezier(0.22, 1, 0.36, 1), visibility 1.05s;
 }
+
+/* Mars Meridiani — OptionWheel docks left while Mars holds the right hemisphere */
+.mars-wheel-hud {
+  position: fixed;
+  left: 0;
+  top: var(--nav-h);
+  bottom: 0;
+  z-index: 96;
+  width: min(42vw, 420px);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 0 4rem;
+}
+.mars-wheel-kicker {
+  pointer-events: none;
+  margin: 0 0 0.75rem;
+  padding-left: 1.75rem;
+  color: var(--ink-mute);
+  letter-spacing: 0.16em;
+  font-size: 0.62rem;
+}
+.mars-option-wheel {
+  pointer-events: auto;
+  height: min(70vh, 560px);
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+.mars-option-wheel .option-wheel__item {
+  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+@media (max-width: 768px) {
+  .mars-wheel-hud { display: none; }
+}
 .atlas-heading {
   flex: 0 0 auto;
   margin: 0;

@@ -23,12 +23,13 @@ import {
 import { ranged, getSessionSeed } from './motion/seed'
 import {
   Magnet, SpotlightCard, ClickSpark, FadeContent,
-  GradientText, GlareHover, BlurText, TrueFocus,
+  GradientText, GlareHover, BlurText, TrueFocus, OptionWheel,
 } from './bits'
 import './bits/SpotlightCard/SpotlightCard.css'
 import './bits/GradientText/GradientText.css'
 import './bits/GlareHover/GlareHover.css'
 import './bits/TrueFocus/TrueFocus.css'
+import './bits/OptionWheel/OptionWheel.css'
 
 const ContinuumCanvas = lazy(() => import('./world/ContinuumCanvas'))
 
@@ -58,6 +59,8 @@ const FILTERS = [
 ]
 /** Hero challenge plate — NASA leftover hardware (Eagle LM) · Tranquility Base */
 const HERO_LEFTOVER = ARTIFACTS.find((a) => a.id === 'a11-lm')
+const MARS_WHEEL_SITES = ARTIFACTS.filter((a) => a.body === 'mars' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
+const MARS_WHEEL_LABELS = MARS_WHEEL_SITES.map((a) => a.codename || a.name)
 const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789░▒▓█/<>=+#*'
 
 function LineReveal({ children, delay = 0, className = '' }) {
@@ -487,6 +490,42 @@ function AtlasBridgeHeading({ atlasActive }) {
         Hover a hotspot on the Moon for the NASA image and exact location.
       </p>
     </header>
+  )
+}
+
+/** Left-side OptionWheel during Meridiani — picks Mars hardware & aims the globe */
+function MarsWheelHud({ active, selectedId, onSelect }) {
+  if (!active) return null
+  const defaultIdx = Math.max(0, MARS_WHEEL_SITES.findIndex((s) => s.id === selectedId))
+  return (
+    <div className="mars-wheel-hud" aria-label="Mars hardware wheel">
+      <p className="kicker mars-wheel-kicker">MERIDIANI · SELECT HARDWARE</p>
+      <OptionWheel
+        key={active ? 'mars-on' : 'mars-off'}
+        items={MARS_WHEEL_LABELS}
+        defaultSelected={defaultIdx >= 0 ? defaultIdx : 1}
+        textColor="rgba(232,238,245,0.42)"
+        activeColor="#ffb890"
+        side="left"
+        fontSize={1.35}
+        spacing={1.55}
+        curve={1.05}
+        tilt={7}
+        blur={1.6}
+        fade={0.28}
+        minOpacity={0.08}
+        smoothing={220}
+        inset={28}
+        loop={false}
+        draggable
+        soundUrl=""
+        className="mars-option-wheel"
+        onChange={(index) => {
+          const site = MARS_WHEEL_SITES[index]
+          if (site) onSelect?.(site)
+        }}
+      />
+    </div>
   )
 }
 
@@ -986,6 +1025,7 @@ export default function App() {
   const [audioOn, setAudioOn] = useState(false)
   const [actLabel, setActLabel] = useState('ARRIVAL')
   const [atlasLock, setAtlasLock] = useState(false)
+  const [marsLock, setMarsLock] = useState(false)
   const [focusSiteId, setFocusSiteId] = useState('a11-lm')
   const [cardSiteId, setCardSiteId] = useState(null)
   const mainRef = useRef(null)
@@ -1033,12 +1073,33 @@ export default function App() {
 
   const onAtlasActive = useCallback((on) => {
     setAtlasLock(on)
+    if (on) setMarsLock(false)
     if (!on) setCardSiteId(null)
+  }, [])
+
+  const onMarsActive = useCallback((on) => {
+    setMarsLock(!!on)
+    if (on) {
+      setFocusSiteId((id) => {
+        const cur = ARTIFACTS.find((a) => a.id === id)
+        return cur?.body === 'mars' ? id : 'opportunity'
+      })
+      setCardSiteId((id) => {
+        const cur = ARTIFACTS.find((a) => a.id === id)
+        return cur?.body === 'mars' ? id : 'opportunity'
+      })
+    } else {
+      setCardSiteId((id) => {
+        const cur = ARTIFACTS.find((a) => a.id === id)
+        return cur?.body === 'mars' ? null : id
+      })
+    }
   }, [])
 
   const onNavAtlas = useCallback((e) => {
     e.preventDefault()
     setAtlasLock(true)
+    setMarsLock(false)
     setFocusSiteId('a11-lm')
     setCardSiteId('a11-lm')
     // Land on the sticky title bridge so Objective→Atlas reads as one page
@@ -1050,7 +1111,12 @@ export default function App() {
     if (id) setFocusSiteId(id)
   }, [])
 
-  // Hover opens the card only — never retarget moon aim (that made pins chase the cursor)
+  const onMarsWheelSelect = useCallback((site) => {
+    setFocusSiteId(site.id)
+    setCardSiteId(site.id)
+  }, [])
+
+  // Hover opens the card only — never retarget moon/mars aim (that made pins chase the cursor)
   const onHotspotHover = useCallback((site) => {
     setCardSiteId(site.id)
   }, [])
@@ -1134,9 +1200,12 @@ export default function App() {
                 active={!booting}
                 onSample={onFilmSample}
                 onMoonReady={onMoonReady}
+                onMarsActive={onMarsActive}
                 atlasLock={atlasLock}
+                marsLock={marsLock && !atlasLock}
                 focusSiteId={focusSiteId}
-                hotspotsInteractive={atlasLock && !mobile}
+                moonHotspotsInteractive={atlasLock && !mobile}
+                marsHotspotsInteractive={marsLock && !atlasLock && !mobile}
                 cardSiteId={cardSiteId}
                 onHotspotHover={onHotspotHover}
                 onHotspotLeave={onHotspotLeave}
@@ -1145,6 +1214,12 @@ export default function App() {
             </Suspense>
           </ErrorBoundary>
           <div className="sf-veil" aria-hidden />
+
+          <MarsWheelHud
+            active={marsLock && !atlasLock && !mobile && !booting}
+            selectedId={focusSiteId}
+            onSelect={onMarsWheelSelect}
+          />
 
           <a
             href="#journey"
