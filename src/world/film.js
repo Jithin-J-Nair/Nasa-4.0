@@ -295,11 +295,11 @@ export const ACTS = [
     label: 'SILENCE',
     range: [0.88, 1.0],
     ease: easeHold,
-    cam: { from: [0.12, 0.22, 4.6], to: [0.28, 0.18, 3.7], look: [0.04, 0.1, -9.5], fov: [32, 28] },
-    grade: { lift: [0.01, 0.015, 0.035], gain: [0.9, 0.94, 1.05], exposure: 0.72, grain: 0.04 },
-    event: { dive: 0, storm: 0, carrier: 1, warp: 0.05 },
-    dark: 0.78,
-    fog: [22, 95],
+    cam: { from: [0.12, 0.22, 4.6], to: [0.22, 0.14, 4.05], look: [0.08, 0.06, -8.2], fov: [34, 30] },
+    grade: { lift: [0.01, 0.015, 0.035], gain: [0.92, 0.96, 1.08], exposure: 0.92, grain: 0.035 },
+    event: { dive: 0, storm: 0, carrier: 0.85, warp: 0.04 },
+    dark: 0.42,
+    fog: [18, 88],
     focus: 'pioneer',
     cue: 'carrier_lost',
     hotspot: 'voyager1',
@@ -411,10 +411,10 @@ export function sampleActs(progress) {
       dark = Math.max(dark, 0.88 + hole * 0.1)
     }
   }
-  // Carrier: signal collapses into scored silence
+  // Carrier: signal collapses into scored silence — keep craft readable (not crushed to black)
   if (act.id === 'silence') {
     event.carrier = Math.max(event.carrier, easeHold(local, 0.25))
-    dark = Math.max(dark, 0.55 + local * 0.35)
+    dark = Math.max(dark, 0.32 + local * 0.22)
   }
 
   const smash = act.smash != null && Math.abs(p - act.smash) < 0.014
@@ -428,12 +428,12 @@ export function sampleActs(progress) {
     warp: event.warp,
   }
   if (act.id === 'transit') {
-    // Overlap Moon exit with Mars approach — cinematic crossfade, not a hard cut
+    // Overlap Moon exit with Mars approach — Mars must read as a real disc early
     journey = {
-      moonPresence: 1 - smoothstep(0.12, 0.68, local),
-      marsPresence: smoothstep(0.32, 0.82, local),
-      moonExit: smoothstep(0.08, 0.62, local),
-      marsApproach: smoothstep(0.38, 1, local),
+      moonPresence: 1 - smoothstep(0.22, 0.82, local),
+      marsPresence: smoothstep(0.02, 0.32, local),
+      moonExit: smoothstep(0.25, 0.85, local),
+      marsApproach: smoothstep(0.05, 0.7, local),
       warp: event.warp,
     }
   }

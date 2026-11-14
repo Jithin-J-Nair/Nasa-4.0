@@ -1372,11 +1372,11 @@ function FilmDirector({
         const presence = transit
           ? clamp(journey.marsPresence, 0, 1)
           : 1
-        // Center → right: only ~50% of the body stays on screen at lock
-        const hemiX = lerp(0.18, 3.28, slide)
-        const ty = lerp(0.12, 0.04, slide)
-        const tz = lerp(-3.1, -0.5, slide)
-        const hemiScale = lerp(0.36, 1.72, slide) * lerp(0.42, 1, easeInOutCubic(presence))
+        // Center → right: keep a readable disc early; ~50% of body at Meridiani lock
+        const hemiX = lerp(0.08, 3.05, slide)
+        const ty = lerp(0.08, 0.04, slide)
+        const tz = lerp(-1.85, -0.5, slide)
+        const hemiScale = lerp(1.05, 1.82, slide) * lerp(0.78, 1, easeInOutCubic(presence))
         const poseDamp = Math.min(1, (reduced ? 5.5 : (transit ? 1.45 : 2.05)) * step)
         marsScale.current = lerp(marsScale.current, hemiScale, poseDamp)
         marsPos.current.x = lerp(marsPos.current.x, hemiX, poseDamp)
@@ -1392,15 +1392,16 @@ function FilmDirector({
       }
     }
     if (pioneerRef.current) {
-      const show = !atlasClear && f === 'pioneer'
+      // Stay visible for the whole carrier→silence farewell — never hide under Atlas linger
+      const show = f === 'pioneer'
       pioneerRef.current.visible = show
-      // Desktop: mid frame. Mobile: park high in the sky so title never sits on the dish.
+      // Hero craft — large enough to read as Voyager, not a silhouette speck
       const craftScale = show
-        ? (mobile ? lerp(1.02, 1.22, sample.eased) : lerp(1.35, 1.85, sample.eased))
+        ? (mobile ? lerp(1.35, 1.65, sample.eased) : lerp(1.85, 2.45, sample.eased))
         : 0.01
-      const craftX = mobile ? 0.06 : 0.55
-      const craftY = mobile ? 2.55 : 0.02
-      const craftZ = mobile ? -8.15 : -8.55
+      const craftX = mobile ? 0.04 : 0.42
+      const craftY = mobile ? 2.35 : 0.08
+      const craftZ = mobile ? -7.4 : -7.6
       pioneerRef.current.position.set(craftX, craftY, craftZ)
       pioneerRef.current.scale.setScalar(
         lerp(pioneerRef.current.scale.x || craftScale, craftScale, Math.min(1, 3.2 * step)),
@@ -1705,18 +1706,20 @@ export default function ContinuumCanvas({
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [])
 
-  // When #journey scrolls past the viewport, ride Continuum up (transform/opacity only).
-  // gsap.quickTo keeps compositor writes cheap under Lenis (gsap-performance).
+  // Fade Continuum only when Fleet/Recover enters — never during Silence (Voyager farewell).
+  // Tying exit to #journey bottom killed Voyager mid-coda as the rail tip hit 1.
   useEffect(() => {
     const root = rootRef.current
     if (!root || typeof window === 'undefined') return undefined
     gsap.set(root, { y: 0, opacity: 1, force3D: true })
-    const yTo = gsap.quickTo(root, 'y', { duration: 0.16, ease: 'power2.out' })
-    const oTo = gsap.quickTo(root, 'opacity', { duration: 0.2, ease: 'power2.out' })
+    const yTo = gsap.quickTo(root, 'y', { duration: 0.18, ease: 'power2.out' })
+    const oTo = gsap.quickTo(root, 'opacity', { duration: 0.22, ease: 'power2.out' })
     let lastExit = 1
     const apply = () => {
-      const journey = document.getElementById('journey')
-      if (!journey) {
+      const silenceLive = !!document.querySelector('.journey-spacer.is-silence-live')
+      const fleet = document.getElementById('fleet')
+      const vh = window.innerHeight || 1
+      if (silenceLive || !fleet) {
         if (lastExit !== 0) {
           lastExit = 0
           yTo(0)
@@ -1725,9 +1728,9 @@ export default function ContinuumCanvas({
         }
         return
       }
-      const bottom = journey.getBoundingClientRect().bottom
-      const vh = window.innerHeight || 1
-      const exit = gsap.utils.clamp(-vh * 1.15, 0, bottom - vh)
+      // Start exit once Fleet approaches mid-viewport
+      const fleetTop = fleet.getBoundingClientRect().top
+      const exit = gsap.utils.clamp(-vh * 1.15, 0, fleetTop - vh * 0.58)
       if (Math.abs(exit - lastExit) < 0.35) return
       lastExit = exit
       if (exit >= -0.5) {
