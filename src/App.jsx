@@ -546,6 +546,7 @@ function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSi
   const sectionRef = useRef(null)
   const [body, setBody] = useState('moon')
   const [hover, setHover] = useState(null)
+  const [active, setActive] = useState(false)
   const sites = body === 'moon' ? MOON_SITES : MARS_SITES
 
   useEffect(() => {
@@ -554,14 +555,17 @@ function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSi
     let wasOn = false
     const io = new IntersectionObserver(
       ([entry]) => {
-        const on = !!entry?.isIntersecting && entry.intersectionRatio > 0.28
+        // Wait until Atlas owns the viewport — avoids heading stuck at Objective seam
+        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.55
+        setActive(on)
         onActiveChange?.(on)
         if (on && !wasOn) {
           onCardSite?.(body === 'moon' ? 'a11-lm' : 'opportunity')
         }
+        if (!on && wasOn) onCardSite?.(null)
         wasOn = on
       },
-      { threshold: [0.28, 0.45, 0.6], rootMargin: '-8% 0px -12% 0px' },
+      { threshold: [0.35, 0.55, 0.7, 0.85], rootMargin: '-6% 0px -6% 0px' },
     )
     io.observe(el)
     return () => io.disconnect()
@@ -572,81 +576,94 @@ function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSi
     onFocusSite?.(id)
   }, [hover, cardSiteId, body, onFocusSite])
 
+  const panel = (
+    <>
+      <header className="atlas-heading">
+        <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={active} /></p>
+        <h2 className="display atlas-title">
+          Where they<br /><span className="outline-text">still sit</span>
+        </h2>
+        <p className="atlas-lede">
+          Every NASA photograph is anchored to Mean Earth / Polar Axis (Moon) or planetocentric east longitude (Mars).
+          Hover the centered hotspot — or pick a site — for the NASA image and coordinates.
+        </p>
+      </header>
+
+      <div className="atlas-tabs" role="tablist" aria-label="Body">
+        {['moon', 'mars'].map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={body === id}
+            className={body === id ? 'on' : ''}
+            onClick={() => { setBody(id); setHover(null) }}
+          >
+            {id.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      <ul className="atlas-site-list" aria-label={`${body} sites`}>
+        {sites.map((site) => {
+          const isOn = hover?.id === site.id || cardSiteId === site.id
+          return (
+            <li key={site.id}>
+              <button
+                type="button"
+                className={`atlas-site ${site.status === 'ACTIVE' ? 'live' : ''} ${isOn ? 'active' : ''}`}
+                aria-label={`${site.name} at ${site.coords}`}
+                onMouseEnter={() => {
+                  setHover(site)
+                  setLabel('SITE')
+                  onCardSite?.(site.id)
+                }}
+                onMouseLeave={() => {
+                  setHover((h) => (h?.id === site.id ? null : h))
+                  setLabel('')
+                  onCardSite?.(null)
+                }}
+                onFocus={() => {
+                  setHover(site)
+                  setLabel('SITE')
+                  onCardSite?.(site.id)
+                }}
+                onClick={() => onOpen(site)}
+              >
+                <span className="atlas-site-dot" aria-hidden />
+                <span className="atlas-site-copy">
+                  <span className="atlas-site-name">{site.name}</span>
+                  <span className="mono atlas-site-meta">{site.coords}</span>
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </>
+  )
+
   return (
     <section
       ref={sectionRef}
-      className={`section location-atlas body-${body}`}
+      className={`section location-atlas body-${body} ${active ? 'is-active' : ''}`}
       id="atlas"
       aria-label="Hardware locations"
     >
       <span className="section-rail">02B · ATLAS</span>
       <span className="section-num" aria-hidden>LOC</span>
 
-      {/* Continuum overlay — same moon, zoomed & facing; not a separate framed scene */}
-      <div className="atlas-overlay">
-        <div className="atlas-heading">
-          <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active /></p>
-          <h2 className="display atlas-title">
-            Where they<br /><span className="outline-text">still sit</span>
-          </h2>
-          <p className="atlas-lede">
-            Every NASA photograph is anchored to Mean Earth / Polar Axis (Moon) or planetocentric east longitude (Mars).
-            Hover the centered hotspot — or pick a site — for the NASA image and coordinates.
-          </p>
-        </div>
-
-        <div className="atlas-tabs" role="tablist" aria-label="Body">
-          {['moon', 'mars'].map((id) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={body === id}
-              className={body === id ? 'on' : ''}
-              onClick={() => { setBody(id); setHover(null) }}
-            >
-              {id.toUpperCase()}
-            </button>
-          ))}
-        </div>
-
-        <ul className="atlas-site-list" aria-label={`${body} sites`}>
-          {sites.map((site) => {
-            const active = hover?.id === site.id || cardSiteId === site.id
-            return (
-              <li key={site.id}>
-                <button
-                  type="button"
-                  className={`atlas-site ${site.status === 'ACTIVE' ? 'live' : ''} ${active ? 'active' : ''}`}
-                  aria-label={`${site.name} at ${site.coords}`}
-                  onMouseEnter={() => {
-                    setHover(site)
-                    setLabel('SITE')
-                    onCardSite?.(site.id)
-                  }}
-                  onMouseLeave={() => {
-                    setHover((h) => (h?.id === site.id ? null : h))
-                    setLabel('')
-                    onCardSite?.(null)
-                  }}
-                  onFocus={() => {
-                    setHover(site)
-                    setLabel('SITE')
-                    onCardSite?.(site.id)
-                  }}
-                  onClick={() => onOpen(site)}
-                >
-                  <span className="atlas-site-dot" aria-hidden />
-                  <span className="atlas-site-copy">
-                    <span className="atlas-site-name">{site.name}</span>
-                    <span className="mono atlas-site-meta">{site.coords}</span>
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+      {/* In-flow copy for scroll height / SEO — hidden once HUD pins to the moon frame */}
+      <div className="atlas-overlay atlas-overlay--flow" aria-hidden={active}>
+        {panel}
       </div>
+
+      {/* Fixed HUD — sits with the centered moon once Atlas owns the viewport */}
+      {active && (
+        <div className="atlas-overlay atlas-overlay--hud" role="presentation">
+          {panel}
+        </div>
+      )}
     </section>
   )
 }

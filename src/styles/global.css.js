@@ -577,7 +577,8 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .challenge-objective {
   position: relative;
   padding-top: clamp(4rem, 12vh, 7rem);
-  padding-bottom: clamp(4rem, 12vh, 7rem);
+  /* Clear gap before Atlas so Objective plate doesn’t bleed into the moon frame */
+  padding-bottom: clamp(5rem, 18vh, 9rem);
 }
 .objective-grid {
   display: grid;
@@ -620,37 +621,65 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .location-atlas {
   position: relative;
   z-index: 2;
+  /* One full viewport — heading + moon + sites read together */
   min-height: 100vh;
   min-height: 100dvh;
-  padding-bottom: clamp(2.5rem, 7vh, 4rem);
+  height: 100vh;
+  height: 100dvh;
+  padding: calc(var(--nav-h) + 1rem) clamp(1.25rem, 5vw, 5rem) 1.5rem;
+  box-sizing: border-box;
   /* Soft veil — Continuum Moon stays the centered stage */
   background:
-    linear-gradient(180deg, rgba(3,3,8,0.38) 0%, rgba(3,3,8,0.12) 42%, rgba(3,3,8,0.22) 100%);
-  overflow: visible;
+    linear-gradient(180deg, rgba(3,3,8,0.32) 0%, rgba(3,3,8,0.1) 40%, rgba(3,3,8,0.2) 100%);
+  overflow: hidden;
 }
 .atlas-overlay {
   position: relative;
   z-index: 4;
-  max-width: min(520px, 92vw);
-  padding-top: clamp(1.25rem, 5vh, 2.75rem);
+  max-width: min(460px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  height: 100%;
+  min-height: 0;
+}
+.atlas-overlay--flow {
+  pointer-events: auto;
+}
+.location-atlas.is-active .atlas-overlay--flow {
+  visibility: hidden;
+  pointer-events: none;
+}
+.atlas-overlay--hud {
+  position: fixed;
+  top: calc(var(--nav-h) + 0.75rem);
+  left: clamp(1.25rem, 5vw, 5rem);
+  bottom: 1.25rem;
+  z-index: 6;
+  max-width: min(420px, 86vw);
+  pointer-events: none;
+}
+.atlas-overlay--hud .atlas-tabs,
+.atlas-overlay--hud .atlas-site-list,
+.atlas-overlay--hud .atlas-site {
+  pointer-events: auto;
 }
 .atlas-heading {
-  position: sticky;
-  top: 4.5rem;
-  z-index: 5;
-  margin-bottom: 1.1rem;
-  padding-bottom: 0.35rem;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
 }
 .atlas-title {
-  font-size: clamp(2.2rem, 5.5vw, 3.8rem);
-  margin: 0.55rem 0 0.7rem;
+  font-size: clamp(2.1rem, 5vw, 3.5rem);
+  margin: 0.45rem 0 0.55rem;
   text-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
 }
 .atlas-lede {
   color: var(--ink-dim);
-  max-width: 44ch;
-  line-height: 1.55;
-  margin: 0 0 0.25rem;
+  max-width: 40ch;
+  line-height: 1.5;
+  margin: 0;
+  font-size: 0.95rem;
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 .atlas-tabs {
@@ -679,6 +708,8 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   margin: 0;
   display: grid;
   gap: 0.3rem;
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: min(42vh, 360px);
   overflow: auto;
   padding: 0.45rem;
@@ -686,6 +717,9 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   background: rgba(7, 7, 12, 0.42);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
+}
+.atlas-overlay--hud .atlas-site-list {
+  max-height: none;
 }
 .atlas-site {
   width: 100%;
