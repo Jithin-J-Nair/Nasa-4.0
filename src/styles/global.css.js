@@ -103,9 +103,33 @@ img, svg { display: block; max-width: 100%; }
   left: clamp(1.25rem, 5vw, 4.5rem);
   bottom: clamp(5.5rem, 14vh, 8rem);
   z-index: 40;
-  max-width: min(520px, 86vw);
+  max-width: min(640px, 90vw);
   pointer-events: none;
+  display: grid;
+  grid-template-columns: minmax(0, 168px) minmax(0, 1fr);
+  gap: 0.9rem 1.1rem;
+  align-items: end;
 }
+.world-caption.is-mars { left: auto; right: clamp(1.25rem, 5vw, 4.5rem); }
+.world-caption.is-deep { left: 50%; right: auto; transform: translateX(-50%); bottom: clamp(6rem, 16vh, 9rem); }
+.world-caption-media {
+  pointer-events: auto;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: none;
+  text-align: left;
+}
+body.is-coarse .world-caption-media { cursor: pointer; }
+.world-caption-media .nasa-media {
+  margin: 0;
+  aspect-ratio: 4 / 5;
+  border: 1px solid var(--line-bright);
+  border-radius: 4px;
+}
+.world-caption-copy { pointer-events: none; min-width: 0; }
 .world-caption .kicker { margin-bottom: 0.65rem; color: var(--ice); }
 .world-caption h2 {
   font-family: var(--font-display);
@@ -120,6 +144,22 @@ img, svg { display: block; max-width: 100%; }
   font-size: clamp(0.95rem, 1.6vw, 1.1rem);
   line-height: 1.55;
   max-width: 42ch;
+}
+.world-caption .caption-coords {
+  margin-top: 0.55rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-mute);
+}
+@media (max-width: 720px) {
+  .world-caption {
+    grid-template-columns: 1fr;
+    left: 1rem !important;
+    right: 1rem !important;
+    transform: none !important;
+    max-width: none;
+  }
+  .world-caption-media .nasa-media { aspect-ratio: 16 / 10; max-width: 220px; }
 }
 .journey-spacer {
   height: 520vh;
@@ -554,25 +594,41 @@ img, svg { display: block; max-width: 100%; }
   max-width: 22ch;
 }
 .hero-leftover {
+  /* Brand left · leftover plate on the Moon (stage-right) */
+  position: absolute;
+  z-index: 3;
+  right: clamp(1.1rem, 4vw, 4.5rem);
+  bottom: clamp(5.5rem, 14vh, 7.5rem);
   display: block;
-  width: min(100%, 420px);
+  width: min(34vw, 340px);
   text-align: left;
   background: transparent;
   border: none;
   padding: 0;
-  margin: 0.25rem 0 0;
+  margin: 0;
   cursor: none;
+  pointer-events: auto;
 }
 body.is-coarse .hero-leftover { cursor: pointer; }
 .hero-leftover-media {
   margin-bottom: 0.45rem !important;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 5 / 4;
   border: 1px solid var(--line-bright);
+  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.85);
 }
 .hero-leftover-caption {
   font-size: 0.58rem;
   letter-spacing: 0.14em;
   color: var(--ink-mute);
+}
+@media (max-width: 900px) {
+  .hero-leftover {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: min(100%, 360px);
+    margin-top: 1.5rem;
+  }
 }
 .challenge-objective {
   position: relative;
@@ -612,7 +668,82 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 @media (max-width: 860px) {
   .objective-grid { grid-template-columns: 1fr; }
   .objective-figure { max-width: 420px; }
-  .hero-leftover { width: min(100%, 360px); }
+}
+.nasa-media.body-moon img { object-position: 50% 42%; }
+.nasa-media.body-mars img { object-position: 50% 55%; }
+.nasa-media.body-deep img { object-position: 50% 40%; }
+
+.location-atlas { padding-bottom: clamp(3rem, 8vh, 5rem); }
+.atlas-tabs {
+  display: inline-flex;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+  padding: 0.3rem;
+  border: 1px solid var(--line);
+  background: rgba(7, 7, 12, 0.55);
+}
+.atlas-tabs button {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  padding: 0.55rem 0.9rem;
+  color: var(--ink-mute);
+  background: transparent;
+  border: none;
+}
+.atlas-tabs button.on {
+  color: var(--ink);
+  background: rgba(142, 200, 255, 0.12);
+}
+.atlas-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .atlas-stage { grid-template-columns: 1fr; }
+}
+.atlas-disc {
+  position: relative;
+  width: min(100%, 520px);
+  margin: 0 auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.08),
+    0 30px 80px -40px rgba(0,0,0,0.9);
+}
+.atlas-disc.mars-disc {
+  border-radius: 12px;
+  aspect-ratio: 2 / 1;
+  width: min(100%, 640px);
+}
+.atlas-surface {
+  position: absolute;
+  inset: 0;
+}
+.moon-surface, .atlas-surface.moon-surface {
+  background:
+    radial-gradient(circle at 32% 38%, rgba(255,255,255,0.14), transparent 28%),
+    radial-gradient(circle at 62% 58%, rgba(0,0,0,0.35), transparent 22%),
+    radial-gradient(ellipse at 50% 50%, #b8c0cc 0%, #7a8494 42%, #3a414c 78%, #12151c 100%);
+}
+.mars-surface, .atlas-surface.mars-surface {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.15), transparent 30%),
+    radial-gradient(ellipse at 48% 52%, #c56a3a 0%, #8a3a22 45%, #3a1810 100%);
+}
+.atlas-telemetry {
+  padding: 1.35rem 1.4rem;
+  border-radius: 16px;
+  min-height: 280px;
+}
+.moon-pin.active {
+  box-shadow: 0 0 0 1px rgba(142,200,255,0.55);
+  z-index: 3;
 }
 .sf-spark-root {
   position: relative;

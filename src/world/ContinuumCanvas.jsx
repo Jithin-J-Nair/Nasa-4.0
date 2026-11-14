@@ -12,6 +12,11 @@ import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
 import * as THREE from 'three'
 import { sampleActs, lerp, clamp } from './film'
+import { latLonToLocal, SITE_FOCUS } from './geo'
+import { ARTIFACTS } from '../data/artifacts'
+
+const MOON_SITES = ARTIFACTS.filter((a) => a.body === 'moon' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
+const MARS_SITES = ARTIFACTS.filter((a) => a.body === 'mars' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
 
 /* ─── planet material system ─── */
 const PLANET_VERT = `
@@ -562,6 +567,25 @@ function SignalBeam({ carrierRef, activeRef, groupRef }) {
   )
 }
 
+function SiteBeacon({ site, hotspotRef, color = '#8ec8ff' }) {
+  const ref = useRef()
+  const pos = useMemo(() => latLonToLocal(site.lat, site.lon, 1.012), [site.lat, site.lon])
+  useFrame((s) => {
+    if (!ref.current) return
+    const active = hotspotRef?.current === site.id
+    const pulse = active ? 0.55 + Math.sin(s.clock.elapsedTime * 4.2) * 0.35 : 0.18
+    ref.current.scale.setScalar(active ? 1.4 + pulse * 0.3 : 0.72)
+    ref.current.material.opacity = pulse
+    ref.current.visible = true
+  })
+  return (
+    <mesh ref={ref} position={pos} renderOrder={2}>
+      <sphereGeometry args={[0.018, 12, 12]} />
+      <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
+    </mesh>
+  )
+}
+
 function BodySphere({
   body = 0,
   rim = '#9ecfff',
@@ -574,6 +598,9 @@ function BodySphere({
   stormRef,
   darkRef,
   sunDirRef,
+  sites = [],
+  hotspotRef,
+  aimLonRef,
 }) {
   const mesh = useRef()
   const isMars = body > 0.5
@@ -584,7 +611,8 @@ function BodySphere({
     heightMap.colorSpace = THREE.NoColorSpace
     ;[colorMap, heightMap].forEach((tex) => {
       tex.anisotropy = 8
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+      // Clamp — never tile planetary maps (breaks geographic placement)
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
       tex.generateMipmaps = true
       tex.minFilter = THREE.LinearMipmapLinearFilter
       tex.magFilter = THREE.LinearFilter
@@ -624,7 +652,9 @@ function BodySphere({
     blending: THREE.AdditiveBlending,
   }), [rim, isMars])
 
+  // −π/2 puts lon 0 on +Z after SphereGeometry UV; aimLon rotates that meridian to camera
   const baseYaw = -Math.PI / 2
+  const yawSmooth = useRef(baseYaw)
   useFrame((s) => {
     uniforms.uTime.value = s.clock.elapsedTime
     const g = gradeRef?.current
@@ -637,23 +667,41 @@ function BodySphere({
     uniforms.uStorm.value = isMars ? (stormRef?.current ?? 0) : 0
     uniforms.uDark.value = darkRef?.current ?? 0
     if (mesh.current) {
+      const aim = aimLonRef?.current
       const spinMul = isMars ? (1 - (stormRef?.current ?? 0) * 0.92) : 1
-      mesh.current.rotation.y = baseYaw + s.clock.elapsedTime * spin * spinMul
+      const freeSpin = baseYaw + s.clock.elapsedTime * spin * spinMul
+      // Hold longitude under the hotspot so the site faces the lens
+      const target = aim != null && Number.isFinite(aim)
+        ? baseYaw - (aim * Math.PI) / 180
+        : freeSpin
+      yawSmooth.current = lerp(yawSmooth.current, target, aim != null ? 0.045 : 0.02)
+      mesh.current.rotation.y = yawSmooth.current
     }
   })
 
   const segs = mobile ? 96 : 192
+  const beaconColor = isMars ? '#ff7a45' : '#8ec8ff'
   return (
     <group ref={groupRef}>
-      <mesh ref={mesh}>
-        <sphereGeometry args={[1, segs, segs]} />
-        <shaderMaterial
-          vertexShader={PLANET_VERT}
-          fragmentShader={PLANET_FRAG}
-          uniforms={uniforms}
-          extensions={{ derivatives: true }}
-        />
-      </mesh>
+      <group ref={mesh}>
+        <mesh>
+          <sphereGeometry args={[1, segs, segs]} />
+          <shaderMaterial
+            vertexShader={PLANET_VERT}
+            fragmentShader={PLANET_FRAG}
+            uniforms={uniforms}
+            extensions={{ derivatives: true }}
+          />
+        </mesh>
+        {!mobile && sites.map((site) => (
+          <SiteBeacon
+            key={site.id}
+            site={site}
+            hotspotRef={hotspotRef}
+            color={beaconColor}
+          />
+        ))}
+      </group>
       {/* Limb atmosphere — soft Fresnel shell, not a flat glow sticker */}
       <mesh scale={isMars ? 1.055 : 1.045}>
         <sphereGeometry args={[1, 48, 48]} />
@@ -774,6 +822,9 @@ function FilmDirector({
   warpRef,
   darkRef,
   sunDirRef,
+  hotspotRef,
+  moonAimRef,
+  marsAimRef,
   onSample,
 }) {
   const { camera, gl, scene } = useThree()
@@ -793,6 +844,16 @@ function FilmDirector({
     warpRef.current = sample.event.warp
     darkRef.current = sample.dark
     gradeRef.current = sample.grade
+
+    const hot = sample.hotspot || null
+    if (hotspotRef) hotspotRef.current = hot
+    const focus = hot ? SITE_FOCUS[hot] : null
+    if (moonAimRef) {
+      moonAimRef.current = focus?.body === 'moon' ? focus.aimLon : null
+    }
+    if (marsAimRef) {
+      marsAimRef.current = focus?.body === 'mars' ? focus.aimLon : null
+    }
 
     const targetDpr = clamp(
       (window.devicePixelRatio || 1) * (sample.event.storm > 0.45 || sample.event.dive > 0.55 ? 0.72 : 1),
@@ -944,6 +1005,9 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
   const warpRef = useRef(0)
   const darkRef = useRef(0)
   const sunDirRef = useRef(new THREE.Vector3(0.85, 0.32, 0.42))
+  const hotspotRef = useRef(null)
+  const moonAimRef = useRef(null)
+  const marsAimRef = useRef(null)
   // SVS CGI Moon Kit — 8K desktop / 2K mobile (LROC WAC + LOLA)
   const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_8k.jpg'
   const moonHeight = mobile ? '/textures/moon_height_2k.jpg' : '/textures/moon_height_4k.jpg'
@@ -975,6 +1039,9 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
         warpRef={warpRef}
         darkRef={darkRef}
         sunDirRef={sunDirRef}
+        hotspotRef={hotspotRef}
+        moonAimRef={moonAimRef}
+        marsAimRef={marsAimRef}
         onSample={onSample}
       />
 
@@ -994,6 +1061,9 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
           stormRef={stormRef}
           darkRef={darkRef}
           sunDirRef={sunDirRef}
+          sites={MOON_SITES}
+          hotspotRef={hotspotRef}
+          aimLonRef={moonAimRef}
         />
         <BodySphere
           groupRef={marsRef}
@@ -1007,6 +1077,9 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
           stormRef={stormRef}
           darkRef={darkRef}
           sunDirRef={sunDirRef}
+          sites={MARS_SITES}
+          hotspotRef={hotspotRef}
+          aimLonRef={marsAimRef}
         />
       </Suspense>
 

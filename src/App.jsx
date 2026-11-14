@@ -15,6 +15,7 @@ import {
 import { createSoundscape } from './audio/Soundscape'
 import { activeCaption } from './world/film'
 import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
+import { nearsideXY, equirectXY } from './world/geo'
 import { GLOBAL_CSS } from './styles/global.css.js'
 import {
   createScrollEngine, destroyScrollEngine, playHeroIntro, playBootSequence,
@@ -56,8 +57,10 @@ const FILTERS = [
   { id: 'deep', label: 'DEEP' },
   { id: 'active', label: 'LIVE' },
 ]
-/** Hero challenge plate — NASA leftover hardware (Eagle LM) */
+/** Hero challenge plate — NASA leftover hardware (Eagle LM) · Tranquility Base */
 const HERO_LEFTOVER = ARTIFACTS.find((a) => a.id === 'a11-lm')
+const MOON_SITES = ARTIFACTS.filter((a) => a.body === 'moon')
+const MARS_SITES = ARTIFACTS.filter((a) => a.body === 'mars')
 
 const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789░▒▓█/<>=+#*'
 
@@ -244,10 +247,10 @@ function Nav({ progress }) {
       <a href="#top" className="nav-brand" aria-label="Silent Fleet home">SILENT FLEET</a>
       <div className="nav-links">
         <a href="#objective">OBJECTIVE</a>
+        <a href="#atlas">ATLAS</a>
         <a href="#journey">JOURNEY</a>
         <a href="#recover">RECOVER</a>
         <a href="#fleet">FLEET</a>
-        <a href="#archive">ARCHIVE</a>
       </div>
       <motion.div className="nav-progress" style={{ scaleX, width: '100%' }} />
     </nav>
@@ -266,30 +269,60 @@ function WorldCaption({ progress, onOpen }) {
   }, [progress])
 
   const dossier = cap?.dossier ? ARTIFACTS.find((a) => a.id === cap.dossier) : null
+  const placeClass = dossier
+    ? `is-${dossier.body}`
+    : cap?.kicker?.includes('MARS')
+      ? 'is-mars'
+      : cap?.kicker?.includes('DEEP') || cap?.kicker?.includes('CARRIER')
+        ? 'is-deep'
+        : 'is-moon'
 
   return (
     <AnimatePresence mode="wait">
       {cap && (
         <motion.div
           key={cap.at}
-          className="world-caption"
+          className={`world-caption ${placeClass}`}
           initial={{ opacity: 0, y: 18, filter: 'blur(8px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           exit={{ opacity: 0, y: -10, filter: 'blur(6px)' }}
           transition={{ duration: 0.55, ease: EASE }}
         >
-          <p className="kicker">{cap.kicker}</p>
-          <h2>{cap.title}</h2>
-          <p>{cap.body}</p>
-          {dossier && (
+          {dossier?.image && (
             <button
               type="button"
-              className="dossier-link"
+              className="world-caption-media"
               onClick={() => onOpen(dossier)}
+              aria-label={`Open dossier ${dossier.name} at ${dossier.coords}`}
             >
-              RECOVER DOSSIER · {dossier.name.toUpperCase()}
+              <div className={`nasa-media body-${dossier.body}`}>
+                <img
+                  src={dossier.image}
+                  alt={dossier.imageAlt || dossier.name}
+                  loading="lazy"
+                  decoding="async"
+                />
+                <span className="credit">{dossier.credit} · {dossier.coords}</span>
+              </div>
             </button>
           )}
+          <div className="world-caption-copy">
+            <p className="kicker">{cap.kicker}</p>
+            <h2>{cap.title}</h2>
+            <p>{cap.body}</p>
+            {dossier && (
+              <p className="mono caption-coords">{dossier.codename} · {dossier.coords}</p>
+            )}
+            {dossier && (
+              <button
+                type="button"
+                className="dossier-link"
+                onClick={() => onOpen(dossier)}
+              >
+                RECOVER DOSSIER · {dossier.name.toUpperCase()}
+              </button>
+            )}
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -363,30 +396,7 @@ function Hero({ ready, reduced, onOpen }) {
             Hardware NASA left behind across the Moon, Mars, and deep space — and the science that still belongs to it.
           </p>
         </div>
-        {HERO_LEFTOVER?.image && (
-          <button
-            type="button"
-            className="hero-leftover"
-            data-hero-cta
-            onClick={() => onOpen?.(HERO_LEFTOVER)}
-            onMouseEnter={() => setLabel('EAGLE')}
-            onMouseLeave={() => setLabel('')}
-            aria-label={`${HERO_LEFTOVER.name} — NASA leftover hardware`}
-          >
-            <div className="nasa-media hero-leftover-media">
-              <img
-                src={HERO_LEFTOVER.image}
-                alt={HERO_LEFTOVER.imageAlt || HERO_LEFTOVER.name}
-                decoding="async"
-              />
-              <span className="credit">{HERO_LEFTOVER.credit} · LEFT BEHIND · {HERO_LEFTOVER.year}</span>
-            </div>
-            <span className="hero-leftover-caption mono">
-              NASA LEFTOVER · {HERO_LEFTOVER.name.toUpperCase()} · {HERO_LEFTOVER.coords}
-            </span>
-          </button>
-        )}
-        <div data-hero-cta style={{ opacity: ready ? undefined : 1, marginTop: '1.5rem' }}>
+        <div data-hero-cta style={{ opacity: ready ? undefined : 1, marginTop: '0.35rem' }}>
           <Magnet padding={80} magnetStrength={2.4} maxOffset={18}>
             <GlareHover
               width="auto"
@@ -409,6 +419,32 @@ function Hero({ ready, reduced, onOpen }) {
           </Magnet>
         </div>
       </div>
+
+      {/* Stage-right · lives on the Moon side of the composition (Tranquility coords) */}
+      {HERO_LEFTOVER?.image && (
+        <button
+          type="button"
+          className="hero-leftover"
+          data-hero-cta
+          onClick={() => onOpen?.(HERO_LEFTOVER)}
+          onMouseEnter={() => setLabel('EAGLE')}
+          onMouseLeave={() => setLabel('')}
+          aria-label={`${HERO_LEFTOVER.name} at ${HERO_LEFTOVER.coords}`}
+        >
+          <div className="nasa-media hero-leftover-media body-moon">
+            <img
+              src={HERO_LEFTOVER.image}
+              alt={HERO_LEFTOVER.imageAlt || HERO_LEFTOVER.name}
+              decoding="async"
+            />
+            <span className="credit">{HERO_LEFTOVER.credit} · {HERO_LEFTOVER.coords}</span>
+          </div>
+          <span className="hero-leftover-caption mono">
+            LUNA · {HERO_LEFTOVER.codename} · {HERO_LEFTOVER.coords}
+          </span>
+        </button>
+      )}
+
       <div className="hero-scroll-cue" data-hero-cue aria-hidden style={{ opacity: ready ? undefined : 0.7 }}>
         <span>SCROLL THE JOURNEY</span>
         <span className="streak"><i /></span>
@@ -460,17 +496,17 @@ function ChallengeObjective({ reduced }) {
         </div>
         {HERO_LEFTOVER?.image && (
           <figure className="objective-figure">
-            <div className="nasa-media" style={{ aspectRatio: '4/5', marginBottom: 0 }}>
+            <div className="nasa-media body-moon" style={{ aspectRatio: '4/5', marginBottom: 0 }}>
               <img
                 src={HERO_LEFTOVER.image}
                 alt={HERO_LEFTOVER.imageAlt || HERO_LEFTOVER.name}
                 loading="lazy"
                 decoding="async"
               />
-              <span className="credit">{HERO_LEFTOVER.credit}</span>
+              <span className="credit">{HERO_LEFTOVER.credit} · {HERO_LEFTOVER.coords}</span>
             </div>
             <figcaption className="mono">
-              {HERO_LEFTOVER.name} · Tranquility Base · still on the Moon
+              {HERO_LEFTOVER.name} · {HERO_LEFTOVER.coords} · still on the Moon
             </figcaption>
           </figure>
         )}
@@ -531,13 +567,13 @@ function Heartbeats({ onOpen, reduced }) {
                   style={{ width: '100%', background: 'transparent', border: 'none' }}
                 >
                   {a.image && (
-                    <div className="nasa-media heartbeat-media">
+                    <div className={`nasa-media heartbeat-media body-${a.body}`}>
                       <img src={a.image} alt={a.imageAlt || a.name} loading="lazy" decoding="async" />
-                      <span className="credit">{a.credit}</span>
+                      <span className="credit">{a.credit} · {a.coords}</span>
                     </div>
                   )}
                   <div className="mono" style={{ fontSize: '0.58rem', letterSpacing: '0.14em', color: 'var(--ink-mute)' }}>
-                    {a.mission} · {a.status} · {a.year}
+                    {a.body.toUpperCase()} · {a.mission} · {a.status}
                   </div>
                   <div className="tx">“{a.transmission}”</div>
                   <div style={{ color: 'var(--ink-dim)', fontSize: '0.88rem', lineHeight: 1.45 }}>
@@ -552,6 +588,103 @@ function Heartbeats({ onOpen, reduced }) {
           ))}
         </div>
       </FadeContent>
+    </section>
+  )
+}
+
+function LocationAtlas({ onOpen }) {
+  const { setLabel } = useCursor()
+  const [body, setBody] = useState('moon')
+  const [hover, setHover] = useState(null)
+  const sites = body === 'moon' ? MOON_SITES : MARS_SITES
+  const project = body === 'moon' ? nearsideXY : equirectXY
+  const hp = hover ? project(hover.lat, hover.lon) : null
+
+  return (
+    <section className="section location-atlas" id="atlas" aria-label="Hardware locations">
+      <span className="section-rail">02B · ATLAS</span>
+      <span className="section-num" aria-hidden>LOC</span>
+      <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active /></p>
+      <h2 className="display" style={{ fontSize: 'clamp(2rem, 5vw, 3.6rem)', margin: '0.75rem 0 0.85rem' }}>
+        Where they<br /><span className="outline-text">still sit</span>
+      </h2>
+      <p style={{ color: 'var(--ink-dim)', maxWidth: '48ch', lineHeight: 1.55, marginBottom: '1.5rem' }}>
+        Every NASA photograph is anchored to Mean Earth / Polar Axis (Moon) or planetocentric east longitude (Mars).
+        Pins open the dossier for that site — not a shuffled gallery.
+      </p>
+
+      <div className="atlas-tabs" role="tablist" aria-label="Body">
+        {['moon', 'mars'].map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={body === id}
+            className={body === id ? 'on' : ''}
+            onClick={() => { setBody(id); setHover(null) }}
+          >
+            {id.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      <div className={`atlas-stage body-${body}`}>
+        <div
+          className={`atlas-disc ${body === 'moon' ? 'moon-disc' : 'mars-disc'}`}
+          aria-label={`Interactive ${body} site map`}
+        >
+          <div className={`atlas-surface ${body === 'moon' ? 'moon-surface' : 'mars-surface'}`} aria-hidden />
+          {hover && hp?.visible && (
+            <div className="moon-crosshair" aria-hidden>
+              <span style={{ left: hp.left, top: 0, bottom: 0, width: 1, transform: 'translateX(-0.5px)' }} />
+              <span style={{ top: hp.top, left: 0, right: 0, height: 1, transform: 'translateY(-0.5px)' }} />
+            </div>
+          )}
+          {sites.map((site) => {
+            const pos = project(site.lat, site.lon)
+            if (!pos.visible) return null
+            const active = hover?.id === site.id
+            return (
+              <button
+                key={site.id}
+                type="button"
+                className={`moon-pin ${site.status === 'ACTIVE' ? 'live' : ''} ${active ? 'active' : ''}`}
+                style={{ left: pos.left, top: pos.top }}
+                aria-label={`${site.name} at ${site.coords}`}
+                onMouseEnter={() => { setHover(site); setLabel('SITE') }}
+                onMouseLeave={() => { setHover((h) => (h?.id === site.id ? null : h)); setLabel('') }}
+                onFocus={() => { setHover(site); setLabel('SITE') }}
+                onClick={() => onOpen(site)}
+              />
+            )
+          })}
+        </div>
+
+        <div className="atlas-telemetry glass-2">
+          {hover ? (
+            <>
+              {hover.image && (
+                <div className={`nasa-media body-${hover.body}`} style={{ aspectRatio: '16/10', marginBottom: '0.85rem' }}>
+                  <img src={hover.image} alt={hover.imageAlt || hover.name} loading="lazy" decoding="async" />
+                  <span className="credit">{hover.credit}</span>
+                </div>
+              )}
+              <div className="kicker" style={{ marginBottom: 8 }}>{hover.mission} · {hover.status}</div>
+              <h3 className="display" style={{ fontSize: '1.55rem', marginBottom: 6 }}>{hover.name}</h3>
+              <p className="mono" style={{ fontSize: '0.72rem', color: 'var(--ink-dim)', marginBottom: 10 }}>{hover.coords}</p>
+              <p style={{ color: 'var(--ink-dim)', lineHeight: 1.55, fontSize: '0.95rem' }}>{hover.science}</p>
+              <div style={{ marginTop: '1.1rem' }}>
+                <MagneticButton onClick={() => onOpen(hover)}>OPEN DOSSIER</MagneticButton>
+              </div>
+            </>
+          ) : (
+            <p style={{ color: 'var(--ink-dim)', lineHeight: 1.6 }}>
+              Select a beacon. Moon pins use nearside orthographic projection; Mars pins use equirectangular lon/lat —
+              so Opportunity sits on Meridiani, Eagle on Tranquility, not a random card.
+            </p>
+          )}
+        </div>
+      </div>
     </section>
   )
 }
@@ -575,13 +708,13 @@ function FleetCard({ item, onOpen }) {
     >
       <div>
         {item.image && (
-          <div className="nasa-media" style={{ marginBottom: '0.9rem', aspectRatio: '16/11' }}>
+          <div className={`nasa-media body-${item.body}`} style={{ marginBottom: '0.9rem', aspectRatio: '16/11' }}>
             <img src={item.image} alt={item.imageAlt || item.name} loading="lazy" decoding="async" />
-            <span className="credit">{item.credit}</span>
+            <span className="credit">{item.credit} · {item.coords}</span>
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <span className="data-chip" style={{ '--chip': bodyColor }}>{item.mission}</span>
+          <span className="data-chip" style={{ '--chip': bodyColor }}>{item.body.toUpperCase()} · {item.mission}</span>
           <span className={`status-dot ${item.status === 'ACTIVE' ? 'live' : item.status === 'COASTING' ? 'coast' : ''}`} title={item.status} />
         </div>
         <h3 className="display" style={{ fontSize: '1.35rem', marginBottom: '0.35rem' }}>{item.name}</h3>
@@ -705,9 +838,9 @@ function Archive({ onOpen }) {
               style={{ textAlign: 'left', width: '100%', padding: 0, overflow: 'hidden', gap: 0 }}
             >
               {a.image && (
-                <div className="nasa-media" style={{ marginBottom: 0, aspectRatio: '16/9', borderRadius: 0 }}>
+                <div className={`nasa-media body-${a.body}`} style={{ marginBottom: 0, aspectRatio: '16/9', borderRadius: 0 }}>
                   <img src={a.image} alt={a.imageAlt || a.name} loading="lazy" decoding="async" />
-                  <span className="credit">{a.credit}</span>
+                  <span className="credit">{a.credit} · {a.coords}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.85rem 1.1rem 0' }}>
@@ -1056,6 +1189,10 @@ export default function App() {
 
             <ErrorBoundary>
               <ChallengeObjective reduced={reduced} />
+            </ErrorBoundary>
+
+            <ErrorBoundary>
+              <LocationAtlas onOpen={openDossier} />
             </ErrorBoundary>
 
             <FilmJourney />
