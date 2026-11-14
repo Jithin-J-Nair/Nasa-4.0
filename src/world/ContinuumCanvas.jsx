@@ -1028,8 +1028,12 @@ function FilmDirector({
     atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 1.55 * step))
     const ab = atlasBlend.current
 
-    // Shot-aware catch-up: silk during journey, punch into death
-    const catchUp = filmTarget >= 0.64 && filmTarget < 0.76 ? 6.5 : 4.2
+    // Shot-aware catch-up — silk on Moon→Mars + transit, punch only into last light
+    const catchUp = filmTarget >= 0.28 && filmTarget < 0.52
+      ? 2.65
+      : filmTarget >= 0.64 && filmTarget < 0.76
+        ? 5.8
+        : 3.55
     filmP.current = lerp(filmP.current, filmTarget, Math.min(1, catchUp * step))
     const sample = sampleActs(filmP.current)
     onSample?.(sample)
@@ -1107,7 +1111,7 @@ function FilmDirector({
     }
     // Silk rail — slower catch-up kills the blocky center→right hit
     const stageLockEarly = marsLock && marsStage
-    const slideRate = transit ? 1.55 : (stageLockEarly ? 1.85 : 2.1)
+    const slideRate = transit ? 1.15 : (stageLockEarly ? 1.65 : 1.95)
     marsSlide.current = lerp(marsSlide.current, marsLive || (transit && journey.marsPresence > 0.02) ? slideTarget : 0, Math.min(1, slideRate * step))
     marsHemi.current = marsSlide.current
     const hemi = marsHemi.current
@@ -1202,17 +1206,22 @@ function FilmDirector({
       )
     }
 
-    // Shot-owned damp from SHOTS bible — reduced motion stays snappy
+    // Shot-owned damp — transit gets extra silk so planet handoff never punches
     const shotDamp = Number.isFinite(sample.damp) ? sample.damp : 0.06
     const shotFovDamp = Number.isFinite(sample.fovDamp) ? sample.fovDamp : 0.07
-    const damp = reduced ? Math.min(0.28, shotDamp * 2.4) : shotDamp
+    const transitSilk = transit ? 0.55 : 1
+    const damp = reduced
+      ? Math.min(0.28, shotDamp * 2.4)
+      : Math.min(0.22, shotDamp * transitSilk)
     camera.position.x = lerp(camera.position.x, desired.x, damp)
     camera.position.y = lerp(camera.position.y, desired.y, damp)
     camera.position.z = lerp(camera.position.z, desired.z, damp)
 
     if ('fov' in camera) {
       const targetFov = marsStageLock ? 33 : sample.fov
-      const fovDamp = reduced ? Math.min(0.28, shotFovDamp * 2.2) : shotFovDamp
+      const fovDamp = reduced
+        ? Math.min(0.28, shotFovDamp * 2.2)
+        : Math.min(0.2, shotFovDamp * (transit ? 0.62 : 1))
       camera.fov = lerp(camera.fov, targetFov, fovDamp)
       camera.updateProjectionMatrix()
     }
@@ -1245,15 +1254,15 @@ function FilmDirector({
         ty = 0
         tz = 0
       } else if (transit && journey.moonPresence > 0.01) {
-        // Soft fade-recede — no punch-in before leaving
-        const exit = journey.moonExit
-        targetScale = lerp(1.88, 0.06, easeInOutCubic(exit))
-        tx = lerp(0, -0.55, exit)
-        ty = lerp(0, 0.12, exit)
-        tz = lerp(0, -3.2, easeInOutCubic(exit))
+        // Soft fade-recede along the corridor — longer arc, no pop
+        const exit = easeInOutCubic(journey.moonExit)
+        targetScale = lerp(1.88, 0.04, exit)
+        tx = lerp(0, -1.15, exit)
+        ty = lerp(0, 0.18, exit)
+        tz = lerp(0, -4.4, exit)
       }
 
-      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 2.4 : 4.5)) * step)
+      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 1.55 : 4.2)) * step)
       moonScale.current = lerp(moonScale.current, targetScale, poseDamp)
       moonPos.current.x = lerp(moonPos.current.x, tx, poseDamp)
       moonPos.current.y = lerp(moonPos.current.y, ty, poseDamp)
@@ -1271,11 +1280,11 @@ function FilmDirector({
           ? clamp(journey.marsPresence, 0, 1)
           : 1
         // Center → right: only ~50% of the body stays on screen at lock
-        const hemiX = lerp(0.22, 3.28, slide)
-        const ty = lerp(0.14, 0.04, slide)
-        const tz = lerp(-2.8, -0.5, slide)
-        const hemiScale = lerp(0.42, 1.72, slide) * lerp(0.55, 1, easeInOutCubic(presence))
-        const poseDamp = Math.min(1, (reduced ? 5.5 : 2.15) * step)
+        const hemiX = lerp(0.18, 3.28, slide)
+        const ty = lerp(0.12, 0.04, slide)
+        const tz = lerp(-3.1, -0.5, slide)
+        const hemiScale = lerp(0.36, 1.72, slide) * lerp(0.42, 1, easeInOutCubic(presence))
+        const poseDamp = Math.min(1, (reduced ? 5.5 : (transit ? 1.45 : 2.05)) * step)
         marsScale.current = lerp(marsScale.current, hemiScale, poseDamp)
         marsPos.current.x = lerp(marsPos.current.x, hemiX, poseDamp)
         marsPos.current.y = lerp(marsPos.current.y, ty, poseDamp)
@@ -1284,7 +1293,7 @@ function FilmDirector({
         marsRef.current.position.copy(marsPos.current)
       } else {
         // Soft park — keep last pose; only shrink when fully off
-        marsScale.current = lerp(marsScale.current, 0.01, Math.min(1, 2.2 * step))
+        marsScale.current = lerp(marsScale.current, 0.01, Math.min(1, 1.85 * step))
         marsRef.current.scale.setScalar(marsScale.current)
         if (marsScale.current < 0.02) marsRef.current.visible = false
       }
@@ -1293,8 +1302,11 @@ function FilmDirector({
       const show = !atlasClear && f === 'pioneer'
       pioneerRef.current.visible = show
       // Frame NASA Voyager for the silence camera (look ~ -9.2)
+      const craftScale = show ? lerp(1.35, 1.85, sample.eased) : 0.01
       pioneerRef.current.position.set(0.55, 0.02, -8.55)
-      pioneerRef.current.scale.setScalar(show ? lerp(1.35, 1.85, sample.eased) : 0.01)
+      pioneerRef.current.scale.setScalar(
+        lerp(pioneerRef.current.scale.x || craftScale, craftScale, Math.min(1, 3.2 * step)),
+      )
     }
     // Lighting lockstep with events — keep a readable sun on Voyager (pioneer)
     if (sunRef.current) {
@@ -1580,38 +1592,40 @@ export default function ContinuumCanvas({
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [])
 
-  // When #journey scrolls past the viewport, ride the fixed Continuum up with it
-  // so Voyager/Silence leave with the film section instead of lingering under Fleet/Footer.
+  // When #journey scrolls past the viewport, ride Continuum up (transform/opacity only).
+  // gsap.quickTo keeps compositor writes cheap under Lenis (gsap-performance).
   useEffect(() => {
     const root = rootRef.current
     if (!root || typeof window === 'undefined') return undefined
+    gsap.set(root, { y: 0, opacity: 1, force3D: true })
+    const yTo = gsap.quickTo(root, 'y', { duration: 0.16, ease: 'power2.out' })
+    const oTo = gsap.quickTo(root, 'opacity', { duration: 0.2, ease: 'power2.out' })
     let lastExit = 1
     const apply = () => {
       const journey = document.getElementById('journey')
       if (!journey) {
         if (lastExit !== 0) {
           lastExit = 0
-          root.style.transform = ''
-          root.style.opacity = ''
+          yTo(0)
+          oTo(1)
           root.classList.remove('is-scroll-exit')
         }
         return
       }
       const bottom = journey.getBoundingClientRect().bottom
       const vh = window.innerHeight || 1
-      // Locked while journey still covers the viewport bottom; then translate up 1:1 with Lenis
-      const exit = Math.min(0, bottom - vh)
-      if (Math.abs(exit - lastExit) < 0.25 && (exit === 0 || lastExit !== 1)) return
+      const exit = gsap.utils.clamp(-vh * 1.15, 0, bottom - vh)
+      if (Math.abs(exit - lastExit) < 0.35) return
       lastExit = exit
       if (exit >= -0.5) {
-        root.style.transform = ''
-        root.style.opacity = ''
+        yTo(0)
+        oTo(1)
         root.classList.remove('is-scroll-exit')
         return
       }
       root.classList.add('is-scroll-exit')
-      root.style.transform = `translate3d(0, ${exit}px, 0)`
-      root.style.opacity = String(Math.max(0, 1 + exit / (vh * 0.92)))
+      yTo(exit)
+      oTo(gsap.utils.clamp(0, 1, 1 + exit / (vh * 0.92)))
     }
     apply()
     gsap.ticker.add(apply)
@@ -1619,8 +1633,7 @@ export default function ContinuumCanvas({
     return () => {
       gsap.ticker.remove(apply)
       window.removeEventListener('resize', apply)
-      root.style.transform = ''
-      root.style.opacity = ''
+      gsap.set(root, { clearProps: 'transform,opacity' })
       root.classList.remove('is-scroll-exit')
     }
   }, [])

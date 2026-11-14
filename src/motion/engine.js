@@ -49,11 +49,11 @@ export const FILM_MARKERS = {
  */
 export const RAIL_SEGMENTS = [
   { tip: 0.09, weight: 1.0 },   // arrival
-  { tip: 0.18, weight: 1.55 },  // intimacy — linger on surveyed sites
+  { tip: 0.18, weight: 1.45 },  // intimacy — linger on surveyed sites
   { tip: 0.28, weight: 1.05 },  // near pass
-  { tip: 0.52, weight: 0.95 },  // journey corridor
-  { tip: 0.64, weight: 1.25 },  // meridiani settle
-  { tip: 0.76, weight: 1.7 },   // last light — illegal hold
+  { tip: 0.52, weight: 1.45 },  // journey corridor — more meters for Moon→Mars cinema
+  { tip: 0.64, weight: 1.2 },   // meridiani settle
+  { tip: 0.76, weight: 1.65 },  // last light — illegal hold
   { tip: 0.88, weight: 0.9 },   // carrier
   { tip: 1.0, weight: 0.85 },   // silence / coda
 ]
@@ -69,15 +69,15 @@ function railSegmentMeta() {
 
 /** Linear rail progress (0→1 from ScrollTrigger) → weighted film tip. */
 export function mapRailProgress(linear) {
-  const t = Math.max(0, Math.min(1, Number(linear) || 0))
+  const t = gsap.utils.clamp(0, 1, Number(linear) || 0)
   const { segs, total } = railSegmentMeta()
   const target = t * total
   let prevTip = 0
   let prevCum = 0
   for (const s of segs) {
     if (target <= s.cum) {
-      const local = s.weight <= 0 ? 1 : (target - prevCum) / s.weight
-      return prevTip + (s.tip - prevTip) * Math.max(0, Math.min(1, local))
+      const local = s.weight <= 0 ? 1 : gsap.utils.clamp(0, 1, (target - prevCum) / s.weight)
+      return gsap.utils.interpolate(prevTip, s.tip, local)
     }
     prevTip = s.tip
     prevCum = s.cum
@@ -87,15 +87,15 @@ export function mapRailProgress(linear) {
 
 /** Film tip → linear rail progress (inverse of mapRailProgress) for scrollTo. */
 export function unmapRailProgress(filmTip) {
-  const tip = Math.max(0, Math.min(1, Number(filmTip) || 0))
+  const tip = gsap.utils.clamp(0, 1, Number(filmTip) || 0)
   const { segs, total } = railSegmentMeta()
   let prevTip = 0
   let prevCum = 0
   for (const s of segs) {
     if (tip <= s.tip + 1e-9) {
       const span = s.tip - prevTip
-      const local = span <= 1e-9 ? 1 : (tip - prevTip) / span
-      return (prevCum + s.weight * Math.max(0, Math.min(1, local))) / total
+      const local = span <= 1e-9 ? 1 : gsap.utils.clamp(0, 1, (tip - prevTip) / span)
+      return (prevCum + s.weight * local) / total
     }
     prevTip = s.tip
     prevCum = s.cum
@@ -108,7 +108,7 @@ export function getFilmProgress() {
 }
 
 export function setFilmProgress(p) {
-  filmProgressRef.current = Math.max(0, Math.min(1, Number(p) || 0))
+  filmProgressRef.current = gsap.utils.clamp(0, 1, Number(p) || 0)
 }
 
 /** MotionValue-shaped reader for FilmDirector / Nav — no React scroll spring. */
@@ -140,14 +140,14 @@ export function createScrollEngine({ onScroll } = {}) {
     return { lenis: null, refresh: () => ScrollTrigger.refresh() }
   }
 
-  // Softer lerp for one continuous Objective→Fleet plate (graphic-architect pacing)
+  // Silkier Lenis — lower lerp = more inertia without ScrollSmoother (never dual-stack)
   lenis = new Lenis({
-    lerp: 0.072,
+    lerp: 0.055,
     smoothWheel: true,
-    wheelMultiplier: 0.88,
-    touchMultiplier: 1.12,
+    wheelMultiplier: 0.78,
+    touchMultiplier: 1.05,
     syncTouch: false,
-    syncTouchLerp: 0.07,
+    syncTouchLerp: 0.055,
     autoResize: true,
   })
 
@@ -228,8 +228,10 @@ export function createFilmRail() {
     trigger: rail,
     start: 'top top',
     end: 'bottom bottom',
-    scrub: prefersReducedMotion() ? false : 0.35,
+    // Numeric scrub = film tip catch-up seconds — silkier planet handoffs
+    scrub: prefersReducedMotion() ? false : 0.55,
     invalidateOnRefresh: true,
+    anticipatePin: 0,
     onUpdate: (self) => {
       filmProgressRef.current = mapRailProgress(self.progress)
     },
@@ -361,8 +363,8 @@ export function playMoonToMarsJourney({
 
   tl.to(state, {
     p: toP,
-    duration: 12.5,
-    ease: 'power1.inOut',
+    duration: 14.2,
+    ease: 'power2.inOut',
     onUpdate: () => {
       const y = filmProgressToScrollY(state.p)
       if (lenis) lenis.scrollTo(y, { immediate: true })

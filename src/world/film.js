@@ -52,12 +52,12 @@ export const SHOTS = [
   {
     id: 'leave', intent: 'hold', progress: 0.30, label: 'JOURNEY',
     body: 'Lunar leave into corridor', lookId: 'lunar_steel',
-    damp: 0.034, fovDamp: 0.04,
+    damp: 0.028, fovDamp: 0.032,
   },
   {
     id: 'meridiani', intent: 'recover', progress: 0.56, label: 'MERIDIANI',
     body: 'Right-limb settle — Opportunity', lookId: 'meridiani_iron',
-    damp: 0.048, fovDamp: 0.055,
+    damp: 0.04, fovDamp: 0.045,
   },
   {
     id: 'last_light', intent: 'fail', progress: 0.70, label: 'LAST LIGHT',
@@ -343,7 +343,9 @@ export function sampleActs(progress) {
   if (i < ACTS.length - 1) {
     const next = ACTS[i + 1]
     // Longer blend into / out of Journey so acts don't smash
-    const edgeStart = act.id === 'crater_dive' || act.id === 'transit' || next.id === 'transit' ? 0.62 : 0.78
+    const edgeStart = act.id === 'crater_dive' || act.id === 'transit' || next.id === 'transit' || next.id === 'mars'
+      ? 0.52
+      : 0.78
     const edge = smoothstep(edgeStart, 1, local)
     grade = {
       lift: act.grade.lift.map((v, k) => lerp(v, next.grade.lift[k], edge)),
@@ -426,11 +428,12 @@ export function sampleActs(progress) {
     warp: event.warp,
   }
   if (act.id === 'transit') {
+    // Overlap Moon exit with Mars approach — cinematic crossfade, not a hard cut
     journey = {
-      moonPresence: 1 - smoothstep(0.15, 0.55, local),
-      marsPresence: smoothstep(0.42, 0.78, local),
-      moonExit: smoothstep(0.1, 0.55, local),
-      marsApproach: smoothstep(0.48, 1, local),
+      moonPresence: 1 - smoothstep(0.12, 0.68, local),
+      marsPresence: smoothstep(0.32, 0.82, local),
+      moonExit: smoothstep(0.08, 0.62, local),
+      marsApproach: smoothstep(0.38, 1, local),
       warp: event.warp,
     }
   }
