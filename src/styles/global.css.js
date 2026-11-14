@@ -620,29 +620,37 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .location-atlas {
   position: relative;
   z-index: 2;
-  min-height: min(100vh, 980px);
-  padding-bottom: clamp(3rem, 8vh, 5rem);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: clamp(2.5rem, 7vh, 4rem);
   /* Soft veil — Continuum Moon stays the centered stage */
   background:
-    linear-gradient(180deg, rgba(3,3,8,0.42) 0%, rgba(3,3,8,0.18) 38%, rgba(3,3,8,0.28) 100%);
+    linear-gradient(180deg, rgba(3,3,8,0.38) 0%, rgba(3,3,8,0.12) 42%, rgba(3,3,8,0.22) 100%);
   overflow: visible;
 }
 .atlas-overlay {
   position: relative;
   z-index: 4;
   max-width: min(520px, 92vw);
-  padding-top: clamp(1.5rem, 6vh, 3.5rem);
+  padding-top: clamp(1.25rem, 5vh, 2.75rem);
+}
+.atlas-heading {
+  position: sticky;
+  top: 4.5rem;
+  z-index: 5;
+  margin-bottom: 1.1rem;
+  padding-bottom: 0.35rem;
 }
 .atlas-title {
   font-size: clamp(2.2rem, 5.5vw, 3.8rem);
-  margin: 0.75rem 0 0.85rem;
+  margin: 0.55rem 0 0.7rem;
   text-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
 }
 .atlas-lede {
   color: var(--ink-dim);
   max-width: 44ch;
   line-height: 1.55;
-  margin-bottom: 1.35rem;
+  margin: 0 0 0.25rem;
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 .atlas-tabs {

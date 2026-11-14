@@ -551,19 +551,25 @@ function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSi
   useEffect(() => {
     const el = sectionRef.current
     if (!el || typeof IntersectionObserver === 'undefined') return undefined
+    let wasOn = false
     const io = new IntersectionObserver(
       ([entry]) => {
         const on = !!entry?.isIntersecting && entry.intersectionRatio > 0.28
         onActiveChange?.(on)
+        if (on && !wasOn) {
+          onCardSite?.(body === 'moon' ? 'a11-lm' : 'opportunity')
+        }
+        wasOn = on
       },
       { threshold: [0.28, 0.45, 0.6], rootMargin: '-8% 0px -12% 0px' },
     )
     io.observe(el)
     return () => io.disconnect()
-  }, [onActiveChange])
+  }, [onActiveChange, onCardSite, body])
 
   useEffect(() => {
-    onFocusSite?.(hover?.id || cardSiteId || (body === 'moon' ? 'a11-lm' : 'opportunity'))
+    const id = hover?.id || cardSiteId || (body === 'moon' ? 'a11-lm' : 'opportunity')
+    onFocusSite?.(id)
   }, [hover, cardSiteId, body, onFocusSite])
 
   return (
@@ -578,14 +584,16 @@ function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSi
 
       {/* Continuum overlay — same moon, zoomed & facing; not a separate framed scene */}
       <div className="atlas-overlay">
-        <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active /></p>
-        <h2 className="display atlas-title">
-          Where they<br /><span className="outline-text">still sit</span>
-        </h2>
-        <p className="atlas-lede">
-          Every NASA photograph is anchored to Mean Earth / Polar Axis (Moon) or planetocentric east longitude (Mars).
-          Hover the centered hotspot — or pick a site — for the NASA image and coordinates.
-        </p>
+        <div className="atlas-heading">
+          <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active /></p>
+          <h2 className="display atlas-title">
+            Where they<br /><span className="outline-text">still sit</span>
+          </h2>
+          <p className="atlas-lede">
+            Every NASA photograph is anchored to Mean Earth / Polar Axis (Moon) or planetocentric east longitude (Mars).
+            Hover the centered hotspot — or pick a site — for the NASA image and coordinates.
+          </p>
+        </div>
 
         <div className="atlas-tabs" role="tablist" aria-label="Body">
           {['moon', 'mars'].map((id) => (

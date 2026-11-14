@@ -1062,8 +1062,9 @@ function FilmDirector({
       sunDirRef.current.set(marsish ? 0.62 : 0.85, marsish ? 0.48 : 0.32, marsish ? 0.28 : 0.42)
     }
     if (fogRef.current) {
-      fogRef.current.near = sample.fog[0]
-      fogRef.current.far = sample.fog[1]
+      // Atlas hold: keep the near-side surface readable (no haze wall)
+      fogRef.current.near = lerp(sample.fog[0], 22, ab)
+      fogRef.current.far = lerp(sample.fog[1], 90, ab)
       const fogCol = marsish
         ? new THREE.Color().setRGB(0.12 + sample.event.storm * 0.15, 0.05, 0.02)
         : new THREE.Color().setRGB(0.01, 0.01, 0.025)
