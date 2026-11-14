@@ -624,7 +624,13 @@ function SiteBeacon({
 
   const pinR = mobile ? 0.014 : 0.0075
   const limbR = mobile ? 0.011 : 0.006
-  const openSite = (e) => {
+  // Ritual: first tap opens the in-world card; second tap / CTA opens the dossier
+  const selectOrOpen = (e) => {
+    e?.stopPropagation?.()
+    if (cardOpen) onOpen?.(site)
+    else onHover?.(site)
+  }
+  const openDossier = (e) => {
     e?.stopPropagation?.()
     onOpen?.(site)
   }
@@ -658,7 +664,7 @@ function SiteBeacon({
                 onFocus={() => onHover?.(site)}
                 onMouseLeave={() => onLeave?.(site)}
                 onBlur={() => onLeave?.(site)}
-                onClick={openSite}
+                onClick={selectOrOpen}
               />
               {cardOpen && (
                 <article
@@ -678,7 +684,9 @@ function SiteBeacon({
                   <h3>{site.name}</h3>
                   <p className="mono coords">{site.coords}</p>
                   <p className="blurb">{site.science}</p>
-                  <span className="mono open">OPEN DOSSIER →</span>
+                  <button type="button" className="mono open moon-hotspot-open" onClick={openDossier}>
+                    OPEN DOSSIER →
+                  </button>
                 </article>
               )}
             </div>
@@ -1407,13 +1415,22 @@ function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
       vignetteRef.current.darkness = 0.48 + storm * 0.42 + dark * 0.28
     }
   })
-  if (mobile || reduced) return null
+  // Mobile: cheap grade only (vignette + soft noise) so silence/storm still read cinematic
+  if (reduced) return null
+  if (mobile) {
+    return (
+      <EffectComposer multisampling={0} enableNormalPass={false}>
+        <Noise ref={noiseRef} premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.03} />
+        <Vignette ref={vignetteRef} eskil={false} offset={0.32} darkness={0.52} />
+      </EffectComposer>
+    )
+  }
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
-      {/* No mipmapBlur bloom — it turned stars into soft tan particle orbs */}
-      <Bloom intensity={0.028} luminanceThreshold={0.985} luminanceSmoothing={0.12} mipmapBlur={false} />
+      {/* Visible but restrained bloom — was nearly invisible at 0.028 */}
+      <Bloom intensity={0.085} luminanceThreshold={0.92} luminanceSmoothing={0.18} mipmapBlur={false} />
       <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={aberration} />
-      <Noise ref={noiseRef} premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.025} />
+      <Noise ref={noiseRef} premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.03} />
       <Vignette ref={vignetteRef} eskil={false} offset={0.28} darkness={0.48} />
     </EffectComposer>
   )

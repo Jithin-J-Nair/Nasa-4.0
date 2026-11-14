@@ -22,16 +22,16 @@ import {
   createScrollEngine, destroyScrollEngine, scrollToHash, playHeroIntro, playBootSequence,
   revealOnScroll, scheduleScrollRefresh, playMoonToMarsJourney,
   createFilmRail, filmProgressRef, scrollToFilmMarker, scrollToFilmProgress, setFilmProgress,
+  pauseScrollEngine, resumeScrollEngine,
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
 import {
   Magnet, ClickSpark,
-  GradientText, GlareHover, BlurText, OptionWheel, SplitText,
+  GradientText, BlurText, OptionWheel, SplitText,
 } from './bits'
 const FleetShelf = lazy(() => import('./fleet/FleetShelf'))
 import './bits/GradientText/GradientText.css'
 import './bits/SplitText/SplitText.css'
-import './bits/GlareHover/GlareHover.css'
 import './bits/OptionWheel/OptionWheel.css'
 
 const ContinuumCanvas = lazy(() => import('./world/ContinuumCanvas'))
@@ -278,28 +278,34 @@ function useCursor() { return useContext(CursorCtx) }
 
 function Preloader({ onDone, reduced, mobile, moonReady }) {
   const rootRef = useRef(null)
+  const [bootMsg, setBootMsg] = useState('LOADING LUNAR SURFACE')
   useEffect(() => {
     let cancelled = false
     let animDone = false
     let assetsDone = false
     let finished = false
+    let degraded = false
 
     const finish = () => {
       if (cancelled || finished || !animDone || !assetsDone) return
       finished = true
-      onDone?.()
+      onDone?.({ degraded })
     }
 
-    // THREE.Cache + Continuum chunk + Moon maps; Mars warms in the background
     const assets = Promise.all([
       preloadCriticalMoon(mobile),
       preloadContinuumModule(),
       moonReady,
     ]).then(() => {
+      if (cancelled) return
       assetsDone = true
+      setBootMsg('LUNAR SURFACE LOCKED')
       finish()
     }).catch(() => {
+      if (cancelled) return
+      degraded = true
       assetsDone = true
+      setBootMsg('LUNAR MAPS DELAYED · ENTERING ANYWAY')
       finish()
     })
     preloadPlanetTextures(mobile)
@@ -314,9 +320,11 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
       },
     })
 
-    // Never trap the user if a texture host stalls
     const safety = window.setTimeout(() => {
+      if (assetsDone) return
+      degraded = true
       assetsDone = true
+      setBootMsg('SIGNAL TIMEOUT · ENTERING CONTINUUM')
       finish()
     }, reduced ? 2500 : 16000)
 
@@ -336,14 +344,14 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
       </div>
       <div style={{ textAlign: 'center', position: 'relative', zIndex: 2 }}>
         <p className="kicker" data-boot-meta style={{ marginBottom: '1rem', color: 'var(--ice)' }}>
-          CONTINUUM · LOCKING · SEED {String(getSessionSeed()).slice(-4)}
+          NASA SPACE APPS 2026 · CONTINUUM · SEED {String(getSessionSeed()).slice(-4)}
         </p>
         <div className="display" data-boot-brand style={{ fontSize: 'clamp(2.8rem, 9vw, 5.5rem)', letterSpacing: '-0.05em' }}>
           SILENT FLEET
         </div>
         <div className="boot-bar" aria-hidden><i data-boot-bar /></div>
         <p className="mono" data-boot-meta style={{ marginTop: '1.25rem', fontSize: '0.65rem', letterSpacing: '0.18em', color: 'var(--ink-mute)' }}>
-          LOADING LUNAR SURFACE
+          {bootMsg}
         </p>
       </div>
     </div>
@@ -387,6 +395,7 @@ function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
 
 function FilmJourney({ label = 'JOURNEY' }) {
   const rootRef = useRef(null)
+  const meterFillRef = useRef(null)
   const [journeyLive, setJourneyLive] = useState(true)
 
   useEffect(() => {
@@ -399,6 +408,21 @@ function FilmJourney({ label = 'JOURNEY' }) {
     )
     io.observe(el)
     return () => io.disconnect()
+  }, [])
+
+  // Real film tip → meter (not a fake CSS loop)
+  useEffect(() => {
+    let id = 0
+    const tick = () => {
+      const fill = meterFillRef.current
+      if (fill) {
+        const p = Math.max(0, Math.min(1, filmProgressRef.current || 0))
+        fill.style.transform = `scaleX(${p})`
+      }
+      id = requestAnimationFrame(tick)
+    }
+    id = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(id)
   }, [])
 
   const silenceAct = label === 'SILENCE' || label === 'CARRIER'
@@ -425,7 +449,7 @@ function FilmJourney({ label = 'JOURNEY' }) {
         <p className="journey-hud__act mono">{label}</p>
         <p className="journey-hud__phase">{phase}</p>
         <div className="journey-hud__meter" data-label={label}>
-          <span className="journey-hud__meter-fill" />
+          <span className="journey-hud__meter-fill" ref={meterFillRef} />
         </div>
       </div>
       {silence && (
@@ -517,17 +541,10 @@ function Hero({ ready, reduced, onOpen }) {
   return (
     <section className="hero" id="top" aria-label="Hero" ref={rootRef}>
       <div className="hero-content">
-        <p className="kicker" data-hero-kicker style={{ marginBottom: '1.15rem', opacity: ready ? undefined : 1 }}>
+        <p className="kicker" data-hero-kicker style={{ marginBottom: '0.85rem', opacity: ready ? undefined : 1 }}>
           NASA SPACE APPS 2026 · DISCARDED EQUIPMENT STORYTELLING
         </p>
-        <p
-          className="challenge-motto"
-          data-hero-kicker
-          style={{ opacity: ready ? undefined : 1 }}
-        >
-          Abandoned but not Forgotten
-        </p>
-        <h1 className="display display-xl" style={{ marginBottom: '1.1rem' }} aria-label="Silent Fleet">
+        <h1 className="display display-xl" style={{ marginBottom: '0.55rem' }} aria-label="Silent Fleet">
           {ready ? (
             <>
               <BlurText
@@ -559,37 +576,32 @@ function Hero({ ready, reduced, onOpen }) {
           )}
         </h1>
         <span className="sr-only">Silent Fleet — Abandoned but not Forgotten</span>
-        <div data-hero-body style={{ marginBottom: '1.5rem', maxWidth: '40ch' }}>
+        <p
+          className="hero-challenge-line"
+          data-hero-kicker
+          style={{ opacity: ready ? undefined : 1 }}
+        >
+          Abandoned but not Forgotten
+        </p>
+        <div data-hero-body style={{ marginBottom: '1.35rem', maxWidth: '40ch' }}>
           <p className="hero-body-blur" style={{ color: 'var(--ink-dim)', fontSize: 'clamp(1.05rem, 2.4vw, 1.3rem)', lineHeight: 1.5, margin: 0 }}>
             They were built to listen, dig, and wander — then left behind. Hear them speak. Remember who stayed so we could learn.
           </p>
         </div>
         <div data-hero-cta style={{ opacity: ready ? undefined : 1, marginTop: '0.35rem' }}>
-          {/* Short / touch: no Magnet field — spring vs Lenis shake is worst here */}
           <Magnet
             padding={80}
             magnetStrength={2.4}
             maxOffset={18}
             disabled={shortViewport || coarse || reduced}
           >
-            <GlareHover
-              width="auto"
-              height="auto"
-              background="transparent"
-              borderRadius="999px"
-              borderColor="transparent"
-              glareColor="#8ec8ff"
-              glareOpacity={0.35}
-              transitionDuration={650}
+            <MagneticButton
+              href="#objective"
+              onMouseEnter={() => setLabel('ENTER')}
+              onMouseLeave={() => setLabel('')}
             >
-              <MagneticButton
-                href="#objective"
-                onMouseEnter={() => setLabel('ENTER')}
-                onMouseLeave={() => setLabel('')}
-              >
-                MEET THE LEFTOVERS
-              </MagneticButton>
-            </GlareHover>
+              MEET THE LEFTOVERS
+            </MagneticButton>
           </Magnet>
         </div>
       </div>
@@ -814,13 +826,19 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
   return (
     <section
       ref={sectionRef}
-      className="section location-atlas body-moon"
+      className="section location-atlas body-moon is-active"
       id="atlas"
       aria-label="Hardware locations"
     >
       <span className="section-rail">02B · ATLAS</span>
       <span className="section-num" aria-hidden>LOC</span>
-      {/* Visible title is AtlasBridgeHeading — sticky from Objective into Atlas */}
+      <div className="atlas-stage-dock">
+        <p className="kicker atlas-stage-dock__kicker">LUNAR HARDWARE · SURVEYED SITES</p>
+        <p className="atlas-stage-dock__lede">
+          Drag the Moon. Choose a leftover from the ice wheel — every pin is still waiting on the near side.
+        </p>
+        <p className="mono atlas-stage-dock__meta">{MOON_HOTSPOT_SITES.length} SITES · NASA CATALOGUE · LROC</p>
+      </div>
     </section>
   )
 }
@@ -874,11 +892,11 @@ function Fleet({ onOpen }) {
       </p>
 
       {inView ? (
-        <Suspense fallback={<p className="mono" style={{ textAlign: 'center', opacity: 0.45 }}>LOADING SHELF…</p>}>
+        <Suspense fallback={<p className="mono" style={{ textAlign: 'center', opacity: 0.45 }}>ASSEMBLING NASA SHELF…</p>}>
           <FleetShelf onSelect={onOpen} />
         </Suspense>
       ) : (
-        <p className="mono" style={{ textAlign: 'center', opacity: 0.35, marginTop: '2rem' }}>SHELF AWAITS</p>
+        <p className="mono" style={{ textAlign: 'center', opacity: 0.35, marginTop: '2rem' }}>SCROLL TO REVEAL THE FLEET</p>
       )}
     </section>
   )
@@ -985,7 +1003,7 @@ function ArtifactModal({ item, onClose }) {
     window.addEventListener('keydown', onKey)
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    // Reset scroll when opening a new dossier
+    pauseScrollEngine()
     requestAnimationFrame(() => {
       if (panelRef.current) panelRef.current.scrollTop = 0
     })
@@ -994,6 +1012,7 @@ function ArtifactModal({ item, onClose }) {
       clearTimeout(t2)
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prevOverflow
+      resumeScrollEngine()
       stopHardwareSpeech()
     }
   }, [onClose, item?.id])
@@ -1056,16 +1075,27 @@ function ArtifactModal({ item, onClose }) {
           </div>
         )}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: phase >= 2 ? 1 : 0 }}>
-          {(item.voice || item.story) && (
+          {item.voice && (
             <blockquote className={`dossier-voice${reading ? ' is-reading' : ''}`}>
               <div className="dossier-voice__head">
                 <p className="mono dossier-voice__label">THE HARDWARE SPEAKS</p>
                 <HardwareReader item={item} reading={reading} onReadingChange={onReadingChange} />
               </div>
-              {item.voice ? <p>“{item.voice}”</p> : <p>“{item.story}”</p>}
+              <p>“{item.voice}”</p>
             </blockquote>
           )}
-          <p style={{ color: 'var(--ink-dim)', lineHeight: 1.65, marginBottom: '1rem' }}>{item.story}</p>
+          {!item.voice && item.story && (
+            <blockquote className={`dossier-voice${reading ? ' is-reading' : ''}`}>
+              <div className="dossier-voice__head">
+                <p className="mono dossier-voice__label">THE HARDWARE SPEAKS</p>
+                <HardwareReader item={item} reading={reading} onReadingChange={onReadingChange} />
+              </div>
+              <p>“{item.story}”</p>
+            </blockquote>
+          )}
+          {item.voice && item.story && (
+            <p style={{ color: 'var(--ink-dim)', lineHeight: 1.65, marginBottom: '1rem' }}>{item.story}</p>
+          )}
           <p style={{ color: 'var(--ice)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', letterSpacing: '0.04em', marginBottom: '1rem' }}>
             “{item.transmission}”
           </p>
@@ -1105,7 +1135,7 @@ function Footer() {
             <ScrambleLine text="THEY ARE STILL OUT THERE. SOME STILL SPEAK." active={inView} />
             <span className="status-dot live" style={{ marginLeft: 10, verticalAlign: 'middle' }} />
           </p>
-          <LightDayCountdown compact className="light-day--footer" />
+          
           <p style={{ color: 'var(--ink-mute)', fontSize: '0.75rem', marginTop: 12, maxWidth: 520, lineHeight: 1.5 }}>
             Built for NASA Space Apps 2026 — “Abandoned but not Forgotten.”
             Facts cross-checked against NSSDCA, LROC, ALSJ, HiRISE & PDS.
@@ -1584,7 +1614,7 @@ export default function App() {
               aria-pressed={audioOn}
               aria-label={audioOn ? 'Mute soundscape' : 'Enable soundscape'}
             >
-              {audioOn ? actLabel : 'SOUND'}
+              {audioOn ? 'SOUND · ON' : 'SOUND'}
             </button>
           </div>
 

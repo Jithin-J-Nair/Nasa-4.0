@@ -188,7 +188,6 @@ img, svg { display: block; max-width: 100%; }
   letter-spacing: 0.18em;
 }
 .journey-hud__meter[data-label='LAST LIGHT'] .journey-hud__meter-fill {
-  width: 92%;
   background: linear-gradient(90deg, #ff7a45, #2a0e08);
 }
 .story-plate > .section,
@@ -279,9 +278,10 @@ img, svg { display: block; max-width: 100%; }
   inset: 0;
   z-index: 1;
   pointer-events: none;
+  /* Lighter veil — planets stay the hero, not mud under HUD glass */
   background:
-    linear-gradient(180deg, rgba(3,3,8,0.35) 0%, rgba(3,3,8,0.04) 32%, rgba(3,3,8,0.08) 68%, rgba(3,3,8,0.55) 100%),
-    radial-gradient(ellipse at 62% 48%, transparent 22%, rgba(3,3,8,0.28) 100%);
+    linear-gradient(180deg, rgba(3,3,8,0.22) 0%, rgba(3,3,8,0.02) 34%, rgba(3,3,8,0.04) 72%, rgba(3,3,8,0.38) 100%),
+    radial-gradient(ellipse at 62% 48%, transparent 28%, rgba(3,3,8,0.16) 100%);
 }
 .audio-toggle {
   position: fixed;
@@ -362,15 +362,14 @@ img, svg { display: block; max-width: 100%; }
   display: block;
   height: 100%;
   width: 100%;
+  transform: scaleX(0);
   transform-origin: left center;
+  will-change: transform;
   background: linear-gradient(90deg, rgba(142, 200, 255, 0.15), rgba(255, 210, 170, 0.85));
-  animation: journeyMeter 14s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
-}
-.journey-hud__meter[data-label='JOURNEY'] .journey-hud__meter-fill {
-  animation-duration: 8s;
 }
 .journey-hud__meter[data-label='MERIDIANI'] .journey-hud__meter-fill,
-.journey-hud__meter[data-label='DUST STORM'] .journey-hud__meter-fill {
+.journey-hud__meter[data-label='DUST STORM'] .journey-hud__meter-fill,
+.journey-hud__meter[data-label='LAST LIGHT'] .journey-hud__meter-fill {
   background: linear-gradient(90deg, rgba(255, 160, 110, 0.2), rgba(255, 200, 150, 0.9));
 }
 .journey-hud.is-silence .journey-hud__phase {
@@ -468,10 +467,6 @@ img, svg { display: block; max-width: 100%; }
   .light-day--silence {
     max-width: none;
   }
-}
-@keyframes journeyMeter {
-  from { transform: scaleX(0.12); opacity: 0.55; }
-  to { transform: scaleX(1); opacity: 1; }
 }
 .story-plate .journey-spacer .section-rail {
   opacity: 0.45;
@@ -929,6 +924,65 @@ img, svg { display: block; max-width: 100%; }
   color: var(--ice);
   margin: 0 0 1rem;
   max-width: 22ch;
+}
+/* Hero: brand first — challenge line is supporting, not competing */
+.hero-challenge-line {
+  margin: 0 0 1rem;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: clamp(0.95rem, 2.1vw, 1.15rem);
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  color: rgba(142, 200, 255, 0.82);
+  max-width: 28ch;
+}
+.atlas-stage-dock {
+  position: absolute;
+  left: clamp(1rem, 4vw, 2.5rem);
+  right: clamp(1rem, 4vw, 2.5rem);
+  bottom: clamp(1.4rem, 4vh, 2.6rem);
+  z-index: 4;
+  max-width: min(36rem, 92vw);
+  pointer-events: none;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(142, 200, 255, 0.14);
+  background: linear-gradient(135deg, rgba(6, 10, 18, 0.55), rgba(6, 10, 18, 0.22));
+  backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: 0 18px 48px -28px rgba(0, 0, 0, 0.75);
+}
+.atlas-stage-dock__kicker {
+  margin: 0 0 0.45rem;
+  color: rgba(142, 200, 255, 0.7);
+}
+.atlas-stage-dock__lede {
+  margin: 0;
+  color: rgba(232, 238, 245, 0.78);
+  font-size: clamp(0.92rem, 2vw, 1.05rem);
+  line-height: 1.45;
+  max-width: 38ch;
+  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+.atlas-stage-dock__meta {
+  margin: 0.65rem 0 0;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: rgba(232, 238, 245, 0.42);
+}
+.moon-hotspot-open {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ice);
+  cursor: pointer;
+  letter-spacing: 0.12em;
+  font-size: 0.62rem;
+}
+.moon-hotspot-open:hover,
+.moon-hotspot-open:focus-visible {
+  color: #fff;
+  outline: none;
 }
 .hero-leftover {
   /* Brand left · leftover plate on the Moon (stage-right) */
@@ -2306,6 +2360,20 @@ html.lenis, html.lenis body { height: auto; }
 
   html, body {
     overflow-x: clip;
+  }
+  .atlas-stage-dock {
+    left: max(0.75rem, env(safe-area-inset-left));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(11.5rem, calc(env(safe-area-inset-bottom) + 10.5rem));
+    padding: 0.85rem 0.9rem;
+  }
+  .atlas-stage-dock__lede {
+    font-size: 0.9rem;
+    max-width: 34ch;
+  }
+  .hero-challenge-line {
+    font-size: clamp(0.88rem, 3.6vw, 1.05rem);
+    margin-bottom: 0.85rem;
   }
 
   .nav {

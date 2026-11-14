@@ -20,6 +20,20 @@ let refreshTimer = 0
 let resizeObs = null
 let filmRailTrigger = null
 let filmScrollTween = null
+/** When true, Journey timeline owns filmProgressRef — ScrollTrigger must not fight it */
+let filmDriveLocked = false
+
+export function lockFilmDrive(locked) {
+  filmDriveLocked = !!locked
+}
+
+export function pauseScrollEngine() {
+  lenis?.stop?.()
+}
+
+export function resumeScrollEngine() {
+  lenis?.start?.()
+}
 
 /**
  * Single owner of continuum time (0→1).
@@ -235,12 +249,15 @@ export function createFilmRail() {
     invalidateOnRefresh: true,
     anticipatePin: 0,
     onUpdate: (self) => {
+      if (filmDriveLocked) return
       filmProgressRef.current = mapRailProgress(self.progress)
     },
     onLeaveBack: () => {
+      if (filmDriveLocked) return
       filmProgressRef.current = 0
     },
     onLeave: () => {
+      if (filmDriveLocked) return
       filmProgressRef.current = 1
     },
   })
@@ -341,12 +358,23 @@ export function playMoonToMarsJourney({
     Math.max(filmProgressRef.current, FILM_MARKERS.atlas),
   )
   const toP = FILM_MARKERS.meridiani
+  lockFilmDrive(true)
   onStart?.()
+
+  const release = () => {
+    lockFilmDrive(false)
+  }
 
   if (reduced || prefersReducedMotion()) {
     scrollToFilmProgress(toP, { duration: 0.55 })
-    const done = window.setTimeout(() => onComplete?.(), 650)
-    return () => window.clearTimeout(done)
+    const done = window.setTimeout(() => {
+      release()
+      onComplete?.()
+    }, 650)
+    return () => {
+      window.clearTimeout(done)
+      release()
+    }
   }
 
   // Sit on atlas tip before the long scrub (weights inverted for scroll Y)
@@ -359,7 +387,10 @@ export function playMoonToMarsJourney({
       playMoonToMarsJourney._tl = null
       filmScrollTween = null
       scrollToFilmProgress(toP, { duration: 0.9 })
-      gsap.delayedCall(0.35, () => onComplete?.())
+      gsap.delayedCall(0.35, () => {
+        release()
+        onComplete?.()
+      })
     },
   })
 
@@ -382,6 +413,7 @@ export function playMoonToMarsJourney({
     tl.kill()
     if (playMoonToMarsJourney._tl === tl) playMoonToMarsJourney._tl = null
     filmScrollTween = null
+    release()
   }
 }
 
