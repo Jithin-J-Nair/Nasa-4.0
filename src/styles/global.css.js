@@ -726,15 +726,17 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   inset: 0;
 }
 .moon-surface, .atlas-surface.moon-surface {
+  /* Nearside orthographic approximation from the 2K equirect master */
   background:
-    radial-gradient(circle at 32% 38%, rgba(255,255,255,0.14), transparent 28%),
-    radial-gradient(circle at 62% 58%, rgba(0,0,0,0.35), transparent 22%),
-    radial-gradient(ellipse at 50% 50%, #b8c0cc 0%, #7a8494 42%, #3a414c 78%, #12151c 100%);
+    radial-gradient(circle at 50% 50%, transparent 62%, rgba(2,2,6,0.55) 78%, #020206 100%),
+    url('/textures/moon_color_2k.jpg') 50% 50% / 200% 100% no-repeat;
+  filter: contrast(1.08) saturate(0.85) brightness(1.05);
 }
 .mars-surface, .atlas-surface.mars-surface {
   background:
-    linear-gradient(180deg, rgba(0,0,0,0.15), transparent 30%),
-    radial-gradient(ellipse at 48% 52%, #c56a3a 0%, #8a3a22 45%, #3a1810 100%);
+    linear-gradient(180deg, rgba(0,0,0,0.12), transparent 28%),
+    url('/textures/mars_color_2k.jpg') center / 100% 100% no-repeat;
+  filter: contrast(1.06) saturate(1.08);
 }
 .atlas-telemetry {
   padding: 1.35rem 1.4rem;

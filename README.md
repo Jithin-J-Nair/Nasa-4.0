@@ -18,7 +18,7 @@ Accuracy throughout. Connection over scrap lists.
 - **Motion stack:** GSAP + ScrollTrigger + Lenis (sole smooth-scroll engine)  
 - **UI bits:** Curated [React Bits](https://github.com/DavidHDev/react-bits) (JS) — Magnet, SpotlightCard, ClickSpark, FadeContent, GradientText, GlareHover, BlurText, TrueFocus  
 - **WebGL:** Justified continuum — albedo/AO/roughness planets, Fresnel atmosphere, diegetic scene events  
-- **Assets:** NASA SVS / LROC / RSS-Mars (see `public/textures/ATTRIBUTION.txt`)
+- **Assets:** 8K equirect Moon + Mars albedo masters (desktop) with derived height/bump LODs — see `public/textures/ATTRIBUTION.txt`
 
 ## Craft
 

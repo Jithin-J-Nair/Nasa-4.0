@@ -610,7 +610,7 @@ function BodySphere({
     colorMap.colorSpace = THREE.SRGBColorSpace
     heightMap.colorSpace = THREE.NoColorSpace
     ;[colorMap, heightMap].forEach((tex) => {
-      tex.anisotropy = 8
+      tex.anisotropy = 16
       // Clamp — never tile planetary maps (breaks geographic placement)
       tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
       tex.generateMipmaps = true
@@ -623,9 +623,9 @@ function BodySphere({
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
     uBody: { value: body },
-    // Gentle relief — readable planet, not potato displacement
-    uHeightScale: { value: isMars ? 0.012 : 0.0065 },
-    uBump: { value: isMars ? 1.85 : 1.25 },
+    // Gentle relief from albedo-derived height — readable, not potato
+    uHeightScale: { value: isMars ? 0.010 : 0.0055 },
+    uBump: { value: isMars ? 2.05 : 1.45 },
     uRim: { value: new THREE.Color(rim) },
     uExposure: { value: 1 },
     uSunDir: { value: new THREE.Vector3(0.85, 0.32, 0.42) },
@@ -1008,9 +1008,11 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
   const hotspotRef = useRef(null)
   const moonAimRef = useRef(null)
   const marsAimRef = useRef(null)
-  // SVS CGI Moon Kit — 8K desktop / 2K mobile (LROC WAC + LOLA)
+  // User-supplied 8K equirect masters — desktop 8K / mobile 2K; height derived from albedo
   const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_8k.jpg'
   const moonHeight = mobile ? '/textures/moon_height_2k.jpg' : '/textures/moon_height_4k.jpg'
+  const marsColor = mobile ? '/textures/mars_color_2k.jpg' : '/textures/mars_color_8k.jpg'
+  const marsHeight = mobile ? '/textures/mars_bump_2k.jpg' : '/textures/mars_bump_4k.jpg'
 
   return (
     <>
@@ -1071,8 +1073,8 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
           rim="#ff9a6a"
           mobile={mobile}
           spin={0.02}
-          colorPath="/textures/mars_color_2k.jpg"
-          heightPath="/textures/mars_bump_1k.jpg"
+          colorPath={marsColor}
+          heightPath={marsHeight}
           gradeRef={gradeRef}
           stormRef={stormRef}
           darkRef={darkRef}

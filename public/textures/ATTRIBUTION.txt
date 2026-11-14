@@ -1,16 +1,22 @@
 Textures used by Silent Fleet (NASA Space Apps 2026)
 
-Moon color + height:
-  NASA SVS CGI Moon Kit — https://svs.gsfc.nasa.gov/4720/
-  LROC WAC natural-color mosaic + LOLA displacement
+Moon color (8K / 4K / 2K):
+  Equirectangular grayscale albedo map supplied for this build (8192×4096).
+  LOD pyramid + height maps derived in-repo from luminance for displacement / AO.
   Files:
-    moon_color_4k.jpg  — from lroc_color_poles_4k.tif (4096×2048)
-    moon_color_2k.jpg  — mobile / map fallback
-    moon_height_2k.jpg — from ldem_4_uint.tif (resampled)
-  Credit: NASA's Scientific Visualization Studio / LROC / LOLA
+    moon_color_8k.jpg · moon_color_4k.jpg · moon_color_2k.jpg
+    moon_height_4k.jpg · moon_height_2k.jpg
+  Geographic frame: Mean Earth / Polar Axis equirectangular (lon 0 at center).
 
-Mars color + bump:
-  Equirectangular color derived from Viking / MGS-era public maps
-  (same class of color+height workflow as RSS-Reborn/RSS-Mars)
-  https://github.com/RSS-Reborn/RSS-Mars
-  Files: mars_color_2k.jpg, mars_bump_1k.jpg
+Mars color (8K / 4K / 2K):
+  Equirectangular color albedo map supplied for this build (8192×4096).
+  LOD pyramid + bump maps derived in-repo from luminance.
+  Files:
+    mars_color_8k.jpg · mars_color_4k.jpg · mars_color_2k.jpg
+    mars_bump_4k.jpg · mars_bump_2k.jpg · mars_bump_1k.jpg
+  Geographic frame: planetocentric east longitude equirectangular.
+
+Desktop continuum loads 8K color + 4K height/bump; mobile uses 2K.
+Credit / provenance: project texture pack for Space Apps storytelling.
+Related public references: NASA SVS CGI Moon Kit (https://svs.gsfc.nasa.gov/4720/),
+RSS-Mars (https://github.com/RSS-Reborn/RSS-Mars).
