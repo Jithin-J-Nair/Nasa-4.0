@@ -28,7 +28,7 @@ import { ranged, getSessionSeed } from './motion/seed'
 import {
   Magnet, ClickSpark, FadeContent, TrueFocus, GlareHover,
   GradientText, BlurText, OptionWheel, SplitText, Noise, ShinyText, DecryptedText,
-  TiltedCard,
+  DecayCard,
 } from './bits'
 const FleetShelf = lazy(() => import('./fleet/FleetShelf'))
 import './bits/GradientText/GradientText.css'
@@ -38,7 +38,7 @@ import './bits/TrueFocus/TrueFocus.css'
 import './bits/Noise/Noise.css'
 import './bits/ShinyText/ShinyText.css'
 import './bits/GlareHover/GlareHover.css'
-import './bits/TiltedCard/TiltedCard.css'
+import './bits/DecayCard/DecayCard.css'
 
 const ContinuumCanvas = lazy(() => import('./world/ContinuumCanvas'))
 
@@ -729,33 +729,31 @@ function ChallengeObjective({ reduced }) {
         </div>
         <div className="objective-figure-fade">
           <div className="objective-figure">
-            <TiltedCard
-              className="objective-tilted"
-              imageSrc="/images/eagle-aldrin-portrait.jpg"
-              altText="Apollo 11 astronaut Buzz Aldrin on the Moon — gold visor and bootprints in the regolith"
-              captionText="Buzz Aldrin · Tranquility Base"
-              containerWidth="100%"
-              containerHeight="100%"
-              imageWidth="100%"
-              imageHeight="100%"
+            <DecayCard
+              className="objective-decay"
+              image="/images/eagle-aldrin-portrait.jpg"
+              width="100%"
+              height="auto"
+              style={{ aspectRatio: '3 / 4', maxHeight: 'min(62vh, 560px)' }}
+              intensity={reduced || coarse ? 0.12 : 0.36}
+              sensitivity={reduced || coarse ? 0.25 : 0.42}
+              hoverDecay={0.07}
+              recovery={0.72}
+              grain={0.32}
+              detail={5}
+              pattern={4}
+              idle={reduced || coarse ? 0 : 0.2}
+              flow={0}
+              chroma={0}
+              travel={reduced || coarse ? 0 : 26}
+              tilt={reduced || coarse ? 0 : 5}
+              scope="card"
               radius={0}
-              rotateAmplitude={reduced || coarse ? 0 : 11}
-              scaleOnHover={reduced || coarse ? 1 : 1.045}
-              showTooltip={!coarse}
-              glare={reduced || coarse ? 0 : 0.42}
-              glareColor="#8ec8ff"
-              shadow={0.62}
-              parallax={reduced || coarse ? 0 : 0.85}
-              floating={!reduced && !coarse}
-              gyroscope={!reduced}
-              intro={!reduced}
-              displayOverlayContent
-              overlayContent={(
-                <p className="mono objective-tilted__credit">
-                  {HERO_LEFTOVER?.credit || 'NASA / Apollo 11'} · {HERO_LEFTOVER?.coords || '0.67416° N, 23.47314° E'}
-                </p>
-              )}
-            />
+            >
+              <p className="mono objective-decay__credit">
+                {HERO_LEFTOVER?.credit || 'NASA / Apollo 11'} · {HERO_LEFTOVER?.coords || '0.67416° N, 23.47314° E'}
+              </p>
+            </DecayCard>
             <p className="mono objective-figure__caption">
               Buzz Aldrin · Tranquility Base · still on the Moon
             </p>

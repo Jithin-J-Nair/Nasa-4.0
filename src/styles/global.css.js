@@ -1206,25 +1206,20 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   margin: 0;
   width: 100%;
 }
-.objective-figure .objective-tilted.tilted-card {
+.objective-figure .objective-decay.decay-card {
   width: 100%;
   height: auto;
   aspect-ratio: 3 / 4;
   max-height: min(62vh, 560px);
+  overflow: visible;
 }
-.objective-figure .tilted-card__body,
-.objective-figure .tilted-card__shadow {
-  width: 100% !important;
-  height: 100% !important;
-}
-.objective-figure .tilted-card__img {
-  object-position: 42% 46%;
-}
-.objective-tilted__credit {
-  position: absolute;
-  left: 0;
+.objective-figure .decay-card__content {
   right: 0;
   bottom: 0;
+  left: 0;
+  padding: 0;
+}
+.objective-decay__credit {
   margin: 0;
   padding: 0.55rem 0.7rem;
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
@@ -1237,16 +1232,6 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   font-size: 0.62rem;
   letter-spacing: 0.12em;
   color: var(--ink-mute);
-}
-.objective-figure .tilted-card__caption {
-  background: rgba(8, 10, 16, 0.92);
-  color: var(--ink);
-  border: 1px solid rgba(142, 200, 255, 0.22);
-  box-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.85);
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 .objective-headline {
   font-size: clamp(2.2rem, 5.2vw, 4.1rem);
@@ -1318,7 +1303,7 @@ body.is-coarse .hero-leftover { cursor: pointer; }
     max-width: min(72vw, 320px);
     justify-self: end;
   }
-  .objective-figure .objective-tilted.tilted-card {
+  .objective-figure .objective-decay.decay-card {
     max-height: min(48vh, 420px);
   }
   .objective-focus-wrap .focus-container {
