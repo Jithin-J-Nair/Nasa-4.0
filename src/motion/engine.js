@@ -1,20 +1,36 @@
 /**
- * Sole motion stack (Awwwards skill): GSAP + ScrollTrigger + Lenis.
- * One smooth-scroll engine. Never Locomotive. Reduced-motion bypass.
+ * Sole motion stack (Awwwards + GSAP performance/plugins skills):
+ * GSAP + ScrollTrigger + Lenis. Never Locomotive / ScrollSmoother together.
+ * Prefer transform/opacity, one RAF clock, debounced refresh, reduced-motion bypass.
  */
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { ScrollToPlugin } from 'gsap/ScrollToPlugin'
 import Lenis from 'lenis'
 
-gsap.registerPlugin(ScrollTrigger)
+gsap.registerPlugin(ScrollTrigger, ScrollToPlugin)
+
+// Mobile URL-bar resize spam — ignore chrome-bar-only resizes
+ScrollTrigger.config({ ignoreMobileResize: true })
 
 let lenis = null
 let rafId = 0
 let tickerBound = false
+let refreshTimer = 0
+let resizeObs = null
 
 export function prefersReducedMotion() {
   return typeof window !== 'undefined'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** Debounced layout refresh — only when content/fonts actually change size */
+export function scheduleScrollRefresh(delay = 120) {
+  if (typeof window === 'undefined') return
+  window.clearTimeout(refreshTimer)
+  refreshTimer = window.setTimeout(() => {
+    ScrollTrigger.refresh()
+  }, delay)
 }
 
 export function createScrollEngine({ onScroll } = {}) {
@@ -24,11 +40,15 @@ export function createScrollEngine({ onScroll } = {}) {
     return { lenis: null, refresh: () => ScrollTrigger.refresh() }
   }
 
+  // Lerp-based Lenis = buttery, stable 60fps feel (duration mode felt heavier)
   lenis = new Lenis({
-    duration: 1.35,
-    easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+    lerp: 0.085,
     smoothWheel: true,
-    touchMultiplier: 1.25,
+    wheelMultiplier: 0.92,
+    touchMultiplier: 1.15,
+    syncTouch: false,
+    syncTouchLerp: 0.075,
+    autoResize: true,
   })
 
   lenis.on('scroll', (e) => {
@@ -41,6 +61,7 @@ export function createScrollEngine({ onScroll } = {}) {
   }
   if (!tickerBound) {
     gsap.ticker.add(tick)
+    // Shared RAF with Lenis — lagSmoothing must stay 0 or scroll feels sticky
     gsap.ticker.lagSmoothing(0)
     tickerBound = true
     createScrollEngine._tick = tick
@@ -48,15 +69,24 @@ export function createScrollEngine({ onScroll } = {}) {
 
   document.documentElement.classList.add('lenis', 'lenis-smooth')
 
+  // Fonts / late images shift layout — one debounced refresh, not per-frame
+  if (typeof document !== 'undefined' && document.fonts?.ready) {
+    document.fonts.ready.then(() => scheduleScrollRefresh(80)).catch(() => {})
+  }
+  if (typeof ResizeObserver !== 'undefined' && !resizeObs) {
+    resizeObs = new ResizeObserver(() => scheduleScrollRefresh(160))
+    resizeObs.observe(document.documentElement)
+  }
+
   requestAnimationFrame(() => ScrollTrigger.refresh())
 
   return {
     lenis,
-    refresh: () => ScrollTrigger.refresh(),
+    refresh: () => scheduleScrollRefresh(0),
   }
 }
 
-/** Smooth-scroll to a hash target (nav links) via the shared Lenis instance */
+/** Smooth-scroll to a hash target (nav links) via Lenis, ScrollToPlugin fallback */
 export function scrollToHash(hash, { offset = -72 } = {}) {
   const id = String(hash || '').replace(/^#/, '')
   if (!id) return
@@ -64,13 +94,26 @@ export function scrollToHash(hash, { offset = -72 } = {}) {
   if (!el) return
   if (lenis) {
     lenis.scrollTo(el, { offset, immediate: false })
+  } else if (!prefersReducedMotion()) {
+    gsap.to(window, {
+      duration: 0.95,
+      ease: 'power3.out',
+      scrollTo: { y: el, offsetY: Math.abs(offset) },
+      overwrite: true,
+    })
   } else {
     const y = el.getBoundingClientRect().top + window.scrollY + offset
-    window.scrollTo({ top: y, behavior: 'smooth' })
+    window.scrollTo({ top: y, behavior: 'auto' })
   }
 }
 
 export function destroyScrollEngine() {
+  window.clearTimeout(refreshTimer)
+  refreshTimer = 0
+  if (resizeObs) {
+    resizeObs.disconnect()
+    resizeObs = null
+  }
   if (createScrollEngine._tick && tickerBound) {
     gsap.ticker.remove(createScrollEngine._tick)
     tickerBound = false
@@ -85,7 +128,7 @@ export function destroyScrollEngine() {
   ScrollTrigger.getAll().forEach((t) => t.kill())
 }
 
-/** Hero intro — readable before complete */
+/** Hero intro — transform + autoAlpha only (compositor-friendly) */
 export function playHeroIntro(root, { reduced, seedDelay = 0 } = {}) {
   if (!root) return () => {}
   const kicker = root.querySelector('[data-hero-kicker]')
@@ -93,28 +136,44 @@ export function playHeroIntro(root, { reduced, seedDelay = 0 } = {}) {
   const body = root.querySelector('[data-hero-body]')
   const cta = root.querySelector('[data-hero-cta]')
   const cue = root.querySelector('[data-hero-cue]')
+  const animating = [kicker, ...lines, body, cta, cue].filter(Boolean)
 
   if (reduced) {
-    gsap.set([kicker, lines, body, cta, cue].filter(Boolean), { opacity: 1, y: 0, filter: 'none' })
+    gsap.set(animating, { autoAlpha: 1, y: 0, clearProps: 'filter,willChange' })
     return () => {}
   }
 
-  const tl = gsap.timeline({ defaults: { ease: 'power3.out' }, delay: seedDelay })
-  gsap.set([kicker, body, cta, cue].filter(Boolean), { opacity: 0, y: 28 })
-  // Avoid rotateX — perspective + overflow was clipping the trailing T glyphs
-  gsap.set(lines, { opacity: 0, y: 56, filter: 'blur(8px)' })
+  animating.forEach((node) => { node.style.willChange = 'transform, opacity' })
 
-  if (kicker) tl.to(kicker, { opacity: 1, y: 0, duration: 0.7 }, 0.05)
+  const tl = gsap.timeline({
+    defaults: { ease: 'power3.out', force3D: true },
+    delay: seedDelay,
+    onComplete: () => {
+      animating.forEach((node) => { node.style.willChange = 'auto' })
+      gsap.set(animating, { clearProps: 'willChange' })
+    },
+  })
+  gsap.set([kicker, body, cta, cue].filter(Boolean), { autoAlpha: 0, y: 28 })
+  // Soft blur only on display lines — cleared after tween to drop paint cost
+  gsap.set(lines, { autoAlpha: 0, y: 56, filter: 'blur(8px)' })
+
+  if (kicker) tl.to(kicker, { autoAlpha: 1, y: 0, duration: 0.7 }, 0.05)
   if (lines.length) {
     tl.to(lines, {
-      opacity: 1, y: 0, filter: 'blur(0px)', duration: 1.05, stagger: 0.12,
+      autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 1.05, stagger: 0.12,
     }, 0.18)
   }
-  if (body) tl.to(body, { opacity: 1, y: 0, duration: 0.8 }, 0.55)
-  if (cta) tl.to(cta, { opacity: 1, y: 0, duration: 0.7 }, 0.72)
-  if (cue) tl.to(cue, { opacity: 0.7, y: 0, duration: 0.6 }, 0.95)
+  if (body) tl.to(body, { autoAlpha: 1, y: 0, duration: 0.8 }, 0.55)
+  if (cta) tl.to(cta, { autoAlpha: 1, y: 0, duration: 0.7 }, 0.72)
+  if (cue) tl.to(cue, { autoAlpha: 0.7, y: 0, duration: 0.6 }, 0.95)
+  tl.add(() => {
+    gsap.set(lines, { clearProps: 'filter' })
+  })
 
-  return () => { tl.kill() }
+  return () => {
+    tl.kill()
+    animating.forEach((node) => { node.style.willChange = 'auto' })
+  }
 }
 
 /** Preloader choreography → callback */
@@ -130,13 +189,14 @@ export function playBootSequence(root, { onDone, reduced, duration = 2.1 } = {})
   const bar = root.querySelector('[data-boot-bar]')
 
   const tl = gsap.timeline({
+    defaults: { force3D: true },
     onComplete: () => onDone?.(),
   })
-  gsap.set([brand, meta].filter(Boolean), { opacity: 0, y: 20 })
+  gsap.set([brand, meta].filter(Boolean), { autoAlpha: 0, y: 20 })
   if (bar) gsap.set(bar, { scaleX: 0, transformOrigin: 'left' })
 
-  if (brand) tl.to(brand, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 0.1)
-  if (meta) tl.to(meta, { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out' }, 0.35)
+  if (brand) tl.to(brand, { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 0.1)
+  if (meta) tl.to(meta, { autoAlpha: 1, y: 0, duration: 0.55, ease: 'power2.out' }, 0.35)
   if (bar) tl.to(bar, { scaleX: 1, duration: duration * 0.55, ease: 'power2.inOut' }, 0.2)
   if (panels.length) {
     tl.to(panels, {
@@ -146,35 +206,40 @@ export function playBootSequence(root, { onDone, reduced, duration = 2.1 } = {})
       ease: 'power4.inOut',
     }, duration * 0.55)
   }
-  tl.to(root, { opacity: 0, duration: 0.45, ease: 'power2.inOut' }, '-=0.15')
+  tl.to(root, { autoAlpha: 0, duration: 0.45, ease: 'power2.inOut' }, '-=0.15')
 
   return () => { tl.kill() }
 }
 
-/** Section reveal — word/line stagger with accessible unsplit twin */
+/** Section reveal — transform + autoAlpha stagger; once + kill when done */
 export function revealOnScroll(el, { reduced } = {}) {
   if (!el) return () => {}
   if (reduced) {
-    gsap.set(el, { opacity: 1, y: 0 })
+    gsap.set(el, { autoAlpha: 1, y: 0 })
     return () => {}
   }
   const parts = el.querySelectorAll('[data-reveal]')
-  gsap.set(parts.length ? parts : el, { opacity: 0, y: 36 })
+  const targets = parts.length ? parts : el
+  gsap.set(targets, { autoAlpha: 0, y: 36 })
   const st = ScrollTrigger.create({
     trigger: el,
     start: 'top 82%',
     once: true,
     onEnter: () => {
-      gsap.to(parts.length ? parts : el, {
-        opacity: 1,
+      gsap.to(targets, {
+        autoAlpha: 1,
         y: 0,
         duration: 0.9,
         stagger: 0.08,
         ease: 'power3.out',
+        force3D: true,
+        onComplete: () => {
+          gsap.set(targets, { clearProps: 'willChange' })
+        },
       })
     },
   })
   return () => st.kill()
 }
 
-export { gsap, ScrollTrigger }
+export { gsap, ScrollTrigger, ScrollToPlugin }

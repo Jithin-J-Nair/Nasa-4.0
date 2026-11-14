@@ -90,6 +90,21 @@ img, svg { display: block; max-width: 100%; }
   position: relative;
   z-index: 2;
 }
+/* Below-fold sections: skip paint/layout work until near viewport (content unchanged) */
+.sf-chapters .section:not(.hero):not(.location-atlas) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
+}
+.fleet-card,
+.archive-card,
+.heartbeat-cell {
+  contain: content;
+}
+.nav,
+.continuum-canvas,
+.atlas-overlay--hud {
+  contain: layout style;
+}
 .sf-veil {
   position: fixed;
   inset: 0;

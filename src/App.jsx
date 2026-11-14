@@ -18,7 +18,7 @@ import { preloadContinuumModule, preloadCriticalMoon, preloadPlanetTextures } fr
 import { GLOBAL_CSS } from './styles/global.css.js'
 import {
   createScrollEngine, destroyScrollEngine, scrollToHash, playHeroIntro, playBootSequence,
-  revealOnScroll,
+  revealOnScroll, scheduleScrollRefresh,
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
 import {
@@ -998,8 +998,8 @@ export default function App() {
   const mobile = useMediaQuery('(max-width: 768px)')
   const reduced = usePrefersReduced()
   const { scrollYProgress } = useScroll()
-  // One continuous scroll curve — never remap mid-flight (that caused the moon glitch)
-  const smoothProgress = useSpring(scrollYProgress, { stiffness: 70, damping: 28, mass: 0.95 })
+  // Soft spring — lower work per frame while staying continuous with Lenis
+  const smoothProgress = useSpring(scrollYProgress, { stiffness: 48, damping: 26, mass: 0.85 })
 
   useEffect(() => {
     const style = document.createElement('style')
@@ -1068,7 +1068,14 @@ export default function App() {
     createScrollEngine()
     // Warm session seed so reload variance is live
     getSessionSeed()
-    return () => destroyScrollEngine()
+    // Continuum + fonts shift layout after boot — one debounced ST refresh
+    scheduleScrollRefresh(200)
+    const onLoad = () => scheduleScrollRefresh(80)
+    window.addEventListener('load', onLoad)
+    return () => {
+      window.removeEventListener('load', onLoad)
+      destroyScrollEngine()
+    }
   }, [booting])
 
   const onBootDone = useCallback(() => {

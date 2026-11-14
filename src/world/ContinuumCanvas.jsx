@@ -1403,9 +1403,17 @@ export default function ContinuumCanvas({
   onHotspotOpen,
 }) {
   // Keep rendering during boot so textures upload + FilmDirector places the Moon
-  // behind the preloader. Demand mode only for reduced-motion (was the refresh bug).
+  // behind the preloader. Demand mode for reduced-motion + when the tab is hidden.
   void active
-  const frameloop = reduced ? 'demand' : 'always'
+  const [pageVisible, setPageVisible] = useState(
+    () => (typeof document === 'undefined' ? true : document.visibilityState !== 'hidden'),
+  )
+  useEffect(() => {
+    const onVis = () => setPageVisible(document.visibilityState !== 'hidden')
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [])
+  const frameloop = reduced || !pageVisible ? 'demand' : 'always'
   const [atlasDragging, setAtlasDragging] = useState(false)
   const onAtlasDraggingChange = useCallback((on) => {
     setAtlasDragging(!!on)
@@ -1422,7 +1430,7 @@ export default function ContinuumCanvas({
       aria-hidden={!hotspotsInteractive}
     >
       <Canvas
-        dpr={mobile ? [1, 1.3] : [1, 1.65]}
+        dpr={mobile ? [1, 1.25] : [1, 1.5]}
         camera={{ position: [0, 0.02, 6.8], fov: 36, near: 0.04, far: 220 }}
         gl={{
           antialias: !mobile,
