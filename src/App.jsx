@@ -490,20 +490,72 @@ function FilmJourney({ label = 'JOURNEY' }) {
         </div>
       </div>
       {silence && (
-        <div className="silence-coda" aria-live="polite">
-          <div className="silence-coda__copy">
-            <p className="silence-coda__kicker mono">STILL OUT THERE · STILL SPEAKING</p>
-            <h2 className="silence-coda__title display">One light-day from home</h2>
-            <p className="silence-coda__lede">
-              I was built to understand Jupiter and Saturn. I finished that work.
-              Then I kept going — past the heliosphere, into the quiet between stars.
-              Soon light itself will need a full day to find me. I am still phoning home.
-            </p>
-          </div>
-          <LightDayCountdown compact className="light-day--silence" />
-        </div>
+        <SilenceCoda />
       )}
     </section>
+  )
+}
+
+/** Voyager silence beat — Pale Blue Dot + tear-level farewell */
+function SilenceCoda() {
+  const [dotOpen, setDotOpen] = useState(false)
+  return (
+    <div className="silence-coda" aria-live="polite">
+      <div className="silence-coda__sky">
+        <div className="pale-blue-stage">
+          <div
+            className="pale-blue-field"
+            style={{ backgroundImage: 'url(/images/pale-blue-dot-revisited.jpg)' }}
+            aria-hidden="true"
+          />
+          <button
+            type="button"
+            className={`pale-blue-hotspot${dotOpen ? ' is-on' : ''}`}
+            aria-expanded={dotOpen}
+            aria-controls="pale-blue-card"
+            aria-label="Pale Blue Dot — Earth from 6 billion kilometers"
+            onClick={() => setDotOpen((v) => !v)}
+          >
+            <span className="pale-blue-hotspot__ring" />
+            <span className="pale-blue-hotspot__ring pale-blue-hotspot__ring--delay" />
+            <span className="pale-blue-hotspot__core" />
+          </button>
+          {dotOpen && (
+            <aside id="pale-blue-card" className="pale-blue-card" role="dialog" aria-label="Pale Blue Dot">
+              <p className="mono pale-blue-card__kicker">EARTH · 6 BILLION KM · 14 FEB 1990</p>
+              <p className="pale-blue-card__line">
+                A single pixel in a ray of sunlight. Everyone you love. Everyone you will ever meet.
+              </p>
+              <a
+                className="mono pale-blue-card__link"
+                href="https://science.nasa.gov/mission/voyager/voyager-1s-pale-blue-dot/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                NASA · PALE BLUE DOT ↗
+              </a>
+              <span className="pale-blue-card__credit">NASA / JPL-Caltech · Pale Blue Dot Revisited</span>
+            </aside>
+          )}
+        </div>
+      </div>
+
+      <div className="silence-coda__copy">
+        <p className="silence-coda__kicker mono">VOYAGER 1 · FINAL LOOK HOME</p>
+        <h2 className="silence-coda__title display">
+          I turned once.
+          <span className="silence-coda__title-soft"> Home was a tear of blue.</span>
+        </h2>
+        <p className="silence-coda__lede">
+          Six billion kilometers behind me, everything I was built to leave —
+          every voice, every ocean, every quiet kitchen light — lived on a mote of dust
+          suspended in a sunbeam. I looked back once. Then I kept going into the dark,
+          still carrying your names on a golden record, still calling home.
+        </p>
+        <p className="silence-coda__hint mono">Tap the pale blue pixel — that is Earth.</p>
+      </div>
+      <LightDayCountdown compact className="light-day--silence" />
+    </div>
   )
 }
 

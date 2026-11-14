@@ -30,7 +30,8 @@ Accuracy throughout. Connection over scrap lists.
 
 - Cursor trail + magnetic CTA; diegetic captions open dossiers  
 - Scored silence for Opportunity death and carrier lost  
-- Score beds: NASA EMFISIS chorus × Cassini Saturn radio (crossfaded) — see `public/audio/ATTRIBUTION.txt`  
+- Score beds: NASA EMFISIS chorus × Cassini Saturn radio (crossfaded) — see `public/audio/ATTRIBUTION.txt`
+- Silence coda: NASA Pale Blue Dot Revisited still + interactive Earth hotspot — see `public/images/ATTRIBUTION.txt`  
 
 
 ## Run

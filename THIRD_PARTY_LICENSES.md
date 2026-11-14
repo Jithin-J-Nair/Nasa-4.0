@@ -24,6 +24,7 @@ Original Silent Fleet code is Apache-2.0 (`LICENSE`).
 | Moon CGI reference | NASA SVS CGI Moon Kit (4720) | See `public/textures/ATTRIBUTION.txt` |
 | Voyager.glb | NASA VTAD | `public/models/ATTRIBUTION.txt` |
 | Score beds | EMFISIS chorus · Cassini Saturn radio | `public/audio/ATTRIBUTION.txt` — NASA Media Usage Guidelines; no endorsement implied |
+| Pale Blue Dot Revisited | NASA / JPL-Caltech · Voyager 1 | `public/images/ATTRIBUTION.txt` — NASA Media Usage Guidelines; no endorsement implied |
 
 ## Proprietary free (not OSI) — documented risk
 

@@ -1076,7 +1076,7 @@ function FilmDirector({
   marsLock = false,
   focusSiteId = null,
 }) {
-  const { camera, gl, scene } = useThree()
+  const { camera, gl, scene, size } = useThree()
   const look = useMemo(() => new THREE.Vector3(), [])
   const desired = useMemo(() => new THREE.Vector3(), [])
   const inertia = useInertiaPointer(mouse, reduced)
@@ -1084,7 +1084,8 @@ function FilmDirector({
   const atlasBlend = useRef(0)
   const filmP = useRef(0)
   const moonPos = useRef(new THREE.Vector3(0, 0, 0))
-  const moonScale = useRef(1.66)
+  // Start closer to framed arrival scale so first paint isn't an overfilled disc
+  const moonScale = useRef(mobile ? 1.22 : 1.42)
   const atlasAimLon = useRef(null)
   const marsAimLon = useRef(null)
   const marsHemi = useRef(0)
@@ -1273,13 +1274,22 @@ function FilmDirector({
         ? lerp(sample.look[0], 1.28, hemi)
         : lookBaseX
 
+    // Portrait / narrow viewports crush horizontal FOV — without a Z pullback the
+    // Moon overfills the frame (dark_frac≈0) and reads as a flat crater photo.
+    const lunarBreathing = (f === 'moon' || f === 'dive') && !marsStageLock
+    const aspect = Math.max(0.35, Math.min(2.4, size?.width && size?.height ? size.width / size.height : 1))
+    const narrow = aspect < 0.72 || mobile
+    const moonZBoost = lunarBreathing
+      ? (narrow ? lerp(1.55, 2.35, clamp((0.72 - aspect) / 0.37, 0, 1)) : 0.55)
+      : 0
+
     if (marsStageLock) {
       desired.set(0.55 + mx * 0.12, 0.1 - my * 0.35, 4.7)
     } else {
       desired.set(
         moonLock ? 0 : sample.cam[0] + mx,
         sample.cam[1] - my,
-        sample.cam[2],
+        sample.cam[2] + moonZBoost,
       )
     }
 
@@ -1295,7 +1305,8 @@ function FilmDirector({
     camera.position.z = lerp(camera.position.z, desired.z, damp)
 
     if ('fov' in camera) {
-      const targetFov = marsStageLock ? 33 : sample.fov
+      const lunarFovLift = lunarBreathing && narrow ? (mobile ? 7.5 : 4.5) : (lunarBreathing ? 2 : 0)
+      const targetFov = marsStageLock ? 33 : sample.fov + lunarFovLift
       const fovDamp = reduced
         ? Math.min(0.28, shotFovDamp * 2.2)
         : Math.min(0.2, shotFovDamp * (transit ? 0.62 : 1))
@@ -1325,11 +1336,12 @@ function FilmDirector({
       if (f === 'moon' || f === 'dive') {
         const arrival = sample.act?.id === 'hero'
         const nearPass = sample.act?.id === 'crater_dive'
-        // Globe only — centered; near-pass eases in slightly larger scale (no mesh floor)
+        // Keep circular limbs + starfield — never let the disc become a flat fill
+        const slim = mobile ? 0.82 : 0.94
         if (nearPass) {
-          targetScale = lerp(1.88, 2.42, sample.event.dive)
+          targetScale = lerp(1.55, 1.78, sample.event.dive) * slim
         } else {
-          targetScale = arrival ? lerp(1.62, 1.72, sample.eased) : lerp(1.72, 1.88, sample.eased)
+          targetScale = (arrival ? lerp(1.38, 1.48, sample.eased) : lerp(1.46, 1.58, sample.eased)) * slim
         }
         tx = 0
         ty = 0
@@ -1337,7 +1349,7 @@ function FilmDirector({
       } else if (transit && journey.moonPresence > 0.01) {
         // Soft fade-recede along the corridor — longer arc, no pop
         const exit = easeInOutCubic(journey.moonExit)
-        targetScale = lerp(1.88, 0.04, exit)
+        targetScale = lerp(mobile ? 1.52 : 1.72, 0.04, exit)
         tx = lerp(0, -1.15, exit)
         ty = lerp(0, 0.18, exit)
         tz = lerp(0, -4.4, exit)

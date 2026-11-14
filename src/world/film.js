@@ -183,8 +183,8 @@ export const ACTS = [
     label: 'ARRIVAL',
     range: [0.0, 0.09],
     ease: easeHold,
-    // Moon dead-center — equal starfield both limbs
-    cam: { from: [0, 0.02, 6.8], to: [0, 0.02, 6.4], look: [0, 0, 0], fov: [36, 34] },
+    // Moon dead-center — equal starfield both limbs (Z kept back so portrait never overfills)
+    cam: { from: [0, 0.02, 7.6], to: [0, 0.02, 7.15], look: [0, 0, 0], fov: [38, 36] },
     grade: { lift: [0.01, 0.015, 0.04], gain: [1.05, 1.06, 1.1], exposure: 1.12, grain: 0.028 },
     event: { dive: 0, storm: 0, carrier: 0, warp: 0.02 },
     dark: 0,
@@ -201,7 +201,7 @@ export const ACTS = [
     range: [0.09, 0.18],
     ease: easeInOutCubic,
     // Slight centered zoom only — limbs stay visible both sides
-    cam: { from: [0, 0.02, 6.4], to: [0, 0.02, 5.15], look: [0, 0, 0], fov: [34, 31] },
+    cam: { from: [0, 0.02, 7.15], to: [0, 0.02, 6.35], look: [0, 0, 0], fov: [36, 34] },
     grade: { lift: [0.015, 0.02, 0.045], gain: [1.04, 1.05, 1.1], exposure: 1.02, grain: 0.04 },
     event: { dive: 0, storm: 0, carrier: 0, warp: 0.06 },
     dark: 0.04,
@@ -212,14 +212,14 @@ export const ACTS = [
     lookId: 'lunar_steel',
   },
   {
-    // Soft lunar settle before Journey — no smash zoom
+    // Soft lunar settle before Journey — no smash zoom / no full-frame fill
     id: 'crater_dive',
     label: 'NEAR PASS',
     range: [0.18, 0.28],
     ease: easeInOutCubic,
-    cam: { from: [0, 0.02, 5.15], to: [0, 0.02, 5.35], look: [0, 0, 0], fov: [31, 33] },
+    cam: { from: [0, 0.02, 6.35], to: [0, 0.02, 6.55], look: [0, 0, 0], fov: [34, 35] },
     grade: { lift: [0.02, 0.025, 0.045], gain: [0.98, 1.0, 1.05], exposure: 0.98, grain: 0.05 },
-    event: { dive: 0.22, storm: 0, carrier: 0, warp: 0.12 },
+    event: { dive: 0.14, storm: 0, carrier: 0, warp: 0.12 },
     dark: 0.1,
     fog: [16, 78],
     focus: 'moon',
@@ -232,7 +232,7 @@ export const ACTS = [
     label: 'JOURNEY',
     range: [0.28, 0.52],
     ease: easeCinematic,
-    cam: { from: [0, 0.02, 5.35], to: [0.55, 0.1, 4.7], look: [1.28, 0.06, -0.4], fov: [33, 33] },
+    cam: { from: [0, 0.02, 6.55], to: [0.55, 0.1, 4.7], look: [1.28, 0.06, -0.4], fov: [35, 33] },
     grade: { lift: [0.02, 0.02, 0.05], gain: [1.0, 1.0, 1.08], exposure: 0.9, grain: 0.05 },
     event: { dive: 0.05, storm: 0, carrier: 0, warp: 0.72 },
     dark: 0.18,

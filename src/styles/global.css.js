@@ -367,17 +367,141 @@ img, svg { display: block; max-width: 100%; }
     clamp(1.4rem, 4vh, 2.4rem)
     clamp(1rem, 4vw, 2.5rem);
   background:
-    linear-gradient(90deg, rgba(3, 4, 10, 0.55) 0%, transparent 42%),
-    linear-gradient(0deg, rgba(3, 4, 10, 0.72) 0%, transparent 38%);
+    linear-gradient(90deg, rgba(3, 4, 10, 0.62) 0%, transparent 48%),
+    linear-gradient(0deg, rgba(3, 4, 10, 0.78) 0%, transparent 42%);
 }
 .journey-spacer.is-silence-live .journey-hud {
   opacity: 0;
   visibility: hidden;
 }
+.silence-coda__sky {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+/* NASA still rides the upper sky — hotspot % matches Earth pixel in the image */
+.pale-blue-stage {
+  position: absolute;
+  top: clamp(4%, 6vh, 10%);
+  right: clamp(1%, 3vw, 5%);
+  width: min(58vw, 720px);
+  aspect-ratio: 1600 / 1583;
+  max-height: min(56vh, 540px);
+  pointer-events: none;
+  filter: drop-shadow(0 0 48px rgba(90, 140, 220, 0.18));
+}
+.pale-blue-field {
+  position: absolute;
+  inset: -8%;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.92;
+  filter: saturate(1.05) contrast(1.18) brightness(0.95);
+  /* Soft vignette only — no hard rectangular plate */
+  mask-image: radial-gradient(ellipse 70% 68% at 58% 50%, #000 12%, rgba(0,0,0,0.85) 42%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 68% at 58% 50%, #000 12%, rgba(0,0,0,0.85) 42%, transparent 72%);
+}
+.pale-blue-hotspot {
+  pointer-events: auto;
+  position: absolute;
+  /* Earth speck in Pale Blue Dot Revisited (~59.5% × 52%) */
+  top: 52%;
+  left: 59.5%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 3;
+}
+.pale-blue-hotspot__core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: #c8e4ff;
+  box-shadow:
+    0 0 0 1.5px rgba(230, 245, 255, 0.95),
+    0 0 14px 4px rgba(140, 200, 255, 0.85),
+    0 0 40px 12px rgba(100, 170, 255, 0.45);
+}
+.pale-blue-hotspot__ring {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 1px solid rgba(142, 200, 255, 0.55);
+  animation: paleBluePulse 2.8s ease-out infinite;
+}
+.pale-blue-hotspot__ring--delay {
+  animation-delay: 1.1s;
+}
+.pale-blue-hotspot.is-on .pale-blue-hotspot__core {
+  background: #e8f3ff;
+  box-shadow:
+    0 0 0 1px #fff,
+    0 0 14px 3px rgba(160, 210, 255, 0.85),
+    0 0 36px 8px rgba(100, 170, 255, 0.4);
+}
+@keyframes paleBluePulse {
+  0% { transform: scale(0.45); opacity: 0.8; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+.pale-blue-card {
+  pointer-events: auto;
+  position: absolute;
+  top: 58%;
+  left: 8%;
+  width: min(280px, 90%);
+  padding: 0.85rem 0.95rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid rgba(142, 200, 255, 0.22);
+  background: rgba(5, 8, 16, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 22px 48px -24px rgba(0, 0, 0, 0.9);
+  z-index: 4;
+}
+.pale-blue-card__kicker {
+  margin: 0 0 0.45rem;
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  color: rgba(142, 200, 255, 0.8);
+}
+.pale-blue-card__line {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: rgba(232, 238, 245, 0.9);
+}
+.pale-blue-card__link {
+  display: inline-block;
+  margin-top: 0.7rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: var(--ice);
+}
+.pale-blue-card__credit {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
+}
 .silence-coda__copy {
-  max-width: min(34rem, 52vw);
+  position: relative;
+  z-index: 2;
+  max-width: min(36rem, 54vw);
   align-self: center;
-  margin-top: -6vh;
+  margin-top: -4vh;
+  pointer-events: none;
 }
 .silence-coda__kicker {
   margin: 0 0 0.55rem;
@@ -387,18 +511,29 @@ img, svg { display: block; max-width: 100%; }
 }
 .silence-coda__title {
   margin: 0;
-  font-size: clamp(1.85rem, 4.6vw, 3.35rem);
-  letter-spacing: -0.035em;
+  font-size: clamp(1.95rem, 5vw, 3.55rem);
+  letter-spacing: -0.04em;
   line-height: 1.02;
   color: #f2f6fb;
-  text-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
+  text-shadow: 0 18px 48px rgba(0, 0, 0, 0.72);
+}
+.silence-coda__title-soft {
+  display: inline;
+  color: rgba(180, 210, 255, 0.92);
+  font-weight: 600;
 }
 .silence-coda__lede {
+  margin: 0.95rem 0 0;
+  max-width: 40ch;
+  font-size: clamp(0.95rem, 1.55vw, 1.08rem);
+  line-height: 1.6;
+  color: rgba(200, 210, 225, 0.82);
+}
+.silence-coda__hint {
   margin: 0.85rem 0 0;
-  max-width: 38ch;
-  font-size: clamp(0.92rem, 1.5vw, 1.05rem);
-  line-height: 1.55;
-  color: rgba(200, 210, 225, 0.78);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  color: rgba(142, 200, 255, 0.55);
 }
 .light-day--silence {
   pointer-events: auto;
@@ -418,11 +553,28 @@ img, svg { display: block; max-width: 100%; }
     align-items: stretch;
     justify-content: flex-end;
     gap: 0.75rem;
-    /* Upper half reserved for Voyager — copy locked to the lower band */
+    /* Upper half reserved for Voyager + Pale Blue Dot — copy locked to the lower band */
     padding-top: 52svh;
     padding-bottom: max(5.5rem, calc(env(safe-area-inset-bottom) + 4.5rem));
     background:
-      linear-gradient(0deg, rgba(3, 4, 10, 0.88) 0%, rgba(3, 4, 10, 0.55) 32%, rgba(3, 4, 10, 0.18) 48%, transparent 62%);
+      linear-gradient(0deg, rgba(3, 4, 10, 0.9) 0%, rgba(3, 4, 10, 0.58) 34%, rgba(3, 4, 10, 0.2) 50%, transparent 64%);
+  }
+  .pale-blue-stage {
+    top: 6%;
+    right: 50%;
+    transform: translateX(50%);
+    width: min(92vw, 440px);
+    max-height: 36vh;
+  }
+  .pale-blue-field {
+    opacity: 0.88;
+  }
+  .pale-blue-card {
+    top: auto;
+    bottom: -4%;
+    left: 50%;
+    transform: translate(-50%, 100%);
+    width: min(290px, 86vw);
   }
   .silence-coda__copy {
     max-width: none;
