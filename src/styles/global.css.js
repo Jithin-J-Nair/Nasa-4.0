@@ -426,6 +426,27 @@ img, svg { display: block; max-width: 100%; }
 .sf-cursor.has-label .ring { opacity: 0; }
 .sf-cursor.has-label .label { opacity: 1; scale: 1; }
 
+.nav-brand-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.nav-atlas-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(0.72rem, 1.4vw, 0.95rem);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--ink);
+  text-shadow: 0 6px 18px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+}
+.nav-atlas-heading .outline-text {
+  -webkit-text-stroke: 1px rgba(232, 238, 245, 0.7);
+}
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   height: var(--nav-h);
@@ -631,6 +652,7 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   background: transparent;
   overflow: hidden;
   pointer-events: none;
+  scroll-margin-top: var(--nav-h);
 }
 .atlas-overlay {
   max-width: min(460px, 92vw);
@@ -638,29 +660,13 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   flex-direction: column;
   gap: 0.85rem;
 }
-.atlas-overlay--flow {
-  position: relative;
-  z-index: 2;
-  padding-top: 0.5rem;
-  transition: opacity 180ms ease;
-}
-.location-atlas.is-locked .atlas-overlay--flow {
-  opacity: 0;
-}
 .atlas-overlay--hud {
   position: fixed;
-  top: calc(var(--nav-h) + 0.75rem);
+  top: calc(var(--nav-h) + 0.85rem);
   left: clamp(1.25rem, 5vw, 5rem);
-  z-index: 8;
+  z-index: 95;
   max-width: min(420px, 86vw);
   pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 220ms ease, visibility 220ms ease;
-}
-.atlas-overlay--hud.is-on {
-  opacity: 1;
-  visibility: visible;
 }
 .atlas-heading {
   flex: 0 0 auto;

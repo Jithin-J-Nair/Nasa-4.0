@@ -17,7 +17,7 @@ import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
 import { preloadContinuumModule, preloadCriticalMoon, preloadPlanetTextures } from './world/preloadTextures'
 import { GLOBAL_CSS } from './styles/global.css.js'
 import {
-  createScrollEngine, destroyScrollEngine, playHeroIntro, playBootSequence,
+  createScrollEngine, destroyScrollEngine, scrollToHash, playHeroIntro, playBootSequence,
   revealOnScroll,
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
@@ -281,14 +281,21 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
   )
 }
 
-function Nav({ progress }) {
+function Nav({ progress, onNavAtlas }) {
   const scaleX = useSpring(progress, { stiffness: 90, damping: 24 })
   return (
     <nav className="nav" aria-label="Primary">
       <a href="#top" className="nav-brand" aria-label="Silent Fleet home">SILENT FLEET</a>
       <div className="nav-links">
         <a href="#objective">OBJECTIVE</a>
-        <a href="#atlas">ATLAS</a>
+        <a
+          href="#atlas"
+          onClick={(e) => {
+            onNavAtlas?.(e)
+          }}
+        >
+          ATLAS
+        </a>
         <a href="#journey">JOURNEY</a>
         <a href="#recover">RECOVER</a>
         <a href="#fleet">FLEET</a>
@@ -538,16 +545,16 @@ function Heartbeats({ onOpen, reduced }) {
   )
 }
 
-/** Fixed copy — always above Continuum while Atlas is locked (moon may animate under it) */
+/** Full Atlas copy — fixed under SILENT FLEET, above the moon canvas */
 function AtlasTitleHud({ active }) {
+  if (!active) return null
   return (
     <div
-      className={`atlas-overlay atlas-overlay--hud ${active ? 'is-on' : ''}`}
-      role="presentation"
-      aria-hidden={!active}
+      className="atlas-overlay atlas-overlay--hud is-on"
+      style={{ opacity: 1, visibility: 'visible', zIndex: 95 }}
     >
       <header className="atlas-heading">
-        <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={!!active} /></p>
+        <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active /></p>
         <h2 className="display atlas-title">
           Where they<br /><span className="outline-text">still sit</span>
         </h2>
@@ -560,7 +567,7 @@ function AtlasTitleHud({ active }) {
   )
 }
 
-function LocationAtlas({ locked = false, onActiveChange, onFocusSite, onCardSite, cardSiteId }) {
+function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) {
   const sectionRef = useRef(null)
 
   useEffect(() => {
@@ -569,7 +576,8 @@ function LocationAtlas({ locked = false, onActiveChange, onFocusSite, onCardSite
     let wasOn = false
     const io = new IntersectionObserver(
       ([entry]) => {
-        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.35
+        // Any meaningful intersection locks Atlas (nav jump + scroll)
+        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.15
         onActiveChange?.(on)
         if (on && !wasOn) {
           onFocusSite?.('a11-lm')
@@ -578,7 +586,7 @@ function LocationAtlas({ locked = false, onActiveChange, onFocusSite, onCardSite
         if (!on && wasOn) onCardSite?.(null)
         wasOn = on
       },
-      { threshold: [0.2, 0.35, 0.5, 0.7], rootMargin: '0px' },
+      { threshold: [0, 0.15, 0.35, 0.55, 0.75], rootMargin: '0px' },
     )
     io.observe(el)
     return () => io.disconnect()
@@ -591,25 +599,14 @@ function LocationAtlas({ locked = false, onActiveChange, onFocusSite, onCardSite
   return (
     <section
       ref={sectionRef}
-      className={`section location-atlas body-moon ${locked ? 'is-locked' : ''}`}
+      className="section location-atlas body-moon"
       id="atlas"
       aria-label="Hardware locations"
     >
       <span className="section-rail">02B · ATLAS</span>
       <span className="section-num" aria-hidden>LOC</span>
-      {/* In-flow title — always present when you scroll here; HUD takes over once locked */}
-      <div className="atlas-overlay atlas-overlay--flow" aria-hidden={locked}>
-        <header className="atlas-heading">
-          <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={!locked} /></p>
-          <h2 className="display atlas-title">
-            Where they<br /><span className="outline-text">still sit</span>
-          </h2>
-          <p className="atlas-lede">
-            Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
-            Hover a hotspot on the Moon for the NASA image and exact location.
-          </p>
-        </header>
-      </div>
+      {/* Scroll target + SEO; visible title is AtlasTitleHud under SILENT FLEET */}
+      <h2 className="sr-only">Where they still sit</h2>
     </section>
   )
 }
@@ -1042,6 +1039,15 @@ export default function App() {
     if (!on) setCardSiteId(null)
   }, [])
 
+  const onNavAtlas = useCallback((e) => {
+    e.preventDefault()
+    setAtlasLock(true)
+    setFocusSiteId('a11-lm')
+    setCardSiteId('a11-lm')
+    scrollToHash('#atlas')
+    history.replaceState(null, '', '#atlas')
+  }, [])
+
   const onFocusSite = useCallback((id) => {
     if (id) setFocusSiteId(id)
   }, [])
@@ -1162,9 +1168,9 @@ export default function App() {
             />
           )}
 
-          <Nav progress={smoothProgress} />
+          <Nav progress={smoothProgress} onNavAtlas={onNavAtlas} />
 
-          {/* Above Continuum (z=3) so the title stays while moon/hotspots animate */}
+          {/* Fixed under SILENT FLEET — z above Continuum hotspots */}
           <AtlasTitleHud active={atlasLock} />
 
           <button

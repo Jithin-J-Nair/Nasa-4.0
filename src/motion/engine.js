@@ -56,6 +56,20 @@ export function createScrollEngine({ onScroll } = {}) {
   }
 }
 
+/** Smooth-scroll to a hash target (nav links) via the shared Lenis instance */
+export function scrollToHash(hash, { offset = -72 } = {}) {
+  const id = String(hash || '').replace(/^#/, '')
+  if (!id) return
+  const el = document.getElementById(id)
+  if (!el) return
+  if (lenis) {
+    lenis.scrollTo(el, { offset, immediate: false })
+  } else {
+    const y = el.getBoundingClientRect().top + window.scrollY + offset
+    window.scrollTo({ top: y, behavior: 'smooth' })
+  }
+}
+
 export function destroyScrollEngine() {
   if (createScrollEngine._tick && tickerBound) {
     gsap.ticker.remove(createScrollEngine._tick)
