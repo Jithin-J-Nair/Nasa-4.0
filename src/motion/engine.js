@@ -40,14 +40,14 @@ export function createScrollEngine({ onScroll } = {}) {
     return { lenis: null, refresh: () => ScrollTrigger.refresh() }
   }
 
-  // Lerp-based Lenis = buttery, stable 60fps feel (duration mode felt heavier)
+  // Softer lerp for one continuous Objective→Fleet plate (graphic-architect pacing)
   lenis = new Lenis({
-    lerp: 0.085,
+    lerp: 0.072,
     smoothWheel: true,
-    wheelMultiplier: 0.92,
-    touchMultiplier: 1.15,
+    wheelMultiplier: 0.88,
+    touchMultiplier: 1.12,
     syncTouch: false,
-    syncTouchLerp: 0.075,
+    syncTouchLerp: 0.07,
     autoResize: true,
   })
 

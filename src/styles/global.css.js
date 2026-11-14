@@ -90,8 +90,9 @@ img, svg { display: block; max-width: 100%; }
   position: relative;
   z-index: 2;
 }
-/* Below-fold sections: skip paint/layout work until near viewport (content unchanged) */
-.sf-chapters .section:not(.hero):not(.location-atlas) {
+/* Archive+ only — never content-visibility inside the continuous story plate */
+.sf-chapters > .section#archive,
+.sf-chapters > .footer {
   content-visibility: auto;
   contain-intrinsic-size: auto 720px;
 }
@@ -104,6 +105,63 @@ img, svg { display: block; max-width: 100%; }
 .continuum-canvas,
 .atlas-overlay--hud {
   contain: layout style;
+}
+
+/* ─── Story plate: Objective → Fleet as one continuous scroll surface ─── */
+.story-plate {
+  position: relative;
+  isolation: isolate;
+  /* Shared atmosphere so chapter rails don’t read as hard walls */
+  background:
+    linear-gradient(180deg,
+      transparent 0%,
+      rgba(3, 3, 10, 0.12) 8%,
+      transparent 22%,
+      transparent 78%,
+      rgba(3, 3, 10, 0.18) 100%);
+}
+.story-plate > .section,
+.story-plate > .heartbeats,
+.story-plate > .journey-spacer,
+.story-plate > .location-atlas {
+  /* Kill the generic section opacity tween that makes chapters “load in” */
+  transition: none;
+  content-visibility: visible;
+}
+.story-seam {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  height: clamp(3.5rem, 10vh, 7rem);
+  margin: 0;
+}
+.story-seam--into-atlas {
+  height: clamp(5rem, 14vh, 9rem);
+  margin-top: clamp(-3rem, -8vh, -1.5rem);
+  background: linear-gradient(
+    180deg,
+    rgba(3, 3, 8, 0.42) 0%,
+    rgba(3, 3, 8, 0.12) 42%,
+    transparent 100%
+  );
+}
+.story-seam--into-film {
+  height: clamp(4rem, 11vh, 7.5rem);
+  margin-bottom: clamp(-2rem, -5vh, -0.5rem);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(3, 3, 8, 0.2) 55%,
+    rgba(3, 3, 8, 0.45) 100%
+  );
+}
+.story-seam--into-recover {
+  height: clamp(3rem, 8vh, 5.5rem);
+  background: linear-gradient(
+    180deg,
+    rgba(3, 3, 8, 0.35) 0%,
+    transparent 100%
+  );
 }
 .sf-veil {
   position: fixed;
@@ -138,6 +196,16 @@ img, svg { display: block; max-width: 100%; }
 .journey-spacer {
   height: 520vh;
   pointer-events: none;
+  position: relative;
+  margin-top: clamp(-2rem, -4vh, 0);
+}
+.story-plate .journey-spacer .section-rail {
+  opacity: 0.45;
+  letter-spacing: 0.28em;
+}
+.story-plate .section-rail {
+  /* Softer rails — chapters whisper, they don’t wall off */
+  opacity: 0.5;
 }
 .chapter-thin {
   padding-top: clamp(3rem, 8vw, 5rem);
@@ -627,9 +695,26 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 }
 .challenge-objective {
   position: relative;
-  padding-top: clamp(4rem, 12vh, 7rem);
-  /* Clear gap before Atlas so Objective plate doesn’t bleed into the moon frame */
-  padding-bottom: clamp(5rem, 18vh, 9rem);
+  padding-top: clamp(3.5rem, 10vh, 6rem);
+  /* Continuous into Atlas — no hard chapter void */
+  padding-bottom: clamp(2rem, 6vh, 3.5rem);
+  margin-bottom: 0;
+}
+.challenge-objective::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: clamp(4rem, 14vh, 8rem);
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(2, 2, 6, 0.22) 55%,
+    rgba(2, 2, 6, 0.55) 100%
+  );
 }
 .objective-grid {
   display: grid;
@@ -672,16 +757,18 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .location-atlas {
   position: relative;
   z-index: 2;
-  min-height: 100vh;
-  min-height: 100dvh;
-  height: 100vh;
-  height: 100dvh;
-  padding: calc(var(--nav-h) + 1.25rem) clamp(1.25rem, 5vw, 5rem) 1.5rem;
+  /* Slightly taller than one viewport so the moon hold feels continuous, not a hard cut */
+  min-height: 118vh;
+  min-height: 118dvh;
+  height: auto;
+  padding: calc(var(--nav-h) + 1.25rem) clamp(1.25rem, 5vw, 5rem) clamp(2rem, 6vh, 4rem);
   box-sizing: border-box;
   background: transparent;
   overflow: hidden;
   pointer-events: none;
   scroll-margin-top: var(--nav-h);
+  /* Pull up into the Objective dissolve so Atlas begins mid-breath */
+  margin-top: clamp(-4rem, -10vh, -2rem);
 }
 .atlas-overlay {
   max-width: min(460px, 92vw);
@@ -1292,7 +1379,14 @@ body.is-coarse .fleet-card { cursor: pointer; }
   margin-top: 2rem;
 }
 .section {
-  transition: opacity 0.6s var(--ease);
+  /* Outside the story plate only — avoid chapter “fade loads” in the continuous flow */
+  transition: none;
+}
+.atlas-overlay--hud {
+  transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.85s;
+}
+.atlas-overlay--hud.is-on {
+  transition: opacity 1.05s cubic-bezier(0.22, 1, 0.36, 1), visibility 1.05s;
 }
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
@@ -1305,7 +1399,19 @@ html.lenis, html.lenis body { height: auto; }
 }
 
 .heartbeats {
+  position: relative;
   padding: clamp(3rem, 8vw, 5rem) clamp(1.25rem, 4vw, 4rem);
+  /* Same horizontal rhythm as Objective / Fleet for one-page continuity */
+  scroll-margin-top: var(--nav-h);
+}
+.story-plate .fleet-section {
+  padding-top: clamp(2.5rem, 7vw, 4.5rem);
+  padding-bottom: clamp(3rem, 8vw, 5rem);
+  scroll-margin-top: var(--nav-h);
+}
+.story-plate .fleet-section .section-num,
+.story-plate .challenge-objective .section-num {
+  opacity: 0.85;
 }
 .heartbeat-row {
   display: grid;

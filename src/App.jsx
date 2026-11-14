@@ -1191,29 +1191,38 @@ export default function App() {
               <Hero ready={ready && !booting} reduced={reduced} onOpen={openDossier} />
             </ErrorBoundary>
 
-            <ErrorBoundary>
-              <ChallengeObjective reduced={reduced} />
-            </ErrorBoundary>
+            {/* One continuous scroll plate — Objective → Fleet reads as a single page */}
+            <div className="story-plate">
+              <ErrorBoundary>
+                <ChallengeObjective reduced={reduced} />
+              </ErrorBoundary>
 
-            <ErrorBoundary>
-              <LocationAtlas
-                locked={atlasLock}
-                onActiveChange={onAtlasActive}
-                onFocusSite={onFocusSite}
-                onCardSite={setCardSiteId}
-                cardSiteId={cardSiteId}
-              />
-            </ErrorBoundary>
+              <div className="story-seam story-seam--into-atlas" aria-hidden />
 
-            <FilmJourney />
+              <ErrorBoundary>
+                <LocationAtlas
+                  locked={atlasLock}
+                  onActiveChange={onAtlasActive}
+                  onFocusSite={onFocusSite}
+                  onCardSite={setCardSiteId}
+                  cardSiteId={cardSiteId}
+                />
+              </ErrorBoundary>
 
-            <ErrorBoundary>
-              <Heartbeats onOpen={openDossier} reduced={reduced} />
-            </ErrorBoundary>
+              <div className="story-seam story-seam--into-film" aria-hidden />
 
-            <ErrorBoundary>
-              <Fleet onOpen={openDossier} />
-            </ErrorBoundary>
+              <FilmJourney />
+
+              <div className="story-seam story-seam--into-recover" aria-hidden />
+
+              <ErrorBoundary>
+                <Heartbeats onOpen={openDossier} reduced={reduced} />
+              </ErrorBoundary>
+
+              <ErrorBoundary>
+                <Fleet onOpen={openDossier} />
+              </ErrorBoundary>
+            </div>
 
             <ErrorBoundary>
               <Archive onOpen={openDossier} />
