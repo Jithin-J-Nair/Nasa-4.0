@@ -11,7 +11,7 @@ import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@re
 import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
 import * as THREE from 'three'
-import { sampleActs, lerp, clamp, smoothstep, easeInOutCubic, easeOutExpo } from './film'
+import { sampleActs, lerp, clamp, smoothstep, easeInOutCubic } from './film'
 import { ATLAS_HOLD_PROGRESS, latLonToLocal, SITE_FOCUS } from './geo'
 import { ARTIFACTS } from '../data/artifacts'
 
