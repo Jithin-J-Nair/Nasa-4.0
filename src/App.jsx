@@ -13,7 +13,7 @@ import {
   useInView, useVelocity, animate, useReducedMotion,
 } from 'framer-motion'
 import { Canvas, useFrame, useThree, invalidate } from '@react-three/fiber'
-import { Float, Sparkles } from '@react-three/drei'
+import { Float, Sparkles, useTexture } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, ChromaticAberration, Noise } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
@@ -399,6 +399,8 @@ const MARQUEE_ITEMS = [
 
 
 const NASA_RESOURCES = [
+  { label: 'CGI Moon Kit (SVS 4720)', href: 'https://svs.gsfc.nasa.gov/4720/' },
+  { label: 'RSS-Mars textures', href: 'https://github.com/RSS-Reborn/RSS-Mars' },
   { label: 'Challenge details', href: 'https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details' },
   { label: 'Challenge resources', href: 'https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=resources' },
   { label: 'Lunar material catalogue', href: 'https://www.nasa.gov/wp-content/uploads/2024/02/final-catalogue-of-manmade-material-on-the-moon.pdf' },
@@ -1603,33 +1605,47 @@ float terrain(vec3 n, float body){
 const PLANET_VERT = `
 uniform float uTime;
 uniform float uBody;
-uniform float uDispAmp;
+uniform float uHeightScale;
+uniform float uMicro;
+uniform sampler2D uHeightMap;
 varying vec3 vPos;
 varying vec3 vN;
 varying vec3 vWorld;
 varying float vDisp;
 varying vec3 vObj;
+varying vec2 vUv;
 ${NOISE_GLSL}
+float heightAt(vec2 uv, vec3 nrm){
+  float h = texture2D(uHeightMap, uv).r;
+  float disp = (h - 0.5) * uHeightScale;
+  disp += terrain(nrm, uBody) * uMicro;
+  return clamp(disp, -0.18, 0.14);
+}
 void main(){
+  vUv = uv;
   vec3 nrm = normalize(position);
-  float disp = clamp(terrain(nrm, uBody) * uDispAmp, -0.22, 0.18);
+  float disp = heightAt(uv, nrm);
   vec3 newPos = nrm * (1.0 + disp);
-  // finite-difference normals for cratered silhouette
-  float e = 0.0025;
-  vec3 t1 = normalize(cross(nrm, abs(nrm.y)<0.99 ? vec3(0.,1.,0.) : vec3(1.,0.,0.)));
+  vec3 t1 = normalize(cross(nrm, abs(nrm.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
   vec3 t2 = normalize(cross(nrm, t1));
-  float d1 = clamp(terrain(normalize(nrm + t1*e), uBody) * uDispAmp, -0.22, 0.18);
-  float d2 = clamp(terrain(normalize(nrm + t2*e), uBody) * uDispAmp, -0.22, 0.18);
-  vec3 p0 = nrm * (1.0 + disp);
-  vec3 p1 = normalize(nrm + t1*e) * (1.0 + d1);
-  vec3 p2 = normalize(nrm + t2*e) * (1.0 + d2);
+  float e = 0.008;
+  vec3 n1 = normalize(nrm + t1 * e);
+  vec3 n2 = normalize(nrm + t2 * e);
+  // approximate UV deltas along tangents
+  vec2 duv1 = vec2(e * 0.35, 0.0);
+  vec2 duv2 = vec2(0.0, e * 0.35);
+  float h1 = heightAt(fract(uv + duv1), n1);
+  float h2 = heightAt(fract(uv + duv2), n2);
+  vec3 p0 = newPos;
+  vec3 p1 = n1 * (1.0 + h1);
+  vec3 p2 = n2 * (1.0 + h2);
   vec3 N = normalize(cross(p1 - p0, p2 - p0));
   if (dot(N, nrm) < 0.0) N = -N;
   vPos = newPos;
   vObj = nrm;
   vDisp = disp;
   vN = normalize(normalMatrix * N);
-  vec4 world = modelMatrix * vec4(newPos,1.0);
+  vec4 world = modelMatrix * vec4(newPos, 1.0);
   vWorld = world.xyz;
   gl_Position = projectionMatrix * viewMatrix * world;
 }
@@ -1643,52 +1659,44 @@ uniform vec3 uColorWarm;
 uniform vec3 uRim;
 uniform float uGlitter;
 uniform float uScan;
+uniform sampler2D uColorMap;
+uniform sampler2D uHeightMap;
 varying vec3 vPos;
 varying vec3 vN;
 varying vec3 vWorld;
 varying float vDisp;
 varying vec3 vObj;
+varying vec2 vUv;
 ${NOISE_GLSL}
 void main(){
   vec3 N = normalize(vN);
   vec3 L = normalize(vec3(0.72, 0.42, 0.55));
   vec3 L2 = normalize(vec3(-0.55, -0.15, -0.4));
   vec3 V = normalize(cameraPosition - vWorld);
-  float ndl = max(dot(N,L), 0.0);
-  float wrap = ndl*0.55 + 0.45;
-  // mare / highland domains
-  float domain = fbm(vObj*2.4)*0.5+0.5;
-  float mare = smoothstep(0.42, 0.58, domain);
-  vec3 highland = mix(uColorCool*1.05, uColorWarm*1.15, 0.6);
-  vec3 lowland = mix(uColorCool*0.35, uColorWarm*0.55, 0.35);
-  if(uBody > 0.5){
-    highland = mix(vec3(0.55,0.28,0.16), vec3(0.95,0.55,0.32), 0.55);
-    lowland = mix(vec3(0.28,0.12,0.08), vec3(0.7,0.32,0.16), 0.4);
-  }
-  vec3 albedo = mix(highland, lowland, mare);
-  float micro = fbm(vObj*12.0)*0.5+0.5;
-  albedo *= 0.72 + micro*0.38;
-  albedo *= 0.85 + clamp(vDisp*8.0, -0.15, 0.25);
-  // glitter / frost
-  float spark = step(0.985, fract(snoise(vObj*55.0)*0.5+0.5 + uTime*0.03));
-  albedo += spark * uGlitter * vec3(1.0,0.98,0.95);
-  // lighting
-  float bump = fbm(vObj*22.0);
-  N = normalize(N + bump * 0.08);
-  float hemi = N.y*0.5+0.5;
-  vec3 ambient = mix(uColorCool*0.05, uRim*0.16, hemi);
-  vec3 diffuse = albedo * (ndl * 1.25 + max(dot(N,L2),0.0)*0.22);
-  float term = smoothstep(-0.2, 0.28, ndl);
-  diffuse *= mix(0.22, 1.0, term);
-  float fres = pow(1.0 - max(dot(N,V),0.0), 2.6);
-  vec3 rim = uRim * fres * (0.7 + 0.4*term);
-  // spectral scan
-  float band = abs(fract(vObj.y*0.55 + uTime/9.0) - 0.5);
+  float ndl = max(dot(N, L), 0.0);
+  // NASA / RSS color map (LROC WAC or Viking-class Mars)
+  vec3 tex = texture2D(uColorMap, vUv).rgb;
+  // gentle grade toward cinematic cool/warm split
+  vec3 albedo = mix(tex * uColorCool * 1.8, tex * uColorWarm * 1.15, ndl * 0.5 + 0.5);
+  albedo = mix(albedo, tex, 0.72);
+  float micro = fbm(vObj * 14.0) * 0.5 + 0.5;
+  albedo *= 0.88 + micro * 0.18;
+  albedo *= 0.92 + clamp(vDisp * 4.0, -0.08, 0.12);
+  float spark = step(0.988, fract(snoise(vObj * 60.0) * 0.5 + 0.5 + uTime * 0.03));
+  albedo += spark * uGlitter * vec3(1.0, 0.97, 0.92);
+  float hemi = N.y * 0.5 + 0.5;
+  vec3 ambient = mix(uColorCool * 0.04, uRim * 0.12, hemi) * (0.35 + tex.r * 0.4);
+  vec3 diffuse = albedo * (ndl * 1.15 + max(dot(N, L2), 0.0) * 0.2);
+  float term = smoothstep(-0.18, 0.3, ndl);
+  diffuse *= mix(0.28, 1.0, term);
+  float fres = pow(1.0 - max(dot(N, V), 0.0), 2.7);
+  vec3 rimCol = uRim * fres * (0.55 + 0.35 * term);
+  float band = abs(fract(vObj.y * 0.55 + uTime / 9.0) - 0.5);
   float scan = smoothstep(0.07, 0.0, band) * uScan;
-  vec3 irid = mix(vec3(0.35,0.65,1.0), vec3(1.0,0.45,0.55), 0.45);
-  vec3 col = ambient + diffuse + rim + irid*scan;
-  col = max(col, albedo * 0.08);
-  col = pow(max(col, 0.0), vec3(0.92));
+  vec3 irid = mix(vec3(0.35, 0.65, 1.0), vec3(1.0, 0.45, 0.55), 0.4);
+  vec3 col = ambient + diffuse + rimCol + irid * scan * 0.85;
+  col = max(col, albedo * 0.1);
+  col = pow(max(col, 0.0), vec3(0.95));
   gl_FragColor = vec4(col, 1.0);
 }
 `
@@ -1818,24 +1826,49 @@ function BodySphere({
   detail = 6, mobile = false, spin = 0.035,
 }) {
   const mesh = useRef()
+  const isMars = body > 0.5
+  // NASA SVS CGI Moon Kit (4720) · RSS-style Mars color+height workflow
+  const [colorMap, heightMap] = useTexture([
+    isMars ? '/textures/mars_color_2k.jpg' : '/textures/moon_color_2k.jpg',
+    isMars ? '/textures/mars_bump_1k.jpg' : '/textures/moon_height_2k.jpg',
+  ])
+  useEffect(() => {
+    colorMap.colorSpace = THREE.SRGBColorSpace
+    heightMap.colorSpace = THREE.NoColorSpace
+    ;[colorMap, heightMap].forEach((tex) => {
+      tex.anisotropy = 8
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
+      tex.generateMipmaps = true
+      tex.minFilter = THREE.LinearMipmapLinearFilter
+      tex.magFilter = THREE.LinearFilter
+      // Center 0° longitude toward camera (+Z)
+      tex.offset.x = 0.25
+      tex.needsUpdate = true
+    })
+  }, [colorMap, heightMap])
+
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
     uBody: { value: body },
-    uDispAmp: { value: body > 0.5 ? 1.05 : 0.95 },
+    uHeightScale: { value: isMars ? 0.11 : 0.085 },
+    uMicro: { value: isMars ? 0.012 : 0.018 },
     uColorCool: { value: new THREE.Color(colorCool) },
     uColorWarm: { value: new THREE.Color(colorWarm) },
     uRim: { value: new THREE.Color(rim) },
     uGlitter: { value: glitter },
     uScan: { value: scan },
-  }), [body, colorCool, colorWarm, rim, glitter, scan])
+    uColorMap: { value: colorMap },
+    uHeightMap: { value: heightMap },
+  }), [body, isMars, colorCool, colorWarm, rim, glitter, scan, colorMap, heightMap])
+
   useFrame((s) => {
     uniforms.uTime.value = s.clock.elapsedTime
     if (mesh.current) {
       mesh.current.rotation.y = s.clock.elapsedTime * spin
-      mesh.current.rotation.z = Math.sin(s.clock.elapsedTime * 0.08) * 0.04
+      mesh.current.rotation.z = Math.sin(s.clock.elapsedTime * 0.08) * 0.035
     }
   })
-  const segs = mobile ? 96 : 160
+  const segs = mobile ? 96 : 192
   return (
     <mesh ref={mesh} position={position} scale={scale}>
       <sphereGeometry args={[1, segs, segs]} />

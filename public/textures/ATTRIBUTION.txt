@@ -1,0 +1,13 @@
+Textures used by Silent Fleet (NASA Space Apps 2026)
+
+Moon color + height:
+  NASA SVS CGI Moon Kit — https://svs.gsfc.nasa.gov/4720/
+  LROC WAC natural-color mosaic + LOLA displacement (ldem)
+  Files: moon_color_2k.jpg (lroc_color_2k), moon_height_2k.jpg (ldem_3_8bit)
+  Credit: NASA's Scientific Visualization Studio / LROC / LOLA
+
+Mars color + bump:
+  Equirectangular color derived from Viking / MGS-era public maps
+  (same class of color+height workflow as RSS-Reborn/RSS-Mars)
+  https://github.com/RSS-Reborn/RSS-Mars
+  Files: mars_color_2k.jpg, mars_bump_1k.jpg
