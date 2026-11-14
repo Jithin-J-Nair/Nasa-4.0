@@ -1770,6 +1770,149 @@ html.lenis, html.lenis body { height: auto; }
     radial-gradient(ellipse 70% 45% at 20% 0%, rgba(142, 200, 255, 0.04) 0%, transparent 55%),
     linear-gradient(180deg, #020206 0%, #03040a 40%, #020206 100%);
 }
+
+/* Folio-inspired Fleet shelf — one black stage, rising hardcover row */
+.fleet-folio {
+  position: relative;
+  z-index: 90;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #000;
+  color: #fff;
+  scroll-margin-top: var(--nav-h);
+  overflow: hidden;
+  padding: 0;
+}
+.fleet-folio__rail {
+  position: absolute;
+  left: clamp(0.6rem, 1.6vw, 1.2rem);
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+  transform-origin: left center;
+  font-size: 0.58rem;
+  letter-spacing: 0.2em;
+  color: rgba(232, 238, 245, 0.35);
+  white-space: nowrap;
+  z-index: 4;
+  pointer-events: none;
+}
+.fleet-folio__num {
+  position: absolute;
+  right: clamp(1rem, 4vw, 3rem);
+  top: 8vh;
+  font-family: var(--font-display);
+  font-size: clamp(6rem, 22vw, 14rem);
+  line-height: 0.85;
+  letter-spacing: -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(232, 238, 245, 0.08);
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+.fleet-folio__wordmark {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding-top: clamp(5.5rem, 12vh, 8rem);
+  pointer-events: none;
+}
+.fleet-folio__title {
+  margin: 0;
+  font-size: clamp(2.4rem, 8vw, 5.2rem);
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+.fleet-folio__outline {
+  margin: 0.15em 0 0;
+  font-size: clamp(2.2rem, 7.2vw, 4.6rem);
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+.fleet-folio__links {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(0.65rem, 2.1vw, 1.6rem);
+  margin-top: clamp(1rem, 2.4vh, 1.6rem);
+  padding: 0 clamp(1rem, 4vw, 2rem);
+}
+.fleet-folio__link {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.88);
+  font-family: var(--font-mono);
+  font-size: max(10px, 0.74vw);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0.2rem 0;
+  transition: color 0.2s, opacity 0.2s;
+  opacity: 0.88;
+}
+.fleet-folio__link:hover,
+.fleet-folio__link:focus-visible {
+  opacity: 1;
+  color: #fff;
+  outline: none;
+}
+.fleet-folio__lede {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  max-width: 42ch;
+  margin: 0.85rem auto 0;
+  padding: 0 1.25rem;
+  color: var(--ink-dim);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  pointer-events: none;
+}
+.fleet-folio__stage {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.fleet-folio__stage .fleet-books-canvas,
+.fleet-folio__stage canvas {
+  pointer-events: auto;
+}
+.fleet-books-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.fleet-books-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+.fleet-folio__boot {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  color: rgba(232, 238, 245, 0.4);
+}
+@media (max-width: 760px) {
+  .fleet-folio__rail { display: none; }
+  .fleet-folio__wordmark { padding-top: 14vh; }
+  .fleet-folio__title { font-size: 11vw; }
+  .fleet-folio__outline { font-size: 9.5vw; }
+  .fleet-folio__links {
+    margin-top: 1.2rem;
+    gap: 0.85rem 1.4rem;
+    padding: 0 8vw;
+  }
+  .fleet-folio__lede { font-size: 0.85rem; }
+}
 .story-plate .fleet-section .section-num,
 .story-plate .challenge-objective .section-num {
   opacity: 0.85;

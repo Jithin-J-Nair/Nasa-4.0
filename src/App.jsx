@@ -27,6 +27,7 @@ import {
   Magnet, SpotlightCard, ClickSpark, FadeContent,
   GradientText, GlareHover, BlurText, TrueFocus, OptionWheel, SplitText,
 } from './bits'
+const FleetBooks = lazy(() => import('./fleet/FleetBooks'))
 import './bits/SpotlightCard/SpotlightCard.css'
 import './bits/GradientText/GradientText.css'
 import './bits/SplitText/SplitText.css'
@@ -824,120 +825,83 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
   )
 }
 
-function FleetCard({ item, onOpen }) {
-  const { setLabel } = useCursor()
-  const bodyColor = item.body === 'mars' ? 'var(--rust)' : item.body === 'deep' ? 'var(--gold)' : 'var(--ice)'
-
-  return (
-    <motion.article
-      className="fleet-card glass-2 corner-brackets holo-foil"
-      style={{ '--chip': bodyColor }}
-      whileHover={{ scale: 1.02 }}
-      tabIndex={0}
-      role="button"
-      aria-label={`Open dossier ${item.name}`}
-      onClick={() => onOpen(item)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item) } }}
-      onMouseEnter={() => setLabel('OPEN FILE')}
-      onMouseLeave={() => setLabel('')}
-    >
-      <div>
-        {item.image && (
-          <div className={`nasa-media body-${item.body}`} style={{ marginBottom: '0.9rem', aspectRatio: '16/11' }}>
-            <img src={item.image} alt={item.imageAlt || item.name} loading="lazy" decoding="async" />
-            <span className="credit">{item.credit} · {item.coords}</span>
-          </div>
-        )}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <span className="data-chip" style={{ '--chip': bodyColor }}>{item.body.toUpperCase()} · {item.mission}</span>
-          <span className={`status-dot ${item.status === 'ACTIVE' ? 'live' : item.status === 'COASTING' ? 'coast' : ''}`} title={item.status} />
-        </div>
-        <h3 className="display" style={{ fontSize: '1.35rem', marginBottom: '0.35rem' }}>{item.name}</h3>
-        <p className="mono" style={{ fontSize: '0.65rem', letterSpacing: '0.12em', color: 'var(--ink-mute)' }}>{item.codename}</p>
-      </div>
-      <div>
-        <p className="fleet-voice">
-          “{(item.voice || item.science).slice(0, 118)}{(item.voice || item.science).length > 118 ? '…' : ''}”
-        </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-          {item.tags.map((t) => (
-            <span key={t} className="mono" style={{ fontSize: '0.6rem', letterSpacing: '0.1em', padding: '0.25rem 0.5rem', border: '1px solid var(--line)', borderRadius: 6 }}>{t}</span>
-          ))}
-        </div>
-      </div>
-    </motion.article>
-  )
-}
+const FLEET_LINKS = [
+  'Moon', 'Mars', 'Deep space', 'Landers', 'Rovers', 'Probes', 'Still answering', 'Open a dossier',
+]
 
 function Fleet({ onOpen }) {
-  const track = useRef(null)
   const { setLabel } = useCursor()
-  const [rail, setRail] = useState(0)
+  const rootRef = useRef(null)
+  const [inView, setInView] = useState(false)
 
   useEffect(() => {
-    const el = track.current
-    if (!el) return undefined
-    const onScroll = () => {
-      const max = el.scrollWidth - el.clientWidth
-      setRail(max > 0 ? el.scrollLeft / max : 0)
+    const el = rootRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setInView(true)
+      return undefined
     }
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
+    const io = new IntersectionObserver(
+      ([e]) => { if (e?.isIntersecting) setInView(true) },
+      { threshold: 0.12 },
+    )
+    io.observe(el)
+    return () => io.disconnect()
   }, [])
 
   return (
-    <section className="section fleet-section" id="fleet" style={{ paddingRight: 0, paddingLeft: 0 }} aria-label="Silent fleet leftovers">
-      <div style={{ padding: '0 clamp(1.25rem, 4vw, 4rem)' }}>
-        <span className="section-rail">03 · FLEET</span>
-        <span className="section-num" aria-hidden>03</span>
-        <p className="kicker"><ScrambleLine text="NASA LEFTOVERS · DRAG TO SURVEY" active /></p>
-        <h2 className="display" style={{ fontSize: 'clamp(2.2rem, 6vw, 4rem)', margin: '0.75rem 0 0.5rem' }}>
-          <SplitText
-            text="Fifteen voices."
-            tag="span"
-            className="display"
-            splitType="chars"
-            effect="rise"
-            trigger="view"
-            delay={28}
-            duration={1.05}
-            textAlign="left"
-          />
-          <br />
-          <span className="outline-text">
-            <SplitText
-              text="One silent fleet."
-              tag="span"
-              className="outline-text"
-              splitType="chars"
-              effect="blur"
-              trigger="view"
-              delay={22}
-              duration={1.15}
-              textAlign="left"
-            />
-          </span>
-        </h2>
-        <p style={{ color: 'var(--ink-dim)', maxWidth: '48ch', lineHeight: 1.55, marginBottom: '0.5rem' }}>
-          Each leftover speaks in the first person — what they were built for, what they found, why they still matter.
-          Real NASA photographs. Verified coordinates. Open a dossier and listen.
-        </p>
+    <section
+      ref={rootRef}
+      className="fleet-folio"
+      id="fleet"
+      aria-label="Silent fleet leftovers"
+    >
+      <span className="fleet-folio__rail mono" aria-hidden>03 · FLEET</span>
+      <span className="fleet-folio__num" aria-hidden>03</span>
+
+      <div className="fleet-folio__wordmark">
+        <SplitText
+          text="Fifteen voices."
+          tag="h2"
+          className="fleet-folio__title display"
+          splitType="chars"
+          effect="rise"
+          trigger="view"
+          delay={26}
+          duration={1.15}
+          textAlign="center"
+        />
+        <p className="fleet-folio__outline outline-text display">One silent fleet.</p>
       </div>
-      <div
-        className="fleet-track"
-        ref={track}
-        onMouseEnter={() => setLabel('DRAG')}
-        onMouseLeave={() => setLabel('')}
-        style={{ paddingLeft: 'clamp(1.25rem, 4vw, 4rem)', paddingRight: 'clamp(1.25rem, 4vw, 4rem)' }}
-      >
-        {ARTIFACTS.map((a) => (
-          <FleetCard key={a.id} item={a} onOpen={onOpen} />
+
+      <nav className="fleet-folio__links" aria-label="Fleet categories">
+        {FLEET_LINKS.map((label) => (
+          <button
+            key={label}
+            type="button"
+            className="fleet-folio__link"
+            onClick={() => {
+              if (label === 'Open a dossier' && ARTIFACTS[0]) onOpen(ARTIFACTS[0])
+            }}
+            onMouseEnter={() => setLabel(label === 'Open a dossier' ? 'OPEN' : '')}
+            onMouseLeave={() => setLabel('')}
+          >
+            {label}
+          </button>
         ))}
-      </div>
-      <div style={{ padding: '0 clamp(1.25rem, 4vw, 4rem)' }}>
-        <div className="fleet-rail" aria-hidden>
-          <i style={{ left: `calc(${rail * 100}% - 4px)` }} />
-        </div>
+      </nav>
+
+      <p className="fleet-folio__lede">
+        Move across the shelf — leftovers rise to speak. Click a spine to open its NASA dossier.
+      </p>
+
+      <div className="fleet-folio__stage">
+        {inView ? (
+          <Suspense fallback={<div className="fleet-folio__boot mono">LOADING SHELF…</div>}>
+            <FleetBooks onSelect={onOpen} />
+          </Suspense>
+        ) : (
+          <div className="fleet-folio__boot mono">SHELF AWAITS</div>
+        )}
       </div>
     </section>
   )
