@@ -917,8 +917,6 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .mars-hotspot-wheel .option-wheel__item {
   cursor: pointer;
   pointer-events: auto;
-}
-.mars-hotspot-wheel .option-wheel__item {
   text-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 18px rgba(0, 0, 0, 0.45);
 }
 .mars-hotspot-wheel .option-wheel__item--selected {
