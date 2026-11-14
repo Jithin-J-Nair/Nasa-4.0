@@ -14,7 +14,6 @@ import {
 } from 'framer-motion'
 import { createSoundscape } from './audio/Soundscape'
 import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
-import { nearsideXY, equirectXY } from './world/geo'
 import { GLOBAL_CSS } from './styles/global.css.js'
 import {
   createScrollEngine, destroyScrollEngine, playHeroIntro, playBootSequence,
@@ -501,11 +500,9 @@ function LocationAtlas({ onOpen }) {
   const [body, setBody] = useState('moon')
   const [hover, setHover] = useState(null)
   const sites = body === 'moon' ? MOON_SITES : MARS_SITES
-  const project = body === 'moon' ? nearsideXY : equirectXY
-  const hp = hover ? project(hover.lat, hover.lon) : null
 
   return (
-    <section className="section location-atlas" id="atlas" aria-label="Hardware locations">
+    <section className={`section location-atlas body-${body}`} id="atlas" aria-label="Hardware locations">
       <span className="section-rail">02B · ATLAS</span>
       <span className="section-num" aria-hidden>LOC</span>
       <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active /></p>
@@ -514,7 +511,7 @@ function LocationAtlas({ onOpen }) {
       </h2>
       <p style={{ color: 'var(--ink-dim)', maxWidth: '48ch', lineHeight: 1.55, marginBottom: '1.5rem' }}>
         Every NASA photograph is anchored to Mean Earth / Polar Axis (Moon) or planetocentric east longitude (Mars).
-        Pins open the dossier for that site — not a shuffled gallery.
+        Open a site from the list — coordinates stay with the dossier, not a decorative globe.
       </p>
 
       <div className="atlas-tabs" role="tablist" aria-label="Body">
@@ -533,60 +530,63 @@ function LocationAtlas({ onOpen }) {
       </div>
 
       <div className={`atlas-stage body-${body}`}>
-        <div
-          className={`atlas-disc ${body === 'moon' ? 'moon-disc' : 'mars-disc'}`}
-          aria-label={`Interactive ${body} site map`}
-        >
-          <div className={`atlas-surface ${body === 'moon' ? 'moon-surface' : 'mars-surface'}`} aria-hidden />
-          {hover && hp?.visible && (
-            <div className="moon-crosshair" aria-hidden>
-              <span style={{ left: hp.left, top: 0, bottom: 0, width: 1, transform: 'translateX(-0.5px)' }} />
-              <span style={{ top: hp.top, left: 0, right: 0, height: 1, transform: 'translateY(-0.5px)' }} />
-            </div>
-          )}
-          {sites.map((site) => {
-            const pos = project(site.lat, site.lon)
-            if (!pos.visible) return null
-            const active = hover?.id === site.id
-            return (
-              <button
-                key={site.id}
-                type="button"
-                className={`moon-pin ${site.status === 'ACTIVE' ? 'live' : ''} ${active ? 'active' : ''}`}
-                style={{ left: pos.left, top: pos.top }}
-                aria-label={`${site.name} at ${site.coords}`}
-                onMouseEnter={() => { setHover(site); setLabel('SITE') }}
-                onMouseLeave={() => { setHover((h) => (h?.id === site.id ? null : h)); setLabel('') }}
-                onFocus={() => { setHover(site); setLabel('SITE') }}
-                onClick={() => onOpen(site)}
-              />
-            )
-          })}
+        <div className="atlas-panel">
+          <ul className="atlas-site-list" aria-label={`${body} sites`}>
+            {sites.map((site) => {
+              const active = hover?.id === site.id
+              return (
+                <li key={site.id}>
+                  <button
+                    type="button"
+                    className={`atlas-site ${site.status === 'ACTIVE' ? 'live' : ''} ${active ? 'active' : ''}`}
+                    aria-label={`${site.name} at ${site.coords}`}
+                    onMouseEnter={() => { setHover(site); setLabel('SITE') }}
+                    onMouseLeave={() => { setHover((h) => (h?.id === site.id ? null : h)); setLabel('') }}
+                    onFocus={() => { setHover(site); setLabel('SITE') }}
+                    onClick={() => onOpen(site)}
+                  >
+                    <span className="atlas-site-dot" aria-hidden />
+                    <span className="atlas-site-copy">
+                      <span className="atlas-site-name">{site.name}</span>
+                      <span className="mono atlas-site-meta">{site.coords}</span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+
+          <div className="atlas-telemetry glass-2">
+            {hover ? (
+              <>
+                {hover.image && (
+                  <div className={`nasa-media body-${hover.body}`} style={{ aspectRatio: '16/10', marginBottom: '0.85rem' }}>
+                    <img src={hover.image} alt={hover.imageAlt || hover.name} loading="lazy" decoding="async" />
+                    <span className="credit">{hover.credit}</span>
+                  </div>
+                )}
+                <div className="kicker" style={{ marginBottom: 8 }}>{hover.mission} · {hover.status}</div>
+                <h3 className="display" style={{ fontSize: '1.55rem', marginBottom: 6 }}>{hover.name}</h3>
+                <p className="mono" style={{ fontSize: '0.72rem', color: 'var(--ink-dim)', marginBottom: 10 }}>{hover.coords}</p>
+                <p style={{ color: 'var(--ink-dim)', lineHeight: 1.55, fontSize: '0.95rem' }}>{hover.science}</p>
+                <div style={{ marginTop: '1.1rem' }}>
+                  <MagneticButton onClick={() => onOpen(hover)}>OPEN DOSSIER</MagneticButton>
+                </div>
+              </>
+            ) : (
+              <p style={{ color: 'var(--ink-dim)', lineHeight: 1.6 }}>
+                Select a site from the list. Coordinates stay tied to the real landing sites —
+                Eagle on Tranquility, Opportunity on Meridiani — not a random card.
+              </p>
+            )}
+          </div>
         </div>
 
-        <div className="atlas-telemetry glass-2">
-          {hover ? (
-            <>
-              {hover.image && (
-                <div className={`nasa-media body-${hover.body}`} style={{ aspectRatio: '16/10', marginBottom: '0.85rem' }}>
-                  <img src={hover.image} alt={hover.imageAlt || hover.name} loading="lazy" decoding="async" />
-                  <span className="credit">{hover.credit}</span>
-                </div>
-              )}
-              <div className="kicker" style={{ marginBottom: 8 }}>{hover.mission} · {hover.status}</div>
-              <h3 className="display" style={{ fontSize: '1.55rem', marginBottom: 6 }}>{hover.name}</h3>
-              <p className="mono" style={{ fontSize: '0.72rem', color: 'var(--ink-dim)', marginBottom: 10 }}>{hover.coords}</p>
-              <p style={{ color: 'var(--ink-dim)', lineHeight: 1.55, fontSize: '0.95rem' }}>{hover.science}</p>
-              <div style={{ marginTop: '1.1rem' }}>
-                <MagneticButton onClick={() => onOpen(hover)}>OPEN DOSSIER</MagneticButton>
-              </div>
-            </>
-          ) : (
-            <p style={{ color: 'var(--ink-dim)', lineHeight: 1.6 }}>
-              Select a beacon. Moon pins use nearside orthographic projection; Mars pins use equirectangular lon/lat —
-              so Opportunity sits on Meridiani, Eagle on Tranquility, not a random card.
-            </p>
-          )}
+        <div
+          className={`atlas-orb ${body === 'moon' ? 'moon-orb' : 'mars-orb'}`}
+          aria-hidden
+        >
+          <div className={`atlas-orb-surface ${body === 'moon' ? 'moon-surface' : 'mars-surface'}`} />
         </div>
       </div>
     </section>

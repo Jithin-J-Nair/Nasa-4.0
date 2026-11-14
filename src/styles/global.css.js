@@ -610,7 +610,15 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .nasa-media.body-mars img { object-position: 50% 55%; }
 .nasa-media.body-deep img { object-position: 50% 40%; }
 
-.location-atlas { padding-bottom: clamp(3rem, 8vh, 5rem); }
+.location-atlas {
+  position: relative;
+  padding-bottom: clamp(3rem, 8vh, 5rem);
+  /* Scrim the continuum canvas so only the right-side orb reads as the moon */
+  background:
+    radial-gradient(ellipse 55% 70% at 88% 55%, rgba(142,200,255,0.06), transparent 55%),
+    linear-gradient(180deg, rgba(3,3,8,0.92) 0%, rgba(3,3,8,0.96) 50%, rgba(3,3,8,0.92) 100%);
+  overflow: hidden;
+}
 .atlas-tabs {
   display: inline-flex;
   gap: 0.35rem;
@@ -633,52 +641,127 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   background: rgba(142, 200, 255, 0.12);
 }
 .atlas-stage {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(220px, 0.72fr);
   gap: clamp(1.25rem, 3vw, 2.5rem);
   align-items: center;
+  min-height: min(62vh, 560px);
 }
 @media (max-width: 900px) {
-  .atlas-stage { grid-template-columns: 1fr; }
+  .atlas-stage {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
 }
-.atlas-disc {
+.atlas-panel {
+  display: grid;
+  gap: 1.1rem;
   position: relative;
-  width: min(100%, 520px);
-  margin: 0 auto;
+  z-index: 2;
+}
+.atlas-site-list {
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+  max-height: min(38vh, 320px);
+  overflow: auto;
+  padding-right: 0.25rem;
+  scrollbar-width: thin;
+}
+.atlas-site {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  text-align: left;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  background: rgba(7, 7, 12, 0.45);
+  color: inherit;
+  cursor: none;
+}
+body.is-coarse .atlas-site { cursor: pointer; }
+.atlas-site:hover,
+.atlas-site:focus-visible,
+.atlas-site.active {
+  border-color: rgba(142, 200, 255, 0.4);
+  background: rgba(142, 200, 255, 0.08);
+}
+.atlas-site-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+  background: var(--rust);
+  box-shadow: 0 0 0 3px rgba(255, 122, 69, 0.18);
+}
+.atlas-site.live .atlas-site-dot {
+  background: var(--ice);
+  box-shadow: 0 0 0 3px rgba(142, 200, 255, 0.2);
+}
+.atlas-site-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.atlas-site-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.98rem;
+  letter-spacing: -0.02em;
+}
+.atlas-site-meta {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-mute);
+}
+.atlas-orb {
+  position: relative;
+  justify-self: end;
+  width: min(100%, 320px);
   aspect-ratio: 1;
   border-radius: 50%;
   overflow: hidden;
   isolation: isolate;
   box-shadow:
-    0 0 0 1px rgba(255,255,255,0.08),
-    0 30px 80px -40px rgba(0,0,0,0.9);
+    0 0 0 1px rgba(255,255,255,0.1),
+    0 28px 70px -30px rgba(0,0,0,0.95),
+    0 0 80px -20px rgba(142,200,255,0.22);
 }
-.atlas-disc.mars-disc {
-  border-radius: 12px;
-  aspect-ratio: 2 / 1;
-  width: min(100%, 640px);
-}
-.atlas-surface {
+.atlas-orb-surface {
   position: absolute;
-  inset: 0;
+  inset: -8%;
+  border-radius: 50%;
+  animation: moonSpin 90s linear infinite;
+  will-change: transform;
 }
-.moon-surface, .atlas-surface.moon-surface {
-  /* Nearside orthographic approximation from the 2K equirect master */
+.moon-surface, .atlas-orb-surface.moon-surface {
   background:
-    radial-gradient(circle at 50% 50%, transparent 62%, rgba(2,2,6,0.55) 78%, #020206 100%),
-    url('/textures/moon_color_2k.jpg') 50% 50% / 200% 100% no-repeat;
+    radial-gradient(circle at 32% 28%, rgba(255,255,255,0.16), transparent 42%),
+    radial-gradient(circle at 50% 50%, transparent 58%, rgba(2,2,6,0.55) 78%, #020206 100%),
+    url('/textures/moon_color_2k.jpg') center / 210% auto no-repeat;
   filter: contrast(1.08) saturate(0.85) brightness(1.05);
 }
-.mars-surface, .atlas-surface.mars-surface {
+.mars-surface, .atlas-orb-surface.mars-surface {
   background:
-    linear-gradient(180deg, rgba(0,0,0,0.12), transparent 28%),
-    url('/textures/mars_color_2k.jpg') center / 100% 100% no-repeat;
+    radial-gradient(circle at 50% 50%, transparent 58%, rgba(2,2,6,0.5) 78%, #020206 100%),
+    url('/textures/mars_color_2k.jpg') center / cover no-repeat;
   filter: contrast(1.06) saturate(1.08);
+  animation-duration: 110s;
+}
+@media (max-width: 900px) {
+  .atlas-orb {
+    justify-self: center;
+    width: min(58vw, 240px);
+    order: -1;
+  }
 }
 .atlas-telemetry {
   padding: 1.35rem 1.4rem;
   border-radius: 16px;
-  min-height: 280px;
+  min-height: 220px;
 }
 .moon-pin.active {
   box-shadow: 0 0 0 1px rgba(142,200,255,0.55);
@@ -1114,7 +1197,8 @@ body.is-coarse .fleet-card { cursor: pointer; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .moon-disc .moon-surface { animation: none; }
+  .moon-disc .moon-surface,
+  .atlas-orb-surface { animation: none !important; }
 }
 
 .nasa-media {
