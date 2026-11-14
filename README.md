@@ -12,12 +12,12 @@ Accuracy throughout. Connection over scrap lists.
 
 ## Craft
 
-- **Film director** (`src/world/film.js`) — act holds, smash cuts, owned easings (not a scrubber)
-- **Signature transitions** — crater dive · Meridiani dust storm · carrier-lost rings
-- **Diegetic captions** — story text rides the continuum; dossiers are secondary
-- **Cinematic grade** — ASC-CDL lift/gain per act + exposure storytelling
-- **Narrative audio** — storm swell, signal dropout, UI ticks (tap **AUDIO**)
-- **Inertia pointer** — weighted mouse, adaptive DPR under storm/dive
+- **Directed acts** (`src/world/film.js`) — holds, smash cuts, darkness / fog as punctuation
+- **Scene events** — crater bowl you enter · Meridiani dust sheets · Pioneer signal beam that dies
+- **Material system** — albedo + height AO/roughness + GGX + ASC-CDL grade
+- **Diegetic captions** — story rides the continuum; recover dossiers from the beat
+- **Scored silence** — Opportunity death and carrier lost are narrative audio, not a bed
+- **One timeline** — Hero → continuum → three heartbeats → footer (no secondary site)
 - **NASA SVS CGI Moon Kit** — 4K LROC + LOLA height
 
 ## Run
@@ -31,10 +31,9 @@ npm run build && npm run preview
 ## Journey
 
 1. Hero — brand  
-2. Film continuum — Moon → dive → Mars → storm → Pioneer  
-3. Diegetic dossier strip — open heartbeats  
-4. Archive / Moon map / Voices / Deep — accuracy tools  
-5. Footer — NASA resources  
+2. Film continuum — Moon → dive → Mars → storm → Pioneer (the world *is* the story)  
+3. Recover — three named heartbeats open dossiers  
+4. Footer — NASA resources  
 
 ## Sources
 

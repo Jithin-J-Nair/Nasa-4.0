@@ -1,8 +1,8 @@
 /* eslint-disable react/no-unknown-property */
 /**
- * ContinuumCanvas — Silent Fleet film world.
- * Owned transitions: crater dive · dust storm · carrier lost.
- * Cinematic grade, inertia pointer, adaptive DPR.
+ * ContinuumCanvas — diegetic scene events, not overlay stickers.
+ * Crater you enter · Meridiani dust as place · carrier death as physics.
+ * Material system: albedo + height AO/roughness + GGX + ASC-CDL grade.
  */
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
@@ -11,9 +11,9 @@ import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@re
 import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
 import * as THREE from 'three'
-import { sampleActs, lerp, clamp, smoothstep } from './film'
+import { sampleActs, lerp, clamp } from './film'
 
-/* ─── planet: albedo + height bump + roughness/roughness from height ─── */
+/* ─── planet material system ─── */
 const PLANET_VERT = `
 uniform float uHeightScale;
 uniform sampler2D uHeightMap;
@@ -35,6 +35,7 @@ void main(){
 `
 
 const PLANET_FRAG = `
+#extension GL_OES_standard_derivatives : enable
 uniform float uTime;
 uniform float uBody;
 uniform vec3 uRim;
@@ -44,19 +45,28 @@ uniform vec3 uSunDir;
 uniform vec3 uLift;
 uniform vec3 uGain;
 uniform float uStorm;
+uniform float uDark;
+uniform float uAOStrength;
 uniform sampler2D uColorMap;
 uniform sampler2D uHeightMap;
 varying vec3 vN;
 varying vec3 vWorld;
 varying vec2 vUv;
 varying float vH;
+
+float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+
 void main(){
   vec3 tex = texture2D(uColorMap, vUv).rgb;
   tex = pow(max(tex, 0.0), vec3(mix(0.92, 0.94, uBody)));
-  tex = (tex - 0.5) * mix(1.2, 1.1, uBody) + 0.5;
+  tex = (tex - 0.5) * mix(1.18, 1.08, uBody) + 0.5;
   tex = clamp(tex, 0.0, 1.0);
 
   float h = texture2D(uHeightMap, vUv).r;
+  // AO from height curvature — valleys darker, ridges catch light
+  float ao = 1.0 - uAOStrength * (1.0 - smoothstep(0.2, 0.65, h));
+  ao *= mix(1.0, 0.55, uDark);
+
   vec3 N = normalize(vN);
   vec3 dp1 = dFdx(vWorld);
   vec3 dp2 = dFdy(vWorld);
@@ -66,43 +76,46 @@ void main(){
   vec3 B = normalize(-dp1 * duv2.x + dp2 * duv1.x);
   N = normalize(N - (T * dFdx(h) + B * dFdy(h)) * uBump);
 
-  // Roughness from height — highlands matte, maria slightly tighter
-  float rough = mix(0.82, 0.55, smoothstep(0.35, 0.75, h));
-  rough = mix(rough, 0.95, uStorm * uBody);
+  // Roughness: highlands matte, maria tighter; storm kills specular
+  float rough = mix(0.88, 0.52, smoothstep(0.32, 0.78, h));
+  rough = mix(rough, 0.97, uStorm * uBody);
+  rough = clamp(rough + uDark * 0.12, 0.35, 0.98);
+  float metal = mix(0.02, 0.08, uBody) * (1.0 - uStorm);
 
   vec3 L = normalize(uSunDir);
-  vec3 Lfill = normalize(vec3(-0.5, -0.12, -0.5));
+  vec3 Lfill = normalize(vec3(-0.55, -0.15, -0.48));
   vec3 V = normalize(cameraPosition - vWorld);
   float ndl = max(dot(N, L), 0.0);
-  float term = smoothstep(-0.08, 0.2, ndl);
+  float term = smoothstep(-0.1, 0.22, ndl);
   float night = 1.0 - term;
 
   vec3 albedo = tex;
-  // Dust storm: choke albedo toward ochre noise
   if (uStorm > 0.01 && uBody > 0.5) {
-    float n = fract(sin(dot(vUv * 40.0, vec2(12.9898,78.233)) + uTime * 3.0) * 43758.5453);
-    vec3 dust = vec3(0.55, 0.28, 0.12) * (0.7 + 0.3 * n);
-    albedo = mix(albedo, dust, uStorm * 0.85);
+    float n = hash21(vUv * 48.0 + uTime * 2.4);
+    float sheet = hash21(vUv * vec2(6.0, 18.0) + vec2(uTime * 1.6, 0.0));
+    vec3 dust = vec3(0.52, 0.26, 0.1) * (0.65 + 0.35 * n);
+    albedo = mix(albedo, dust, uStorm * (0.7 + 0.25 * sheet));
   }
 
   float hemi = N.y * 0.5 + 0.5;
-  vec3 ambient = albedo * mix(0.04, 0.1, hemi);
-  vec3 key = albedo * ndl * mix(1.2, 1.05, uBody) * mix(0.16, 1.0, term);
-  vec3 fill = albedo * max(dot(N, Lfill), 0.0) * 0.12 * mix(0.3, 1.0, term);
+  vec3 ambient = albedo * mix(0.03, 0.09, hemi) * ao;
+  vec3 key = albedo * ndl * mix(1.15, 1.0, uBody) * mix(0.12, 1.0, term) * ao;
+  vec3 fill = albedo * max(dot(N, Lfill), 0.0) * 0.1 * mix(0.25, 1.0, term) * ao;
 
-  // Soft GGX-ish highlight (tight for low roughness)
+  // GGX-ish specular
   vec3 H = normalize(L + V);
   float nh = max(dot(N, H), 0.0);
-  float specPow = mix(12.0, 48.0, 1.0 - rough);
-  float spec = pow(nh, specPow) * (1.0 - rough) * 0.22 * term;
+  float a = rough * rough;
+  float a2 = a * a;
+  float d = a2 / max(3.14159 * pow(nh * nh * (a2 - 1.0) + 1.0, 2.0), 1e-4);
+  float spec = d * (1.0 - rough) * mix(0.18, 0.35, metal) * term * (1.0 - uDark * 0.7);
 
-  float fres = pow(1.0 - max(dot(N, V), 0.0), 3.1);
-  vec3 rim = uRim * fres * mix(0.5, 0.25, uBody) * term;
-  vec3 nightGlow = mix(vec3(0.015, 0.02, 0.04), vec3(0.05, 0.015, 0.008), uBody) * night * 0.4;
+  float fres = pow(1.0 - max(dot(N, V), 0.0), 3.2);
+  vec3 rim = uRim * fres * mix(0.45, 0.2, uBody) * term * (1.0 - uStorm * 0.8);
+  vec3 nightGlow = mix(vec3(0.012, 0.018, 0.035), vec3(0.04, 0.012, 0.006), uBody) * night * 0.35 * (1.0 - uDark);
 
   vec3 col = ambient + key + fill + rim + nightGlow + vec3(spec);
-  col *= uExposure;
-  // ASC-CDL style grade
+  col *= uExposure * (1.0 - uDark * 0.55);
   col = col * uGain + uLift;
   col = pow(max(col, 0.0), vec3(0.96));
   gl_FragColor = vec4(col, 1.0);
@@ -116,18 +129,18 @@ attribute vec3 aColor;
 uniform float uTime;
 uniform float uPixelRatio;
 uniform float uWarp;
+uniform float uDark;
 varying float vAlpha;
 varying vec3 vColor;
 void main(){
   vColor = aColor;
   vec3 p = position;
   p += vec3(sin(uTime*0.01+aSeed), cos(uTime*0.012+aSeed*2.0), sin(uTime*0.008+aSeed))*0.12;
-  // Dive warp: stars streak toward camera
-  p *= 1.0 + uWarp * 0.35;
+  p *= 1.0 + uWarp * 0.4;
   vec4 mv = modelViewMatrix * vec4(p,1.0);
   float tw = 0.55 + 0.45*sin(uTime*(0.5+aSeed*2.0)+aSeed*12.0);
-  vAlpha = tw * (1.0 - uWarp * 0.4);
-  gl_PointSize = aSize * uPixelRatio * (190.0 / -mv.z) * (0.65 + 0.35*tw) * (1.0 + uWarp * 1.8);
+  vAlpha = tw * (1.0 - uWarp * 0.45) * (1.0 - uDark * 0.75);
+  gl_PointSize = aSize * uPixelRatio * (190.0 / -mv.z) * (0.65 + 0.35*tw) * (1.0 + uWarp * 2.0);
   gl_Position = projectionMatrix * mv;
 }
 `
@@ -142,22 +155,23 @@ void main(){
 }
 `
 
-/* Fullscreen transition plane: crater dive + dust storm + carrier veil */
-const FX_VERT = `
+/* World-space dust curtains — Meridiani as a place */
+const DUST_SHEET_VERT = `
 varying vec2 vUv;
+varying vec3 vWorld;
 void main(){
   vUv = uv;
-  gl_Position = vec4(position.xy, 0.0, 1.0);
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vWorld = w.xyz;
+  gl_Position = projectionMatrix * viewMatrix * w;
 }
 `
-const FX_FRAG = `
+const DUST_SHEET_FRAG = `
 uniform float uTime;
-uniform float uDive;
 uniform float uStorm;
-uniform float uCarrier;
-uniform vec2 uMouse;
+uniform float uDark;
 varying vec2 vUv;
-
+varying vec3 vWorld;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
 float noise(vec2 p){
   vec2 i = floor(p); vec2 f = fract(p);
@@ -165,38 +179,83 @@ float noise(vec2 p){
   vec2 u = f*f*(3.0-2.0*f);
   return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
 }
-
 void main(){
-  vec2 uv = vUv;
-  vec2 m = uMouse * 0.08;
-  uv += m * (uDive + uStorm) * 0.5;
+  float n1 = noise(vUv * vec2(2.5, 7.0) + vec2(uTime * 0.55, uTime * 0.12));
+  float n2 = noise(vUv * vec2(6.0, 2.2) - vec2(uTime * 0.35, -uTime * 0.4));
+  float dens = n1 * n2;
+  float edge = smoothstep(0.0, 0.15, vUv.y) * smoothstep(1.0, 0.75, vUv.y);
+  float a = uStorm * dens * edge * (0.45 + uDark * 0.4);
+  if (a < 0.02) discard;
+  vec3 col = mix(vec3(0.55, 0.28, 0.1), vec3(0.25, 0.1, 0.04), dens);
+  col *= 1.0 - uDark * 0.55;
+  gl_FragColor = vec4(col, a);
+}
+`
 
-  // Crater dive: radial regolith rush
-  vec2 c = uv - 0.5;
-  float r = length(c);
-  float angle = atan(c.y, c.x);
-  float rush = noise(vec2(angle * 3.0, r * 14.0 - uTime * 6.0 * uDive));
-  float tunnel = smoothstep(0.15, 0.85, r) * uDive;
-  vec3 diveCol = vec3(0.35, 0.34, 0.32) * rush;
-  diveCol += vec3(0.08, 0.09, 0.12) * (1.0 - tunnel);
-  float diveA = tunnel * (0.55 + 0.45 * rush) * uDive;
+/* Crater bowl — geometry you enter */
+const CRATER_VERT = `
+uniform float uDepth;
+varying vec2 vUv;
+varying float vDepth;
+varying vec3 vWorld;
+void main(){
+  vUv = uv;
+  vec3 p = position;
+  float r = length(uv - 0.5) * 2.0;
+  float bowl = pow(smoothstep(0.0, 1.0, r), 1.6);
+  p.z -= (1.0 - bowl) * uDepth;
+  // rim lip
+  p.z += smoothstep(0.72, 0.92, r) * (1.0 - smoothstep(0.92, 1.05, r)) * uDepth * 0.22;
+  vDepth = 1.0 - bowl;
+  vec4 w = modelMatrix * vec4(p, 1.0);
+  vWorld = w.xyz;
+  gl_Position = projectionMatrix * viewMatrix * w;
+}
+`
+const CRATER_FRAG = `
+uniform float uDive;
+uniform float uDark;
+uniform float uTime;
+uniform vec3 uSunDir;
+varying vec2 vUv;
+varying float vDepth;
+varying vec3 vWorld;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+void main(){
+  float r = length(vUv - 0.5) * 2.0;
+  float n = hash(vUv * 40.0 + uTime * 0.01);
+  vec3 regolith = vec3(0.38, 0.36, 0.34) * (0.85 + 0.15 * n);
+  regolith *= mix(0.35, 1.0, vDepth * 0.5 + 0.5);
+  vec3 N = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
+  float lit = max(dot(N, normalize(uSunDir)), 0.0);
+  vec3 col = regolith * (0.15 + lit * 0.85);
+  col *= 1.0 - uDark * 0.6;
+  float a = smoothstep(1.05, 0.55, r) * clamp(uDive * 1.4, 0.0, 1.0);
+  if (a < 0.02) discard;
+  // floor darkness at dive peak
+  col *= mix(1.0, 0.25, vDepth * uDive);
+  gl_FragColor = vec4(col, a);
+}
+`
 
-  // Dust storm: ochre sheets
-  float sheet = noise(uv * vec2(3.0, 8.0) + vec2(uTime * 1.8, uTime * 0.3));
-  float sheet2 = noise(uv * vec2(7.0, 2.5) - vec2(uTime * 0.9, -uTime * 1.2));
-  vec3 stormCol = vec3(0.62, 0.32, 0.12) * sheet + vec3(0.4, 0.18, 0.06) * sheet2;
-  float stormA = uStorm * (0.35 + 0.55 * sheet * sheet2);
-
-  // Carrier lost: expanding rings fade to void
-  float ring = abs(fract(r * 2.5 - uTime * 0.15) - 0.5);
-  float ringMask = smoothstep(0.08, 0.0, ring) * (1.0 - smoothstep(0.2, 0.9, r));
-  vec3 carrierCol = vec3(0.55, 0.7, 1.0) * ringMask;
-  float carrierA = uCarrier * ringMask * 0.35 * (1.0 - uCarrier * 0.5);
-
-  vec3 col = diveCol * diveA + stormCol * stormA + carrierCol * carrierA;
-  float a = clamp(diveA + stormA + carrierA, 0.0, 0.92);
-  // Signal death: crush midtones as carrier completes
-  col *= 1.0 - uCarrier * 0.45;
+/* Carrier signal beam — physics of dying ping */
+const BEAM_VERT = `
+varying float vY;
+void main(){
+  vY = uv.y;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`
+const BEAM_FRAG = `
+uniform float uCarrier;
+uniform float uTime;
+varying float vY;
+void main(){
+  float pulse = 0.55 + 0.45 * sin(uTime * 4.0 - vY * 18.0);
+  float life = 1.0 - uCarrier;
+  float a = life * pulse * smoothstep(0.0, 0.1, vY) * smoothstep(1.0, 0.7, vY) * 0.55;
+  if (a < 0.01) discard;
+  vec3 col = mix(vec3(0.55, 0.75, 1.0), vec3(0.2, 0.25, 0.35), uCarrier);
   gl_FragColor = vec4(col, a);
 }
 `
@@ -210,12 +269,12 @@ uniform float uPixelRatio;
 varying float vA;
 void main(){
   vec3 p = position;
-  p.x += sin(uTime * (1.2 + aSeed) + aSeed * 20.0) * 0.4 * uStorm;
-  p.y += fract(uTime * 0.15 * (0.5+aSeed) + aSeed) * -2.5 * uStorm;
-  p.z += cos(uTime * 0.8 + aSeed * 10.0) * 0.3;
+  p.x += sin(uTime * (1.2 + aSeed) + aSeed * 20.0) * 0.55 * uStorm;
+  p.y += fract(uTime * 0.18 * (0.5+aSeed) + aSeed) * -3.2 * uStorm;
+  p.z += cos(uTime * 0.8 + aSeed * 10.0) * 0.4;
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
-  vA = uStorm * (0.4 + 0.6 * fract(aSeed * 7.1));
-  gl_PointSize = aSize * uPixelRatio * (120.0 / -mv.z) * (0.5 + uStorm);
+  vA = uStorm * (0.35 + 0.65 * fract(aSeed * 7.1));
+  gl_PointSize = aSize * uPixelRatio * (110.0 / -mv.z) * (0.45 + uStorm);
   gl_Position = projectionMatrix * mv;
 }
 `
@@ -223,13 +282,13 @@ const DUST_FRAG = `
 varying float vA;
 void main(){
   float d = length(gl_PointCoord - 0.5);
-  float a = smoothstep(0.5, 0.1, d) * vA;
+  float a = smoothstep(0.5, 0.12, d) * vA;
   if (a < 0.02) discard;
-  gl_FragColor = vec4(0.7, 0.38, 0.15, a);
+  gl_FragColor = vec4(0.68, 0.34, 0.12, a);
 }
 `
 
-function Starfield({ count = 12000, warpRef }) {
+function Starfield({ count = 7000, warpRef, darkRef }) {
   const geo = useMemo(() => {
     const g = new THREE.BufferGeometry()
     const pos = new Float32Array(count * 3)
@@ -264,6 +323,7 @@ function Starfield({ count = 12000, warpRef }) {
       uTime: { value: 0 },
       uPixelRatio: { value: Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.75) },
       uWarp: { value: 0 },
+      uDark: { value: 0 },
     },
     transparent: true,
     depthWrite: false,
@@ -273,22 +333,23 @@ function Starfield({ count = 12000, warpRef }) {
   useFrame((s) => {
     mat.uniforms.uTime.value = s.clock.elapsedTime
     mat.uniforms.uWarp.value = warpRef?.current ?? 0
+    mat.uniforms.uDark.value = darkRef?.current ?? 0
   })
   return <points geometry={geo} material={mat} frustumCulled={false} />
 }
 
-function DustField({ count = 2800, stormRef }) {
+function DustField({ count = 1600, stormRef }) {
   const geo = useMemo(() => {
     const g = new THREE.BufferGeometry()
     const pos = new Float32Array(count * 3)
     const seed = new Float32Array(count)
     const size = new Float32Array(count)
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 8
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 5
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 6 - 1
+      pos[i * 3] = (Math.random() - 0.5) * 7
+      pos[i * 3 + 1] = (Math.random() - 0.5) * 4.5
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 5.5 - 0.8
       seed[i] = Math.random()
-      size[i] = 0.8 + Math.random() * 3.5
+      size[i] = 0.7 + Math.random() * 3.2
     }
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
     g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1))
@@ -319,38 +380,156 @@ function DustField({ count = 2800, stormRef }) {
   return <points ref={pts} geometry={geo} material={mat} position={[2.6, 0.3, -0.5]} frustumCulled={false} visible={false} />
 }
 
-function TransitionFX({ diveRef, stormRef, carrierRef, mouse }) {
-  const mat = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: FX_VERT,
-    fragmentShader: FX_FRAG,
+function DustSheets({ stormRef, darkRef, sunDirRef }) {
+  const mats = useMemo(() => [0, 1, 2].map(() => new THREE.ShaderMaterial({
+    vertexShader: DUST_SHEET_VERT,
+    fragmentShader: DUST_SHEET_FRAG,
     uniforms: {
       uTime: { value: 0 },
-      uDive: { value: 0 },
       uStorm: { value: 0 },
-      uCarrier: { value: 0 },
-      uMouse: { value: new THREE.Vector2(0, 0) },
+      uDark: { value: 0 },
     },
     transparent: true,
-    depthTest: false,
     depthWrite: false,
+    side: THREE.DoubleSide,
     blending: THREE.NormalBlending,
+  })), [])
+
+  const group = useRef()
+  useFrame((s) => {
+    const storm = stormRef?.current ?? 0
+    const dark = darkRef?.current ?? 0
+    mats.forEach((m, i) => {
+      m.uniforms.uTime.value = s.clock.elapsedTime + i * 1.7
+      m.uniforms.uStorm.value = storm
+      m.uniforms.uDark.value = dark
+    })
+    if (group.current) group.current.visible = storm > 0.05
+    void sunDirRef
+  })
+
+  return (
+    <group ref={group} position={[2.7, 0.2, -0.4]} visible={false}>
+      {mats.map((m, i) => (
+        <mesh key={i} rotation={[0, (i - 1) * 0.55, i * 0.08]} position={[i * 0.15 - 0.15, 0.1, -0.2 * i]}>
+          <planeGeometry args={[4.2, 2.8, 1, 1]} />
+          <primitive object={m} attach="material" />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function CraterBowl({ diveRef, darkRef, sunDirRef, groupRef }) {
+  const mat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: CRATER_VERT,
+    fragmentShader: CRATER_FRAG,
+    uniforms: {
+      uDepth: { value: 0.55 },
+      uDive: { value: 0 },
+      uDark: { value: 0 },
+      uTime: { value: 0 },
+      uSunDir: { value: new THREE.Vector3(0.85, 0.32, 0.42) },
+    },
+    transparent: true,
+    depthWrite: true,
+    side: THREE.DoubleSide,
+  }), [])
+
+  useFrame((s) => {
+    const dive = diveRef?.current ?? 0
+    mat.uniforms.uDive.value = dive
+    mat.uniforms.uDark.value = darkRef?.current ?? 0
+    mat.uniforms.uTime.value = s.clock.elapsedTime
+    mat.uniforms.uDepth.value = 0.35 + dive * 0.85
+    if (sunDirRef?.current) mat.uniforms.uSunDir.value.copy(sunDirRef.current)
+    if (groupRef?.current) groupRef.current.visible = dive > 0.08
+  })
+
+  return (
+    <group ref={groupRef} visible={false}>
+      <mesh rotation={[-Math.PI / 2.15, 0.1, 0.2]} position={[0.08, -0.15, 0.35]} scale={[1.4, 1.4, 1.4]}>
+        <planeGeometry args={[2.4, 2.4, 64, 64]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+      {/* ejecta particles rush toward camera during dive */}
+      <EjectaBurst diveRef={diveRef} />
+    </group>
+  )
+}
+
+function EjectaBurst({ diveRef }) {
+  const count = 420
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry()
+    const pos = new Float32Array(count * 3)
+    const seed = new Float32Array(count)
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2
+      const r = Math.random() * 1.2
+      pos[i * 3] = Math.cos(a) * r
+      pos[i * 3 + 1] = (Math.random() - 0.5) * 0.4
+      pos[i * 3 + 2] = Math.sin(a) * r
+      seed[i] = Math.random()
+    }
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1))
+    return g
+  }, [])
+
+  const mat = useMemo(() => new THREE.PointsMaterial({
+    color: '#8a8680',
+    size: 0.035,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    sizeAttenuation: true,
+  }), [])
+
+  const ref = useRef()
+  useFrame((s) => {
+    const dive = diveRef?.current ?? 0
+    mat.opacity = dive * 0.7
+    if (ref.current) {
+      ref.current.visible = dive > 0.12
+      ref.current.scale.setScalar(1 + dive * 2.8)
+      ref.current.rotation.z = s.clock.elapsedTime * 0.4 * dive
+    }
+  })
+  return <points ref={ref} geometry={geo} material={mat} position={[0.08, -0.05, 0.2]} visible={false} />
+}
+
+function SignalBeam({ carrierRef, groupRef }) {
+  const mat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: BEAM_VERT,
+    fragmentShader: BEAM_FRAG,
+    uniforms: {
+      uCarrier: { value: 0 },
+      uTime: { value: 0 },
+    },
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
   }), [])
 
   useFrame((s) => {
     mat.uniforms.uTime.value = s.clock.elapsedTime
-    mat.uniforms.uDive.value = diveRef?.current ?? 0
-    mat.uniforms.uStorm.value = stormRef?.current ?? 0
     mat.uniforms.uCarrier.value = carrierRef?.current ?? 0
-    if (mouse?.current) {
-      mat.uniforms.uMouse.value.set(mouse.current.nx, mouse.current.ny)
+    if (groupRef?.current) {
+      const c = carrierRef?.current ?? 0
+      groupRef.current.visible = c < 0.98
+      groupRef.current.scale.set(1, lerp(2.8, 0.4, c), 1)
     }
   })
 
   return (
-    <mesh frustumCulled={false} renderOrder={10}>
-      <planeGeometry args={[2, 2]} />
-      <primitive object={mat} attach="material" />
-    </mesh>
+    <group ref={groupRef} position={[0, 0.08, -9]}>
+      <mesh position={[0, 0, 1.8]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.02, 0.55, 4.5, 16, 1, true]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+    </group>
   )
 }
 
@@ -364,6 +543,7 @@ function BodySphere({
   groupRef,
   gradeRef,
   stormRef,
+  darkRef,
   sunDirRef,
 }) {
   const mesh = useRef()
@@ -386,14 +566,16 @@ function BodySphere({
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
     uBody: { value: body },
-    uHeightScale: { value: isMars ? 0.015 : 0.009 },
-    uBump: { value: isMars ? 2.0 : 1.55 },
+    uHeightScale: { value: isMars ? 0.018 : 0.01 },
+    uBump: { value: isMars ? 2.35 : 1.7 },
     uRim: { value: new THREE.Color(rim) },
     uExposure: { value: 1 },
     uSunDir: { value: new THREE.Vector3(0.85, 0.32, 0.42) },
     uLift: { value: new THREE.Vector3(0.02, 0.03, 0.05) },
     uGain: { value: new THREE.Vector3(1, 1, 1) },
     uStorm: { value: 0 },
+    uDark: { value: 0 },
+    uAOStrength: { value: isMars ? 0.45 : 0.38 },
     uColorMap: { value: colorMap },
     uHeightMap: { value: heightMap },
   }), [body, isMars, rim, colorMap, heightMap])
@@ -407,30 +589,33 @@ function BodySphere({
       uniforms.uLift.value.set(g.lift[0], g.lift[1], g.lift[2])
       uniforms.uGain.value.set(g.gain[0], g.gain[1], g.gain[2])
     }
-    if (sunDirRef?.current) {
-      uniforms.uSunDir.value.copy(sunDirRef.current)
-    }
+    if (sunDirRef?.current) uniforms.uSunDir.value.copy(sunDirRef.current)
     uniforms.uStorm.value = isMars ? (stormRef?.current ?? 0) : 0
+    uniforms.uDark.value = darkRef?.current ?? 0
     if (mesh.current) {
-      // Storm slows / stalls rotation — Opportunity dying
-      const spinMul = isMars ? (1 - (stormRef?.current ?? 0) * 0.85) : 1
+      const spinMul = isMars ? (1 - (stormRef?.current ?? 0) * 0.92) : 1
       mesh.current.rotation.y = baseYaw + s.clock.elapsedTime * spin * spinMul
     }
   })
 
-  const segs = mobile ? 80 : 160
+  const segs = mobile ? 72 : 144
   return (
     <group ref={groupRef}>
       <mesh ref={mesh}>
         <sphereGeometry args={[1, segs, segs]} />
-        <shaderMaterial vertexShader={PLANET_VERT} fragmentShader={PLANET_FRAG} uniforms={uniforms} />
+        <shaderMaterial
+          vertexShader={PLANET_VERT}
+          fragmentShader={PLANET_FRAG}
+          uniforms={uniforms}
+          extensions={{ derivatives: true }}
+        />
       </mesh>
-      <mesh scale={1.04}>
-        <sphereGeometry args={[1, 24, 24]} />
+      <mesh scale={1.035}>
+        <sphereGeometry args={[1, 20, 20]} />
         <meshBasicMaterial
           color={rim}
           transparent
-          opacity={isMars ? 0.05 : 0.04}
+          opacity={isMars ? 0.04 : 0.035}
           side={THREE.BackSide}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
@@ -443,56 +628,59 @@ function BodySphere({
 function PioneerProbe({ groupRef, carrierRef }) {
   const inner = useRef()
   const rings = useRef([])
+  const plaque = useRef()
   useFrame((s) => {
+    const die = carrierRef?.current ?? 0
     if (inner.current) {
-      const die = carrierRef?.current ?? 0
-      inner.current.rotation.y = s.clock.elapsedTime * 0.08 * (1 - die * 0.7)
+      inner.current.rotation.y = s.clock.elapsedTime * 0.07 * (1 - die * 0.85)
     }
     rings.current.forEach((mesh, i) => {
       if (!mesh) return
-      const t = ((s.clock.elapsedTime * 0.35 + i * 0.9) % 3) / 3
-      const sc = 0.4 + t * 3.5
+      const t = ((s.clock.elapsedTime * 0.28 + i * 0.9) % 3.2) / 3.2
+      const sc = 0.35 + t * 4.2
       mesh.scale.set(sc, sc, sc)
-      const c = carrierRef?.current ?? 0
-      mesh.material.opacity = (1 - t) * 0.4 * (1 - c * 0.85)
+      mesh.material.opacity = (1 - t) * 0.45 * (1 - die)
     })
+    if (plaque?.current) {
+      plaque.current.material.emissiveIntensity = 0.55 * (1 - die * 0.95)
+    }
   })
   const dishPoints = useMemo(() => {
     const pts = []
-    for (let i = 0; i <= 18; i++) {
-      const t = i / 18
-      pts.push(new THREE.Vector2(t * 0.9, t * t * 0.35))
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20
+      pts.push(new THREE.Vector2(t * 0.92, t * t * 0.36))
     }
     return pts
   }, [])
   return (
     <group ref={groupRef} visible={false}>
-      <group ref={inner} scale={1.05}>
+      <group ref={inner} scale={1.08}>
         <mesh rotation={[Math.PI, 0, 0]} position={[0, 0.15, 0]}>
-          <latheGeometry args={[dishPoints, 40]} />
-          <meshStandardMaterial color="#b8c0cc" metalness={0.9} roughness={0.25} envMapIntensity={0.8} />
+          <latheGeometry args={[dishPoints, 48]} />
+          <meshStandardMaterial color="#c2c8d2" metalness={0.92} roughness={0.22} envMapIntensity={1.1} />
         </mesh>
         <mesh position={[0, -0.2, 0]}>
-          <cylinderGeometry args={[0.02, 0.02, 0.45, 8]} />
-          <meshStandardMaterial color="#888" metalness={0.7} roughness={0.4} />
+          <cylinderGeometry args={[0.022, 0.022, 0.48, 10]} />
+          <meshStandardMaterial color="#8a9098" metalness={0.75} roughness={0.35} />
         </mesh>
         <mesh position={[0, 0.55, 0]}>
-          <boxGeometry args={[0.55, 0.35, 0.45]} />
-          <meshStandardMaterial color="#6a7180" metalness={0.55} roughness={0.45} />
+          <boxGeometry args={[0.58, 0.36, 0.48]} />
+          <meshStandardMaterial color="#6e7584" metalness={0.6} roughness={0.4} />
         </mesh>
-        <mesh position={[0.28, 0.55, 0.24]}>
-          <planeGeometry args={[0.18, 0.12]} />
-          <meshStandardMaterial color="#ffb347" emissive="#ff9a2e" emissiveIntensity={0.55} metalness={0.95} roughness={0.2} />
+        <mesh ref={plaque} position={[0.3, 0.55, 0.26]}>
+          <planeGeometry args={[0.2, 0.14]} />
+          <meshStandardMaterial color="#ffb347" emissive="#ff9a2e" emissiveIntensity={0.55} metalness={0.95} roughness={0.18} />
         </mesh>
         {[-1, 0, 1].map((s, i) => (
           <group key={i} rotation={[0, 0, (s * Math.PI) / 3]} position={[0, 0.55, 0]}>
-            <mesh position={[0.7, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.014, 0.014, 1.1, 6]} />
-              <meshStandardMaterial color="#777" metalness={0.7} roughness={0.4} />
+            <mesh position={[0.72, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.014, 0.014, 1.15, 8]} />
+              <meshStandardMaterial color="#7a8088" metalness={0.75} roughness={0.38} />
             </mesh>
-            <mesh position={[1.25, 0, 0]}>
-              <cylinderGeometry args={[0.08, 0.08, 0.2, 10]} />
-              <meshStandardMaterial color="#4a4038" emissive="#ff6030" emissiveIntensity={0.28} />
+            <mesh position={[1.28, 0, 0]}>
+              <cylinderGeometry args={[0.085, 0.085, 0.22, 12]} />
+              <meshStandardMaterial color="#4a4038" emissive="#ff6030" emissiveIntensity={0.3} roughness={0.5} metalness={0.4} />
             </mesh>
           </group>
         ))}
@@ -503,7 +691,7 @@ function PioneerProbe({ groupRef, carrierRef }) {
             rotation={[Math.PI / 2, 0, 0]}
             position={[0, -0.35, 0]}
           >
-            <torusGeometry args={[0.45, 0.008, 6, 48]} />
+            <torusGeometry args={[0.45, 0.007, 6, 56]} />
             <meshBasicMaterial color="#8ec8ff" transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} />
           </mesh>
         ))}
@@ -512,7 +700,6 @@ function PioneerProbe({ groupRef, carrierRef }) {
   )
 }
 
-/** Inertia pointer — weight, not raw parallax */
 function useInertiaPointer(mouse, reduced) {
   const state = useRef({ x: 0, y: 0, vx: 0, vy: 0 })
   useFrame((_, dt) => {
@@ -520,10 +707,10 @@ function useInertiaPointer(mouse, reduced) {
     const s = state.current
     const tx = mouse.current.nx
     const ty = mouse.current.ny
-    const ax = (tx - s.x) * 14
-    const ay = (ty - s.y) * 14
-    s.vx = s.vx * 0.86 + ax * dt
-    s.vy = s.vy * 0.86 + ay * dt
+    const ax = (tx - s.x) * 12
+    const ay = (ty - s.y) * 12
+    s.vx = s.vx * 0.88 + ax * dt
+    s.vy = s.vy * 0.88 + ay * dt
     s.x += s.vx * dt
     s.y += s.vy * dt
   })
@@ -537,16 +724,20 @@ function FilmDirector({
   moonRef,
   marsRef,
   pioneerRef,
+  craterRef,
   sunRef,
+  fillRef,
+  fogRef,
   gradeRef,
   diveRef,
   stormRef,
   carrierRef,
   warpRef,
+  darkRef,
   sunDirRef,
   onSample,
 }) {
-  const { camera, gl } = useThree()
+  const { camera, gl, scene } = useThree()
   const look = useMemo(() => new THREE.Vector3(), [])
   const desired = useMemo(() => new THREE.Vector3(), [])
   const inertia = useInertiaPointer(mouse, reduced)
@@ -557,73 +748,81 @@ function FilmDirector({
     const sample = sampleActs(p)
     onSample?.(sample)
 
-    diveRef.current = sample.fx.dive
-    stormRef.current = sample.fx.storm
-    carrierRef.current = sample.fx.carrier
-    warpRef.current = sample.fx.warp
+    diveRef.current = sample.event.dive
+    stormRef.current = sample.event.storm
+    carrierRef.current = sample.event.carrier
+    warpRef.current = sample.event.warp
+    darkRef.current = sample.dark
     gradeRef.current = sample.grade
 
-    // Adaptive DPR — drop under load / storm
     const targetDpr = clamp(
-      (window.devicePixelRatio || 1) * (sample.fx.storm > 0.5 || sample.fx.dive > 0.6 ? 0.75 : 1),
+      (window.devicePixelRatio || 1) * (sample.event.storm > 0.45 || sample.event.dive > 0.55 ? 0.72 : 1),
       1,
-      reduced ? 1.25 : 1.75,
+      reduced ? 1.2 : 1.7,
     )
     if (Math.abs(targetDpr - lastDpr.current) > 0.08) {
       gl.setPixelRatio(targetDpr)
       lastDpr.current = targetDpr
     }
 
-    const mx = inertia.current.x * (0.28 + sample.fx.warp * 0.2)
-    const my = inertia.current.y * (0.18 + sample.fx.warp * 0.15)
+    const mx = inertia.current.x * (0.22 + sample.event.warp * 0.18)
+    const my = inertia.current.y * (0.14 + sample.event.warp * 0.12)
 
     desired.set(
       sample.cam[0] + mx,
       sample.cam[1] - my,
-      sample.cam[2] + Math.abs(mx) * 0.06,
+      sample.cam[2] + Math.abs(mx) * 0.05,
     )
 
-    // Smash cut: snap hard near crater smash point
-    const damp = sample.smash ? 0.35 : (reduced ? 0.14 : 0.07)
+    // Smash: hard snap into crater
+    const damp = sample.smash ? 0.55 : (reduced ? 0.16 : 0.065)
     camera.position.x = lerp(camera.position.x, desired.x, damp)
     camera.position.y = lerp(camera.position.y, desired.y, damp)
     camera.position.z = lerp(camera.position.z, desired.z, damp)
 
     if ('fov' in camera) {
-      camera.fov = lerp(camera.fov, sample.fov, sample.smash ? 0.4 : 0.08)
+      camera.fov = lerp(camera.fov, sample.fov, sample.smash ? 0.5 : 0.075)
       camera.updateProjectionMatrix()
     }
 
     look.set(
-      sample.look[0] + mx * 0.1,
-      sample.look[1] - my * 0.06,
+      sample.look[0] + mx * 0.08,
+      sample.look[1] - my * 0.05,
       sample.look[2],
     )
     camera.lookAt(look)
 
-    // Body placement by focus
     const f = sample.focus
     if (moonRef.current) {
       const show = f === 'moon' || f === 'dive'
-      moonRef.current.visible = show || sample.fx.dive > 0.05
+      moonRef.current.visible = show || sample.event.dive > 0.05
       if (f === 'dive') {
-        // Camera dives into moon — scale up toward camera
-        const s = lerp(1.55, 4.2, sample.fx.dive)
+        // Enter the crater — moon grows into a world, not a sticker
+        const s = lerp(1.7, 5.4, sample.event.dive)
         moonRef.current.scale.setScalar(s)
-        moonRef.current.position.set(0.05, -0.02, 0)
+        moonRef.current.position.set(0.04, -0.06, -0.15)
       } else if (f === 'moon') {
-        moonRef.current.scale.setScalar(lerp(1.55, 1.7, sample.eased * 0.3))
+        moonRef.current.scale.setScalar(lerp(1.55, 1.72, sample.eased * 0.35))
         moonRef.current.position.set(0, -0.04, 0)
       } else {
         moonRef.current.scale.setScalar(0.01)
+      }
+    }
+    if (craterRef.current) {
+      if (f === 'dive' || sample.event.dive > 0.08) {
+        craterRef.current.visible = true
+        craterRef.current.position.set(0.06, -0.12, 0.55)
+        craterRef.current.scale.setScalar(lerp(0.8, 2.4, sample.event.dive))
       }
     }
     if (marsRef.current) {
       const show = f === 'mars' || f === 'storm'
       marsRef.current.visible = show
       if (show) {
-        marsRef.current.position.set(2.75, 0.15, -0.5)
-        marsRef.current.scale.setScalar(lerp(0.9, 1.25, f === 'storm' ? sample.eased : 0.4))
+        marsRef.current.position.set(2.72, 0.12, -0.45)
+        // Storm: push into Meridiani — place, not overlay
+        const stormPush = f === 'storm' ? sample.event.storm : 0
+        marsRef.current.scale.setScalar(lerp(0.95, 1.55, Math.max(sample.eased * 0.35, stormPush * 0.7)))
       } else {
         marsRef.current.scale.setScalar(0.01)
       }
@@ -632,39 +831,53 @@ function FilmDirector({
       const show = f === 'pioneer'
       pioneerRef.current.visible = show
       pioneerRef.current.position.set(0, 0.08, -9)
-      pioneerRef.current.scale.setScalar(show ? lerp(0.8, 1.25, sample.eased) : 0.01)
-    }
-    if (sunRef.current) {
-      const marsish = f === 'mars' || f === 'storm'
-      sunRef.current.position.set(marsish ? 4.2 : 6.0, marsish ? 3.5 : 2.5, 3)
-      sunRef.current.intensity = sample.grade.exposure * (f === 'storm' ? 0.55 : 1.45)
-      sunRef.current.color.set(marsish ? '#ffc8a0' : '#fff6ea')
-    }
-    if (sunDirRef.current) {
-      const marsish = f === 'mars' || f === 'storm'
-      sunDirRef.current.set(marsish ? 0.65 : 0.85, marsish ? 0.5 : 0.32, marsish ? 0.3 : 0.42)
+      pioneerRef.current.scale.setScalar(show ? lerp(0.85, 1.35, sample.eased) : 0.01)
     }
 
-    // Exposure on renderer
-    gl.toneMappingExposure = lerp(gl.toneMappingExposure, sample.grade.exposure, 0.08)
+    // Lighting lockstep with events
+    const marsish = f === 'mars' || f === 'storm'
+    if (sunRef.current) {
+      sunRef.current.position.set(marsish ? 4.0 : 6.0, marsish ? 3.2 : 2.5, 3)
+      const base = sample.grade.exposure * (f === 'storm' ? 0.35 : 1.4)
+      sunRef.current.intensity = base * (1 - sample.dark * 0.92) * (1 - sample.event.carrier * 0.55)
+      sunRef.current.color.set(marsish ? '#ffb890' : '#fff6ea')
+    }
+    if (fillRef.current) {
+      fillRef.current.intensity = 0.14 * (1 - sample.dark * 0.85) * (1 - sample.event.storm * 0.7)
+    }
+    if (sunDirRef.current) {
+      sunDirRef.current.set(marsish ? 0.62 : 0.85, marsish ? 0.48 : 0.32, marsish ? 0.28 : 0.42)
+    }
+    if (fogRef.current) {
+      fogRef.current.near = sample.fog[0]
+      fogRef.current.far = sample.fog[1]
+      const fogCol = marsish
+        ? new THREE.Color().setRGB(0.12 + sample.event.storm * 0.15, 0.05, 0.02)
+        : new THREE.Color().setRGB(0.01, 0.01, 0.025)
+      fogRef.current.color.copy(fogCol)
+      scene.background = fogCol.clone().multiplyScalar(0.35 + sample.dark * 0.4)
+    }
+
+    gl.toneMappingExposure = lerp(gl.toneMappingExposure, sample.grade.exposure * (1 - sample.dark * 0.35), 0.1)
+    void dt
   })
 
   return null
 }
 
-function ContinuumPost({ mobile, reduced, stormRef, diveRef }) {
-  const [aberration] = useState(() => new Vector2(0.00015, 0.0002))
+function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
+  const [aberration] = useState(() => new Vector2(0.00012, 0.00016))
   useFrame(() => {
-    const w = Math.max(stormRef?.current ?? 0, diveRef?.current ?? 0)
-    aberration.set(0.00015 + w * 0.0012, 0.0002 + w * 0.001)
+    const w = Math.max(stormRef?.current ?? 0, diveRef?.current ?? 0, (darkRef?.current ?? 0) * 0.5)
+    aberration.set(0.00012 + w * 0.0014, 0.00016 + w * 0.0011)
   })
   if (mobile || reduced) return null
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
-      <Bloom intensity={0.09} luminanceThreshold={0.93} luminanceSmoothing={0.2} mipmapBlur />
+      <Bloom intensity={0.07} luminanceThreshold={0.94} luminanceSmoothing={0.22} mipmapBlur />
       <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={aberration} />
-      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.045} />
-      <Vignette eskil={false} offset={0.25} darkness={0.58} />
+      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.04} />
+      <Vignette eskil={false} offset={0.22} darkness={0.62} />
     </EffectComposer>
   )
 }
@@ -673,22 +886,27 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
   const moonRef = useRef()
   const marsRef = useRef()
   const pioneerRef = useRef()
+  const craterRef = useRef()
+  const beamRef = useRef()
   const sunRef = useRef()
+  const fillRef = useRef()
+  const fogRef = useRef()
   const gradeRef = useRef({ lift: [0.02, 0.03, 0.05], gain: [1, 1, 1], exposure: 1, grain: 0.04 })
   const diveRef = useRef(0)
   const stormRef = useRef(0)
   const carrierRef = useRef(0)
   const warpRef = useRef(0)
+  const darkRef = useRef(0)
   const sunDirRef = useRef(new THREE.Vector3(0.85, 0.32, 0.42))
   const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_4k.jpg'
 
   return (
     <>
       <color attach="background" args={['#020206']} />
-      <fog attach="fog" args={['#020206', 12, 65]} />
-      <ambientLight intensity={0.08} />
-      <directionalLight ref={sunRef} position={[6, 2.5, 3]} intensity={1.45} color="#fff6ea" />
-      <directionalLight position={[-3, -0.5, -2]} intensity={0.16} color="#6a82ff" />
+      <fog ref={fogRef} attach="fog" args={['#020206', 14, 72]} />
+      <ambientLight intensity={0.055} />
+      <directionalLight ref={sunRef} position={[6, 2.5, 3]} intensity={1.4} color="#fff6ea" />
+      <directionalLight ref={fillRef} position={[-3, -0.5, -2]} intensity={0.14} color="#6a82ff" />
 
       <FilmDirector
         progress={progress}
@@ -697,18 +915,23 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
         moonRef={moonRef}
         marsRef={marsRef}
         pioneerRef={pioneerRef}
+        craterRef={craterRef}
         sunRef={sunRef}
+        fillRef={fillRef}
+        fogRef={fogRef}
         gradeRef={gradeRef}
         diveRef={diveRef}
         stormRef={stormRef}
         carrierRef={carrierRef}
         warpRef={warpRef}
+        darkRef={darkRef}
         sunDirRef={sunDirRef}
         onSample={onSample}
       />
 
-      <Starfield count={mobile ? 3200 : 7000} warpRef={warpRef} />
-      {!mobile && <DustField count={1400} stormRef={stormRef} />}
+      <Starfield count={mobile ? 2800 : 5600} warpRef={warpRef} darkRef={darkRef} />
+      {!mobile && <DustField count={1200} stormRef={stormRef} />}
+      {!mobile && <DustSheets stormRef={stormRef} darkRef={darkRef} sunDirRef={sunDirRef} />}
 
       <Suspense fallback={null}>
         <BodySphere
@@ -720,6 +943,7 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
           heightPath="/textures/moon_height_2k.jpg"
           gradeRef={gradeRef}
           stormRef={stormRef}
+          darkRef={darkRef}
           sunDirRef={sunDirRef}
         />
         <BodySphere
@@ -727,18 +951,20 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
           body={1}
           rim="#ff9a6a"
           mobile={mobile}
-          spin={0.022}
+          spin={0.02}
           colorPath="/textures/mars_color_2k.jpg"
           heightPath="/textures/mars_bump_1k.jpg"
           gradeRef={gradeRef}
           stormRef={stormRef}
+          darkRef={darkRef}
           sunDirRef={sunDirRef}
         />
       </Suspense>
 
+      <CraterBowl diveRef={diveRef} darkRef={darkRef} sunDirRef={sunDirRef} groupRef={craterRef} />
       <PioneerProbe groupRef={pioneerRef} carrierRef={carrierRef} />
-      <TransitionFX diveRef={diveRef} stormRef={stormRef} carrierRef={carrierRef} mouse={mouse} />
-      <ContinuumPost mobile={mobile} reduced={reduced} stormRef={stormRef} diveRef={diveRef} />
+      <SignalBeam carrierRef={carrierRef} groupRef={beamRef} />
+      <ContinuumPost mobile={mobile} reduced={reduced} stormRef={stormRef} diveRef={diveRef} darkRef={darkRef} />
     </>
   )
 }
@@ -747,8 +973,8 @@ export default function ContinuumCanvas({ progress, mouse, mobile, reduced, acti
   return (
     <div className="continuum-canvas" aria-hidden>
       <Canvas
-        dpr={mobile ? [1, 1.35] : [1, 1.75]}
-        camera={{ position: [0.55, 0.28, 6.4], fov: 42, near: 0.05, far: 220 }}
+        dpr={mobile ? [1, 1.3] : [1, 1.65]}
+        camera={{ position: [0.55, 0.28, 6.4], fov: 42, near: 0.04, far: 220 }}
         gl={{
           antialias: !mobile,
           alpha: false,
