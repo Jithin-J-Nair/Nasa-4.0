@@ -135,7 +135,7 @@ img, svg { display: block; max-width: 100%; }
 }
 .film-scrubber {
   position: fixed;
-  left: 12px;
+  left: clamp(1.25rem, 4vw, 2rem);
   bottom: 12px;
   z-index: 260;
   pointer-events: auto;
@@ -210,12 +210,13 @@ img, svg { display: block; max-width: 100%; }
   top: calc(var(--nav-h) + 2.75rem);
   z-index: 95;
   align-self: flex-start;
-  width: min(420px, 86vw);
-  max-width: min(420px, 86vw);
+  width: min(420px, 78vw);
+  max-width: min(420px, 78vw);
   /* Pull up into Objective so the title is already on-screen while finishing the challenge copy */
   margin: clamp(-1.25rem, -4vh, 0.25rem) 0 clamp(-8rem, -16vh, -4rem);
-  margin-left: clamp(1.25rem, 5vw, 5rem);
-  padding: 0.35rem 0 0;
+  /* Keep clear of the left edge / film scrubber — was flush to the corner */
+  margin-left: clamp(2.75rem, 9vw, 7rem);
+  padding: 0.35rem 1rem 0 0;
   pointer-events: none;
   transform: translate3d(0, 0, 0);
   transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1), filter 0.85s ease;
@@ -241,9 +242,9 @@ img, svg { display: block; max-width: 100%; }
 }
 @media (max-width: 720px) {
   .atlas-heading--bridge {
-    margin-left: clamp(1rem, 4vw, 1.5rem);
-    width: min(100%, 92vw);
-    max-width: min(100%, 92vw);
+    margin-left: clamp(1.5rem, 6vw, 2.25rem);
+    width: min(100%, 88vw);
+    max-width: min(100%, 88vw);
   }
 }
 .story-seam--into-film {
@@ -1016,9 +1017,9 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .atlas-overlay--hud {
   position: fixed;
   top: calc(var(--nav-h) + 2.75rem);
-  left: clamp(1.25rem, 5vw, 5rem);
+  left: clamp(2.75rem, 9vw, 7rem);
   z-index: 95;
-  max-width: min(420px, 86vw);
+  max-width: min(420px, 78vw);
   pointer-events: none;
   transition: opacity 1.05s cubic-bezier(0.22, 1, 0.36, 1), visibility 1.05s;
 }
