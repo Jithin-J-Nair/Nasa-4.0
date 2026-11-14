@@ -25,15 +25,13 @@ import {
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
 import {
-  Magnet, SpotlightCard, ClickSpark, FadeContent,
-  GradientText, GlareHover, BlurText, TrueFocus, OptionWheel, SplitText,
+  Magnet, ClickSpark,
+  GradientText, GlareHover, BlurText, OptionWheel, SplitText,
 } from './bits'
 const FleetShelf = lazy(() => import('./fleet/FleetShelf'))
-import './bits/SpotlightCard/SpotlightCard.css'
 import './bits/GradientText/GradientText.css'
 import './bits/SplitText/SplitText.css'
 import './bits/GlareHover/GlareHover.css'
-import './bits/TrueFocus/TrueFocus.css'
 import './bits/OptionWheel/OptionWheel.css'
 
 const ContinuumCanvas = lazy(() => import('./world/ContinuumCanvas'))
@@ -51,9 +49,6 @@ import '@fontsource/unbounded/700.css'
 
 const EASE = [0.22, 1, 0.36, 1]
 const SPRING = { stiffness: 140, damping: 26, mass: 0.9 }
-const HEARTBEATS = ['opportunity', 'a11-lm', 'voyager1']
-  .map((id) => ARTIFACTS.find((a) => a.id === id))
-  .filter(Boolean)
 /** Hero challenge plate — NASA leftover hardware (Eagle LM) · Tranquility Base */
 const HERO_LEFTOVER = ARTIFACTS.find((a) => a.id === 'a11-lm')
 const MARS_HOTSPOT_SITES = ARTIFACTS.filter((a) => a.body === 'mars' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
@@ -367,19 +362,10 @@ function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
           JOURNEY
         </a>
         <a
-          href="#recover"
-          onClick={(e) => {
-            e.preventDefault()
-            onNavCoda?.(e, 'recover')
-          }}
-        >
-          RECOVER
-        </a>
-        <a
           href="#fleet"
           onClick={(e) => {
             e.preventDefault()
-            onNavCoda?.(e, 'fleet')
+            onNavCoda?.(e)
           }}
         >
           FLEET
@@ -735,85 +721,6 @@ function MarsHotspotWheel({ active, selectedId, onSelect }) {
     </div>
   )
 }
-
-function Heartbeats({ onOpen, reduced }) {
-  const { setLabel } = useCursor()
-  return (
-    <section className="heartbeats" id="recover" aria-label="Recover hardware">
-      <FadeContent blur={!reduced} duration={0.9} threshold={0.15} ease="power2.out">
-        <p className="kicker" style={{ marginBottom: '0.75rem' }}>THREE HEARTBEATS · STILL OUT THERE</p>
-        <div className="heartbeat-focus">
-          <TrueFocus
-            sentence="Know them by name"
-            borderColor="#8ec8ff"
-            glowColor="rgba(142,200,255,0.35)"
-            blurAmount={reduced ? 0 : 4}
-            animationDuration={0.55}
-            pauseBetweenAnimations={1.1}
-            manualMode={false}
-            focusStyle="brackets"
-          />
-        </div>
-        <p style={{ color: 'var(--ink-dim)', maxWidth: '46ch', marginTop: '0.85rem', lineHeight: 1.55 }}>
-          Not scrap — teammates. Let the hardware speak. Open a dossier. Remember their story.
-        </p>
-        <LightDayCountdown className="light-day--recover" />
-        <div className="heartbeat-row" style={{ marginTop: '2rem' }}>
-          {HEARTBEATS.map((a) => (
-            <SpotlightCard
-              key={a.id}
-              className="heartbeat-spotlight"
-              theme="dark"
-              spotlightColor="#8ec8ff"
-              intensity={0.22}
-              spotlightSize={280}
-              softness={0.75}
-              grain={0.08}
-              style={{ background: 'rgba(7,7,12,0.72)', borderRadius: 0, padding: 0 }}
-            >
-              <GlareHover
-                width="100%"
-                height="100%"
-                background="transparent"
-                borderRadius="0"
-                borderColor="transparent"
-                glareColor="#ff7a45"
-                glareOpacity={0.22}
-              >
-                <button
-                  type="button"
-                  className="heartbeat-cell"
-                  onClick={() => onOpen(a)}
-                  onMouseEnter={() => setLabel('OPEN')}
-                  onMouseLeave={() => setLabel('')}
-                  style={{ width: '100%', background: 'transparent', border: 'none' }}
-                >
-                  {a.image && (
-                    <div className={`nasa-media heartbeat-media body-${a.body}`}>
-                      <img src={a.image} alt={a.imageAlt || a.name} loading="lazy" decoding="async" />
-                      <span className="credit">{a.credit} · {a.coords}</span>
-                    </div>
-                  )}
-                  <div className="mono" style={{ fontSize: '0.58rem', letterSpacing: '0.14em', color: 'var(--ink-mute)' }}>
-                    {a.body.toUpperCase()} · {a.mission} · {a.status}
-                  </div>
-                  <div className="tx">“{a.transmission}”</div>
-                  <p className="heartbeat-voice">
-                    {(a.voice || a.science).slice(0, 140)}{(a.voice || a.science).length > 140 ? '…' : ''}
-                  </p>
-                  <span className="mono" style={{ fontSize: '0.62rem', letterSpacing: '0.14em', color: 'var(--ice)', marginTop: '0.65rem', display: 'block' }}>
-                    HEAR THEIR STORY →
-                  </span>
-                </button>
-              </GlareHover>
-            </SpotlightCard>
-          ))}
-        </div>
-      </FadeContent>
-    </section>
-  )
-}
-
 
 function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) {
   const sectionRef = useRef(null)
@@ -1418,8 +1325,8 @@ export default function App() {
     })
   }, [reduced])
 
-  /** Recover / Fleet — soft continuum coda (not a hard brochure jump mid-film). */
-  const onNavCoda = useCallback((e, which = 'recover') => {
+  /** Fleet — soft continuum coda (not a hard brochure jump mid-film). */
+  const onNavCoda = useCallback((e) => {
     e?.preventDefault?.()
     killJourneyRef.current?.()
     killJourneyRef.current = null
@@ -1432,9 +1339,9 @@ export default function App() {
     scheduleScrollRefresh(0)
     requestAnimationFrame(() => {
       scrollToFilmMarker('silence', { immediate: true })
-      scrollToHash(which === 'fleet' ? '#fleet' : '#recover', { duration: 1.15, offset: -72 })
+      scrollToHash('#fleet', { duration: 1.15, offset: -72 })
     })
-    history.replaceState(null, '', which === 'fleet' ? '#fleet' : '#recover')
+    history.replaceState(null, '', '#fleet')
   }, [])
 
   const onFocusSite = useCallback((id) => {
@@ -1648,11 +1555,7 @@ export default function App() {
                 <FilmJourney label={actLabel} />
               </div>
 
-              <div className="story-seam story-seam--into-recover" aria-hidden />
-
-              <ErrorBoundary>
-                <Heartbeats onOpen={openDossier} reduced={reduced} />
-              </ErrorBoundary>
+              <div className="story-seam story-seam--into-fleet" aria-hidden />
 
               <ErrorBoundary>
                 <Fleet onOpen={openDossier} />

@@ -257,6 +257,7 @@ img, svg { display: block; max-width: 100%; }
   margin-bottom: clamp(-1rem, -3vh, 0);
   background: transparent;
 }
+.story-seam--into-fleet,
 .story-seam--into-recover {
   height: clamp(3.5rem, 9vh, 6rem);
   background: linear-gradient(
