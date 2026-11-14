@@ -26,18 +26,19 @@ import {
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
 import {
-  Magnet, ClickSpark, FadeContent, SpotlightCard, TrueFocus, GlareHover,
+  Magnet, ClickSpark, FadeContent, TrueFocus, GlareHover,
   GradientText, BlurText, OptionWheel, SplitText, Noise, ShinyText, DecryptedText,
+  TiltedCard,
 } from './bits'
 const FleetShelf = lazy(() => import('./fleet/FleetShelf'))
 import './bits/GradientText/GradientText.css'
 import './bits/SplitText/SplitText.css'
 import './bits/OptionWheel/OptionWheel.css'
 import './bits/TrueFocus/TrueFocus.css'
-import './bits/SpotlightCard/SpotlightCard.css'
 import './bits/Noise/Noise.css'
 import './bits/ShinyText/ShinyText.css'
 import './bits/GlareHover/GlareHover.css'
+import './bits/TiltedCard/TiltedCard.css'
 
 const ContinuumCanvas = lazy(() => import('./world/ContinuumCanvas'))
 
@@ -727,33 +728,38 @@ function ChallengeObjective({ reduced }) {
           )}
         </div>
         <div className="objective-figure-fade">
-          <SpotlightCard
-            className="objective-spotlight"
-            spotlightColor="rgba(142, 200, 255, 0.22)"
-            intensity={0.22}
-            spotlightSize={280}
-            softness={0.75}
-            borderGlow={0.55}
-            proximity={64}
-            smoothing={0.28}
-          >
-            <figure className="objective-figure">
-              <div className="nasa-media body-moon objective-figure__media">
-                <img
-                  src="/images/eagle-aldrin-portrait.jpg"
-                  alt="Apollo 11 astronaut Buzz Aldrin on the Moon — gold visor and bootprints in the regolith"
-                  loading="eager"
-                  decoding="async"
-                />
-                <span className="credit">
+          <div className="objective-figure">
+            <TiltedCard
+              className="objective-tilted"
+              imageSrc="/images/eagle-aldrin-portrait.jpg"
+              altText="Apollo 11 astronaut Buzz Aldrin on the Moon — gold visor and bootprints in the regolith"
+              captionText="Buzz Aldrin · Tranquility Base"
+              containerWidth="100%"
+              containerHeight="100%"
+              imageWidth="100%"
+              imageHeight="100%"
+              radius={0}
+              rotateAmplitude={reduced || coarse ? 0 : 11}
+              scaleOnHover={reduced || coarse ? 1 : 1.045}
+              showTooltip={!coarse}
+              glare={reduced || coarse ? 0 : 0.42}
+              glareColor="#8ec8ff"
+              shadow={0.62}
+              parallax={reduced || coarse ? 0 : 0.85}
+              floating={!reduced && !coarse}
+              gyroscope={!reduced}
+              intro={!reduced}
+              displayOverlayContent
+              overlayContent={(
+                <p className="mono objective-tilted__credit">
                   {HERO_LEFTOVER?.credit || 'NASA / Apollo 11'} · {HERO_LEFTOVER?.coords || '0.67416° N, 23.47314° E'}
-                </span>
-              </div>
-              <figcaption className="mono">
-                Buzz Aldrin · Tranquility Base · still on the Moon
-              </figcaption>
-            </figure>
-          </SpotlightCard>
+                </p>
+              )}
+            />
+            <p className="mono objective-figure__caption">
+              Buzz Aldrin · Tranquility Base · still on the Moon
+            </p>
+          </div>
         </div>
       </div>
       <div className="objective-copy" data-reveal>

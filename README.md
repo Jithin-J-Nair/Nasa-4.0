@@ -16,7 +16,7 @@ Accuracy throughout. Connection over scrap lists.
 - **Hero:** Brand left · LROC Moon stage-right  
 - **Type:** Syne / Unbounded at exaggerated display sizes; IBM Plex Mono for telemetry  
 - **Motion stack:** GSAP + ScrollTrigger + Lenis (sole smooth-scroll engine)  
-- **UI bits:** Curated [React Bits](https://www.reactbits.dev/) (JS) — Magnet, SpotlightCard, ClickSpark, FadeContent, GradientText, GlareHover, BlurText, TrueFocus, Noise, ShinyText, DecryptedText  
+- **UI bits:** Curated [React Bits](https://www.reactbits.dev/) (JS) — Magnet, SpotlightCard, ClickSpark, FadeContent, GradientText, GlareHover, BlurText, TrueFocus, Noise, ShinyText, DecryptedText, TiltedCard  
 - **WebGL:** Justified continuum — albedo/AO/roughness planets, Fresnel atmosphere, diegetic scene events  
 - **Assets:** 8K equirect Moon + Mars albedo masters (desktop) with derived height/bump LODs — see `public/textures/ATTRIBUTION.txt`
 
@@ -26,7 +26,7 @@ Accuracy throughout. Connection over scrap lists.
 - Scene events — crater bowl · Meridiani dust sheets · Pioneer signal beam  
 - GSAP boot + hero stagger; session-seeded timing variance on reload  
 - React Bits hero (BlurText + GradientText + DecryptedText + ShinyText scroll cue), ClickSpark field, Magnet/Glare CTA  
-- Objective TrueFocus + SpotlightCard; film grain via Noise; Atlas/footer decrypt + FadeContent  
+- Objective TrueFocus + TiltedCard (Aldrin portrait); film grain via Noise; Atlas/footer decrypt + FadeContent  
 
 - Cursor trail + magnetic CTA; diegetic captions open dossiers  
 - Scored silence for Opportunity death and carrier lost  

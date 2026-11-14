@@ -1202,18 +1202,51 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 }
 .objective-link-row a { color: var(--ice); }
 .objective-link-row a:hover { color: var(--ink); }
-.objective-figure { margin: 0; }
-.objective-figure__media.nasa-media {
-  /* Vertical plate — pre-cropped so visor + bootprints stay in frame */
-  aspect-ratio: 3 / 4;
-  margin-bottom: 0;
-  max-height: min(62vh, 560px);
+.objective-figure {
+  margin: 0;
   width: 100%;
-  border-radius: 0;
 }
-.objective-figure__media.nasa-media img {
-  object-fit: cover;
+.objective-figure .objective-tilted.tilted-card {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  max-height: min(62vh, 560px);
+}
+.objective-figure .tilted-card__body,
+.objective-figure .tilted-card__shadow {
+  width: 100% !important;
+  height: 100% !important;
+}
+.objective-figure .tilted-card__img {
   object-position: 42% 46%;
+}
+.objective-tilted__credit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: rgba(232, 238, 245, 0.78);
+}
+.objective-figure__caption {
+  margin-top: 0.65rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-mute);
+}
+.objective-figure .tilted-card__caption {
+  background: rgba(8, 10, 16, 0.92);
+  color: var(--ink);
+  border: 1px solid rgba(142, 200, 255, 0.22);
+  box-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.85);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 .objective-headline {
   font-size: clamp(2.2rem, 5.2vw, 4.1rem);
@@ -1243,22 +1276,12 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   color: var(--ink);
   cursor: default;
 }
-.objective-spotlight.spotlight-card {
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  overflow: visible;
-}
-.objective-spotlight .spotlight-card__border {
-  border-radius: 0;
-  background: rgba(142, 200, 255, 0.12);
-}
 .objective-figure-fade {
   width: 100%;
   max-width: min(34vw, 380px);
   justify-self: end;
   flex-shrink: 0;
+  perspective: 900px;
 }
 .sf-film-grain {
   pointer-events: none;
@@ -1281,12 +1304,6 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   letter-spacing: inherit;
 }
 
-.objective-figure figcaption {
-  margin-top: 0.65rem;
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  color: var(--ink-mute);
-}
 .heartbeat-media {
   margin-bottom: 0.85rem !important;
   aspect-ratio: 16 / 10;
@@ -1301,7 +1318,7 @@ body.is-coarse .hero-leftover { cursor: pointer; }
     max-width: min(72vw, 320px);
     justify-self: end;
   }
-  .objective-figure__media.nasa-media {
+  .objective-figure .objective-tilted.tilted-card {
     max-height: min(48vh, 420px);
   }
   .objective-focus-wrap .focus-container {
@@ -1315,7 +1332,6 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   }
 }
 .nasa-media.body-moon img { object-position: 50% 42%; }
-.objective-figure__media.body-moon img { object-position: 42% 46%; }
 .nasa-media.body-mars img { object-position: 50% 55%; }
 .nasa-media.body-deep img { object-position: 50% 40%; }
 
