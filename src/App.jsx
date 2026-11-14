@@ -1193,7 +1193,7 @@ export default function App() {
             {/* One continuous scroll plate — Objective → Fleet reads as a single page */}
             <div className="story-plate">
               {/* Sticky band: “Where they still sit” enters in Objective and holds through Atlas */}
-              <div className="objective-atlas-band">
+              <div className={`objective-atlas-band ${atlasLock ? 'is-atlas-live' : ''}`}>
                 <ErrorBoundary>
                   <ChallengeObjective reduced={reduced} />
                 </ErrorBoundary>

@@ -281,11 +281,12 @@ void main(){
   vColor = aColor;
   vec3 p = position;
   p += vec3(sin(uTime*0.01+aSeed), cos(uTime*0.012+aSeed*2.0), sin(uTime*0.008+aSeed))*0.12;
-  p *= 1.0 + uWarp * 0.4;
+  p *= 1.0 + uWarp * 0.15;
   vec4 mv = modelViewMatrix * vec4(p,1.0);
-  float tw = 0.55 + 0.45*sin(uTime*(0.5+aSeed*2.0)+aSeed*12.0);
-  vAlpha = tw * (1.0 - uWarp * 0.45) * (1.0 - uDark * 0.75);
-  gl_PointSize = aSize * uPixelRatio * (190.0 / -mv.z) * (0.65 + 0.35*tw) * (1.0 + uWarp * 2.0);
+  float tw = 0.7 + 0.3*sin(uTime*(0.5+aSeed*2.0)+aSeed*12.0);
+  vAlpha = tw * (1.0 - uWarp * 0.35) * (1.0 - uDark * 0.75);
+  // Pinpricks only — never soft bokeh orbs over the Moon
+  gl_PointSize = clamp(aSize * uPixelRatio * (72.0 / -mv.z), 0.6, 2.4);
   gl_Position = projectionMatrix * mv;
 }
 `
@@ -294,8 +295,9 @@ varying float vAlpha;
 varying vec3 vColor;
 void main(){
   float d = length(gl_PointCoord - 0.5);
-  float a = smoothstep(0.5, 0.0, d) * vAlpha;
-  if(a < 0.02) discard;
+  // Hard core — kills the tan circular particle look
+  float a = smoothstep(0.45, 0.12, d) * vAlpha;
+  if(a < 0.04) discard;
   gl_FragColor = vec4(vColor, a);
 }
 `
@@ -373,7 +375,7 @@ void main(){
   p.z += cos(uTime * 0.8 + aSeed * 10.0) * 0.4;
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   vA = uStorm * (0.35 + 0.65 * fract(aSeed * 7.1));
-  gl_PointSize = aSize * uPixelRatio * (110.0 / -mv.z) * (0.45 + uStorm);
+  gl_PointSize = clamp(aSize * uPixelRatio * (70.0 / -mv.z) * (0.4 + uStorm * 0.5), 0.5, 3.0);
   gl_Position = projectionMatrix * mv;
 }
 `
@@ -401,12 +403,12 @@ function Starfield({ count = 7000, warpRef, darkRef }) {
       pos[i * 3] = r * Math.sin(phi) * Math.cos(theta)
       pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
       pos[i * 3 + 2] = r * Math.cos(phi)
-      size[i] = 0.28 + Math.random() * 1.7
+      // Tiny distant stars only — no large soft discs
+      size[i] = 0.55 + Math.random() * 0.65
       seed[i] = Math.random()
-      const warm = Math.random() > 0.9
-      col[i * 3] = warm ? 1 : 0.8 + Math.random() * 0.2
-      col[i * 3 + 1] = warm ? 0.86 : 0.88 + Math.random() * 0.12
-      col[i * 3 + 2] = warm ? 0.6 : 1
+      col[i * 3] = 0.82 + Math.random() * 0.18
+      col[i * 3 + 1] = 0.88 + Math.random() * 0.12
+      col[i * 3 + 2] = 0.95 + Math.random() * 0.05
     }
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
     g.setAttribute('aSize', new THREE.BufferAttribute(size, 1))
@@ -426,6 +428,7 @@ function Starfield({ count = 7000, warpRef, darkRef }) {
     },
     transparent: true,
     depthWrite: false,
+    depthTest: true,
     blending: THREE.AdditiveBlending,
   }), [])
 
@@ -448,7 +451,7 @@ function DustField({ count = 1600, stormRef }) {
       pos[i * 3 + 1] = (Math.random() - 0.5) * 4.5
       pos[i * 3 + 2] = (Math.random() - 0.5) * 5.5 - 0.8
       seed[i] = Math.random()
-      size[i] = 0.7 + Math.random() * 3.2
+      size[i] = 0.35 + Math.random() * 0.85
     }
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
     g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1))
@@ -474,7 +477,8 @@ function DustField({ count = 1600, stormRef }) {
     const storm = stormRef?.current ?? 0
     mat.uniforms.uTime.value = s.clock.elapsedTime
     mat.uniforms.uStorm.value = storm
-    if (pts.current) pts.current.visible = storm > 0.04
+    // Only during Meridiani storm — never as Atlas bokeh
+    if (pts.current) pts.current.visible = storm > 0.12
   })
   return <points ref={pts} geometry={geo} material={mat} position={[2.6, 0.3, -0.5]} frustumCulled={false} visible={false} />
 }
@@ -503,7 +507,7 @@ function DustSheets({ stormRef, darkRef, sunDirRef }) {
       m.uniforms.uStorm.value = storm
       m.uniforms.uDark.value = dark
     })
-    if (group.current) group.current.visible = storm > 0.05
+    if (group.current) group.current.visible = storm > 0.18
     void sunDirRef
   })
 
@@ -913,25 +917,36 @@ function FilmDirector({
     const raw = typeof progress?.get === 'function' ? progress.get() : 0
     const step = Math.min(0.05, Math.max(0.001, dt))
 
-    // Soft Atlas presence — hold the gentle centered zoom tip
-    atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 2.6 * step))
+    // Softer Atlas blend — Objective→Atlas eases instead of snapping the stage
+    atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 1.55 * step))
     const ab = atlasBlend.current
     if (beaconsVisibleRef) beaconsVisibleRef.current = ab
 
     // Soft-hold film while Atlas is on screen — never hard-snap progress
     const filmTarget = atlasLock ? ATLAS_HOLD_PROGRESS : raw
-    filmP.current = lerp(filmP.current, filmTarget, Math.min(1, (atlasLock ? 2.2 : 4.2) * step))
+    filmP.current = lerp(filmP.current, filmTarget, Math.min(1, (atlasLock ? 1.35 : 3.6) * step))
     const sample = sampleActs(filmP.current)
     onSample?.(sample)
 
-    // Atlas soft-hold sits near the dive act edge — zero diegetic events so crater/dust stay gone
-    const eventMute = atlasLock ? 0 : 1
+    // Mute diegetic events with blend (not a binary lock) — no dust/bokeh bleed into Atlas
+    const eventMute = 1 - ab
     diveRef.current = sample.event.dive * eventMute
     stormRef.current = sample.event.storm * eventMute
     carrierRef.current = sample.event.carrier * eventMute
-    warpRef.current = sample.event.warp * (atlasLock ? 0.15 : 1)
-    darkRef.current = atlasLock ? sample.dark * 0.15 : sample.dark
-    gradeRef.current = sample.grade
+    warpRef.current = sample.event.warp * (0.08 + eventMute * 0.92)
+    darkRef.current = sample.dark * (0.08 + eventMute * 0.92)
+    // Force cool lunar grade as Atlas takes over — kills warm/red particle wash on the Moon
+    if (ab > 0.45) {
+      const g = sample.grade
+      gradeRef.current = {
+        lift: g.lift.map((v, i) => lerp(v, [0.01, 0.015, 0.04][i], ab)),
+        gain: g.gain.map((v, i) => lerp(v, [1.05, 1.06, 1.1][i], ab)),
+        exposure: lerp(g.exposure, 1.1, ab),
+        grain: lerp(g.grain, 0.03, ab),
+      }
+    } else {
+      gradeRef.current = sample.grade
+    }
 
     // Hero: free spin. From Objective→Atlas: ease the site onto the lens center.
     const hot = ab > 0.2
@@ -1098,9 +1113,10 @@ function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
   if (mobile || reduced) return null
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
-      <Bloom intensity={0.055} luminanceThreshold={0.96} luminanceSmoothing={0.25} mipmapBlur />
+      {/* No mipmapBlur bloom — it turned stars into soft tan particle orbs */}
+      <Bloom intensity={0.028} luminanceThreshold={0.985} luminanceSmoothing={0.12} mipmapBlur={false} />
       <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={aberration} />
-      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.03} />
+      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.025} />
       <Vignette eskil={false} offset={0.28} darkness={0.48} />
     </EffectComposer>
   )
@@ -1183,8 +1199,8 @@ function ContinuumScene({
         focusSiteId={focusSiteId}
       />
 
-      <Starfield count={mobile ? 2800 : 5600} warpRef={warpRef} darkRef={darkRef} />
-      {!mobile && <DustField count={1200} stormRef={stormRef} />}
+      <Starfield count={mobile ? 1800 : 3200} warpRef={warpRef} darkRef={darkRef} />
+      {!mobile && <DustField count={900} stormRef={stormRef} />}
       {!mobile && <DustSheets stormRef={stormRef} darkRef={darkRef} sunDirRef={sunDirRef} />}
 
       {/* Moon Suspense is separate so Mars 8K never blocks hero readiness */}

@@ -150,15 +150,26 @@ img, svg { display: block; max-width: 100%; }
   padding: 0.35rem 0 0;
   pointer-events: none;
   transform: translate3d(0, 0, 0);
-  transition: opacity 0.55s ease, filter 0.55s ease;
+  transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1), filter 0.85s ease;
+  will-change: opacity;
 }
 .atlas-heading--bridge.is-peek {
-  opacity: 0.9;
+  opacity: 0.78;
   filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.45));
 }
 .atlas-heading--bridge.is-atlas {
   opacity: 1;
   filter: drop-shadow(0 12px 36px rgba(0, 0, 0, 0.55));
+}
+/* Objective copy dissolves as Atlas title takes the left column */
+.challenge-objective .objective-grid {
+  transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.objective-atlas-band:has(.location-atlas.is-active) .challenge-objective .objective-grid,
+.objective-atlas-band.is-atlas-live .challenge-objective .objective-grid {
+  opacity: 0;
+  transform: translate3d(0, -12px, 0);
+  pointer-events: none;
 }
 @media (max-width: 720px) {
   .atlas-heading--bridge {
