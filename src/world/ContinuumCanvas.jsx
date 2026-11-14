@@ -914,7 +914,7 @@ function FilmDirector({
   const atlasBlend = useRef(0)
   const filmP = useRef(0)
   const moonPos = useRef(new THREE.Vector3(0, 0, 0))
-  const moonScale = useRef(1.82)
+  const moonScale = useRef(1.66)
 
   useFrame((state, dt) => {
     const raw = typeof progress?.get === 'function' ? progress.get() : 0
@@ -967,13 +967,15 @@ function FilmDirector({
       lastDpr.current = targetDpr
     }
 
-    // Tiny parallax only — never walk the camera off-center
-    const mx = inertia.current.x * (0.08 + sample.event.warp * 0.06) * (1 - ab * 0.7)
-    const my = inertia.current.y * (0.05 + sample.event.warp * 0.04) * (1 - ab * 0.7)
+    const f = sample.focus
+    // Moon acts: hard-lock X to center — parallax was shifting the disc right/left
+    const moonLock = f === 'moon' || f === 'dive' || ab > 0.02
+    const mx = moonLock ? 0 : inertia.current.x * (0.1 + sample.event.warp * 0.08)
+    const my = moonLock ? 0 : inertia.current.y * (0.06 + sample.event.warp * 0.05)
 
     // Single centered camera track — look stays on moon origin
     desired.set(
-      sample.cam[0] + mx,
+      moonLock ? 0 : sample.cam[0] + mx,
       sample.cam[1] - my,
       sample.cam[2],
     )
@@ -989,13 +991,12 @@ function FilmDirector({
     }
 
     look.set(
-      sample.look[0] + mx * 0.04,
-      sample.look[1] - my * 0.03,
+      moonLock ? 0 : sample.look[0] + mx * 0.04,
+      sample.look[1],
       sample.look[2],
     )
     camera.lookAt(look)
 
-    const f = sample.focus
     if (moonRef.current) {
       const show = f === 'moon' || f === 'dive' || ab > 0.02
       moonRef.current.visible = show || sample.event.dive > 0.05
@@ -1006,14 +1007,14 @@ function FilmDirector({
       let tz = 0
       if (f === 'dive') {
         // Dive is later film — keep moon centered until smash pulls in
-        targetScale = lerp(2.05, 5.8, sample.event.dive)
+        targetScale = lerp(1.95, 5.8, sample.event.dive)
         tx = lerp(0, 0.85, sample.event.dive)
         ty = lerp(0, -0.1, sample.event.dive)
         tz = lerp(0, -0.2, sample.event.dive)
       } else if (f === 'moon') {
         const arrival = sample.act?.id === 'hero'
-        // Always centered at origin — only scale grows a little on scroll
-        targetScale = arrival ? lerp(1.78, 1.88, sample.eased) : lerp(1.88, 2.05, sample.eased)
+        // Always centered at origin — modest scale so both limbs keep equal margin
+        targetScale = arrival ? lerp(1.62, 1.72, sample.eased) : lerp(1.72, 1.88, sample.eased)
         tx = 0
         ty = 0
         tz = 0
@@ -1272,7 +1273,7 @@ export default function ContinuumCanvas({
     <div className={`continuum-canvas ${hotspotsInteractive ? 'is-hotspots' : ''}`} aria-hidden={!hotspotsInteractive}>
       <Canvas
         dpr={mobile ? [1, 1.3] : [1, 1.65]}
-        camera={{ position: [0, 0.08, 6.35], fov: 38, near: 0.04, far: 220 }}
+        camera={{ position: [0, 0.02, 6.8], fov: 36, near: 0.04, far: 220 }}
         gl={{
           antialias: !mobile,
           alpha: false,

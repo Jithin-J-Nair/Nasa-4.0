@@ -1093,6 +1093,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (typeof history !== 'undefined' && 'scrollRestoration' in history) {
+      history.scrollRestoration = 'manual'
+    }
+  }, [])
+
+  useEffect(() => {
     if (booting) return undefined
     createScrollEngine()
     // Warm session seed so reload variance is live
@@ -1101,8 +1107,18 @@ export default function App() {
   }, [booting])
 
   const onBootDone = useCallback(() => {
+    // Always land on hero — never restore mid-page / hash scroll
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0)
+      if (window.location.hash) {
+        history.replaceState(null, '', window.location.pathname + window.location.search)
+      }
+    }
     setBooting(false)
-    requestAnimationFrame(() => setReady(true))
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0)
+      setReady(true)
+    })
   }, [])
 
   const openDossier = useCallback((item) => {
