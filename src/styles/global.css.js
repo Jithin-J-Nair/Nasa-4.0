@@ -621,41 +621,28 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .location-atlas {
   position: relative;
   z-index: 2;
-  /* One full viewport — heading + moon + sites read together */
+  /* Scroll sentinel — title HUD is fixed at App root above the Continuum */
   min-height: 100vh;
   min-height: 100dvh;
   height: 100vh;
   height: 100dvh;
   padding: calc(var(--nav-h) + 1rem) clamp(1.25rem, 5vw, 5rem) 1.5rem;
   box-sizing: border-box;
-  /* Soft veil — Continuum Moon stays the centered stage */
-  background:
-    linear-gradient(180deg, rgba(3,3,8,0.32) 0%, rgba(3,3,8,0.1) 40%, rgba(3,3,8,0.2) 100%);
+  background: transparent;
   overflow: hidden;
 }
 .atlas-overlay {
-  position: relative;
-  z-index: 4;
   max-width: min(460px, 92vw);
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  height: 100%;
-  min-height: 0;
-}
-.atlas-overlay--flow {
-  pointer-events: auto;
-}
-.location-atlas.is-active .atlas-overlay--flow {
-  visibility: hidden;
-  pointer-events: none;
 }
 .atlas-overlay--hud {
+  /* Sibling of Continuum (z=3), not inside .sf-chapters (z=2) — stays visible with hotspots */
   position: fixed;
   top: calc(var(--nav-h) + 0.75rem);
   left: clamp(1.25rem, 5vw, 5rem);
-  bottom: 1.25rem;
-  z-index: 6;
+  z-index: 8;
   max-width: min(420px, 86vw);
   pointer-events: none;
 }

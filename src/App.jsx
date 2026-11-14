@@ -538,9 +538,27 @@ function Heartbeats({ onOpen, reduced }) {
   )
 }
 
-function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSiteId }) {
+/** Fixed above the Continuum canvas — stays visible while Atlas moon animates / hotspots open */
+function AtlasTitleHud({ active }) {
+  if (!active) return null
+  return (
+    <div className="atlas-overlay atlas-overlay--hud" role="presentation">
+      <header className="atlas-heading">
+        <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active /></p>
+        <h2 className="display atlas-title">
+          Where they<br /><span className="outline-text">still sit</span>
+        </h2>
+        <p className="atlas-lede">
+          Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
+          Hover a hotspot on the Moon for the NASA image and exact location.
+        </p>
+      </header>
+    </div>
+  )
+}
+
+function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) {
   const sectionRef = useRef(null)
-  const [active, setActive] = useState(false)
 
   useEffect(() => {
     const el = sectionRef.current
@@ -548,9 +566,8 @@ function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSi
     let wasOn = false
     const io = new IntersectionObserver(
       ([entry]) => {
-        // Wait until Atlas owns the viewport — avoids heading stuck at Objective seam
-        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.55
-        setActive(on)
+        // Own the viewport before locking — heading HUD lives at App root above the canvas
+        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.45
         onActiveChange?.(on)
         if (on && !wasOn) {
           onFocusSite?.('a11-lm')
@@ -559,51 +576,27 @@ function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSi
         if (!on && wasOn) onCardSite?.(null)
         wasOn = on
       },
-      { threshold: [0.35, 0.55, 0.7, 0.85], rootMargin: '-6% 0px -6% 0px' },
+      { threshold: [0.3, 0.45, 0.6, 0.8], rootMargin: '-4% 0px -4% 0px' },
     )
     io.observe(el)
     return () => io.disconnect()
   }, [onActiveChange, onCardSite, onFocusSite])
 
-  // Keep focus in sync with the open moon hotspot card
   useEffect(() => {
-    if (active) onFocusSite?.(cardSiteId || 'a11-lm')
-  }, [active, cardSiteId, onFocusSite])
-
-  const panel = (
-    <header className="atlas-heading">
-      <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={active} /></p>
-      <h2 className="display atlas-title">
-        Where they<br /><span className="outline-text">still sit</span>
-      </h2>
-      <p className="atlas-lede">
-        Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
-        Hover a hotspot on the Moon for the NASA image and exact location.
-      </p>
-    </header>
-  )
+    if (cardSiteId) onFocusSite?.(cardSiteId)
+  }, [cardSiteId, onFocusSite])
 
   return (
     <section
       ref={sectionRef}
-      className={`section location-atlas body-moon ${active ? 'is-active' : ''}`}
+      className="section location-atlas body-moon"
       id="atlas"
       aria-label="Hardware locations"
     >
       <span className="section-rail">02B · ATLAS</span>
       <span className="section-num" aria-hidden>LOC</span>
-
-      {/* In-flow copy for scroll height / SEO — hidden once HUD pins to the moon frame */}
-      <div className="atlas-overlay atlas-overlay--flow" aria-hidden={active}>
-        {panel}
-      </div>
-
-      {/* Fixed HUD — sits with the centered moon once Atlas owns the viewport */}
-      {active && (
-        <div className="atlas-overlay atlas-overlay--hud" role="presentation">
-          {panel}
-        </div>
-      )}
+      {/* Scroll sentinel + a11y title — visible HUD is AtlasTitleHud at App root */}
+      <h2 className="sr-only">Where they still sit</h2>
     </section>
   )
 }
@@ -1158,6 +1151,9 @@ export default function App() {
 
           <Nav progress={smoothProgress} />
 
+          {/* Above Continuum (z=3) so the title stays while moon/hotspots animate */}
+          <AtlasTitleHud active={atlasLock} />
+
           <button
             type="button"
             className={`audio-toggle ${audioOn ? 'on' : ''}`}
@@ -1179,7 +1175,6 @@ export default function App() {
 
             <ErrorBoundary>
               <LocationAtlas
-                onOpen={openDossier}
                 onActiveChange={onAtlasActive}
                 onFocusSite={onFocusSite}
                 onCardSite={setCardSiteId}
