@@ -59,8 +59,8 @@ const FILTERS = [
 ]
 /** Hero challenge plate — NASA leftover hardware (Eagle LM) · Tranquility Base */
 const HERO_LEFTOVER = ARTIFACTS.find((a) => a.id === 'a11-lm')
-const MARS_WHEEL_SITES = ARTIFACTS.filter((a) => a.body === 'mars' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
-const MARS_WHEEL_LABELS = MARS_WHEEL_SITES.map((a) => a.codename || a.name)
+const MARS_HOTSPOT_SITES = ARTIFACTS.filter((a) => a.body === 'mars' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
+const MARS_HOTSPOT_LABELS = MARS_HOTSPOT_SITES.map((a) => a.name)
 const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789░▒▓█/<>=+#*'
 
 function LineReveal({ children, delay = 0, className = '' }) {
@@ -485,47 +485,58 @@ function AtlasBridgeHeading({ atlasActive }) {
       <h2 className="display atlas-title">
         Where they<br /><span className="outline-text">still sit</span>
       </h2>
-      <p className="atlas-lede">
-        Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
-        Hover a hotspot on the Moon for the NASA image and exact location.
-      </p>
-    </header>
-  )
-}
+        <p className="atlas-lede">
+          Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
+          Hover a hotspot on the Moon for the NASA image and exact location.
+        </p>
+        {atlasActive && (
+          <p className="atlas-drag-cue mono" aria-live="polite">
+            <span className="atlas-drag-cue__orb" aria-hidden />
+            Drag to rotate · pulsing rings mark far-side sites
+          </p>
+        )}
+      </header>
+    )
+  }
 
-/** Left-side OptionWheel during Meridiani — picks Mars hardware & aims the globe */
-function MarsWheelHud({ active, selectedId, onSelect }) {
-  const defaultIdx = Math.max(0, MARS_WHEEL_SITES.findIndex((s) => s.id === selectedId))
+/** Left-side Mars hotspot wheel — selects a site and aims the globe */
+function MarsHotspotWheel({ active, selectedId, onSelect }) {
+  const foundIdx = MARS_HOTSPOT_SITES.findIndex((s) => s.id === selectedId)
+  const selectedIdx = foundIdx >= 0
+    ? foundIdx
+    : Math.max(0, MARS_HOTSPOT_SITES.findIndex((s) => s.id === 'opportunity'))
   return (
     <div
-      className={`mars-wheel-hud ${active ? 'is-on' : ''}`}
+      className={`mars-hotspot-wheel-hud ${active ? 'is-on' : ''}`}
       aria-hidden={!active}
-      aria-label="Mars hardware wheel"
+      aria-label="Mars hotspot wheel"
     >
-      <p className="kicker mars-wheel-kicker">MERIDIANI · SELECT HARDWARE</p>
+      <p className="kicker mars-hotspot-wheel-kicker">MARS · HOTSPOTS</p>
       {active && (
         <OptionWheel
-          key={`mars-wheel-${defaultIdx}`}
-          items={MARS_WHEEL_LABELS}
-          defaultSelected={defaultIdx >= 0 ? defaultIdx : 1}
+          key="mars-hotspot-wheel"
+          items={MARS_HOTSPOT_LABELS}
+          defaultSelected={selectedIdx}
+          selected={selectedIdx}
           textColor="#8a8680"
           activeColor="#ffe0c8"
           side="left"
           fontSize={1.45}
-          spacing={1.5}
+          spacing={1.55}
           curve={1.1}
           tilt={7.5}
-          blur={1.25}
-          fade={0.22}
+          blur={1.15}
+          fade={0.2}
           minOpacity={0.14}
-          smoothing={200}
+          smoothing={520}
           inset={36}
           loop={false}
           draggable
           soundUrl=""
-          className="mars-option-wheel"
+          className="mars-hotspot-wheel"
+          aria-label="Mars hotspot selector"
           onChange={(index) => {
-            const site = MARS_WHEEL_SITES[index]
+            const site = MARS_HOTSPOT_SITES[index]
             if (site) onSelect?.(site)
           }}
         />
@@ -1119,7 +1130,14 @@ export default function App() {
     if (id) setFocusSiteId(id)
   }, [])
 
-  const onMarsWheelSelect = useCallback((site) => {
+  const onMarsHotspotSelect = useCallback((site) => {
+    setFocusSiteId(site.id)
+    setCardSiteId(site.id)
+  }, [])
+
+  // Limb-echo / far-side reveal — rotate the globe to bring that site onto the lens
+  const onHotspotReveal = useCallback((site) => {
+    if (!site?.id) return
     setFocusSiteId(site.id)
     setCardSiteId(site.id)
   }, [])
@@ -1218,15 +1236,16 @@ export default function App() {
                 onHotspotHover={onHotspotHover}
                 onHotspotLeave={onHotspotLeave}
                 onHotspotOpen={openDossier}
+                onHotspotReveal={onHotspotReveal}
               />
             </Suspense>
           </ErrorBoundary>
           <div className="sf-veil" aria-hidden />
 
-          <MarsWheelHud
+          <MarsHotspotWheel
             active={marsLock && !atlasLock && !mobile && !booting}
             selectedId={focusSiteId}
-            onSelect={onMarsWheelSelect}
+            onSelect={onMarsHotspotSelect}
           />
 
           <a

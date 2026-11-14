@@ -797,8 +797,8 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   transition: opacity 1.05s cubic-bezier(0.22, 1, 0.36, 1), visibility 1.05s;
 }
 
-/* Mars Meridiani — OptionWheel docks left while Mars holds the right hemisphere */
-.mars-wheel-hud {
+/* Mars Meridiani — hotspot wheel docks left while Mars holds the right hemisphere */
+.mars-hotspot-wheel-hud {
   position: fixed;
   left: 0;
   top: var(--nav-h);
@@ -812,16 +812,19 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   padding: 0 0 4rem;
   opacity: 0;
   visibility: hidden;
-  transform: translate3d(-12px, 0, 0);
-  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.55s;
+  transform: translate3d(-14px, 0, 0);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0.7s;
 }
-.mars-wheel-hud.is-on {
+.mars-hotspot-wheel-hud.is-on {
   opacity: 1;
   visibility: visible;
   transform: translate3d(0, 0, 0);
   pointer-events: none;
 }
-.mars-wheel-kicker {
+.mars-hotspot-wheel-kicker {
   pointer-events: none;
   margin: 0 0 0.85rem;
   padding-left: 2rem;
@@ -830,17 +833,17 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   font-size: 0.62rem;
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
 }
-.mars-option-wheel {
+.mars-hotspot-wheel {
   pointer-events: auto;
   height: min(72vh, 600px);
   font-family: var(--font-display);
   letter-spacing: -0.03em;
 }
-.mars-option-wheel .option-wheel__item {
+.mars-hotspot-wheel .option-wheel__item {
   text-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 18px rgba(0, 0, 0, 0.45);
 }
 @media (max-width: 768px) {
-  .mars-wheel-hud { display: none; }
+  .mars-hotspot-wheel-hud { display: none; }
 }
 .atlas-heading {
   flex: 0 0 auto;
@@ -860,6 +863,71 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   margin: 0;
   font-size: 0.95rem;
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.atlas-drag-cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: rgba(142, 200, 255, 0.78);
+  text-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
+}
+.atlas-drag-cue__orb {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid rgba(142, 200, 255, 0.85);
+  box-shadow: 0 0 0 0 rgba(142, 200, 255, 0.45);
+  animation: atlasCuePulse 1.8s ease-out infinite;
+}
+@keyframes atlasCuePulse {
+  0% { box-shadow: 0 0 0 0 rgba(142, 200, 255, 0.5); transform: scale(1); }
+  70% { box-shadow: 0 0 0 10px rgba(142, 200, 255, 0); transform: scale(1.15); }
+  100% { box-shadow: 0 0 0 0 rgba(142, 200, 255, 0); transform: scale(1); }
+}
+.moon-hotspot--limb {
+  width: 0;
+  height: 0;
+}
+.moon-hotspot-limb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.moon-hotspot-limb__core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: rgba(142, 200, 255, 0.85);
+  box-shadow: 0 0 10px rgba(142, 200, 255, 0.55);
+}
+.moon-hotspot-limb__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(142, 200, 255, 0.55);
+  animation: limbSonar 2.2s ease-out infinite;
+}
+.moon-hotspot-limb__ring--delay {
+  animation-delay: 0.7s;
+}
+@keyframes limbSonar {
+  0% { transform: scale(0.35); opacity: 0.85; }
+  100% { transform: scale(1.35); opacity: 0; }
 }
 .moon-hotspot {
   position: relative;

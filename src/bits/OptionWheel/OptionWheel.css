@@ -34,6 +34,7 @@
   /* Fallback first — color-mix alone can render invisible in some engines */
   color: var(--ow-text-color);
   color: color-mix(in srgb, var(--ow-active-color) calc(var(--ow-p, 0) * 100%), var(--ow-text-color));
+  transition: font-weight 0.35s ease, letter-spacing 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .option-wheel--right .option-wheel__item {
@@ -44,4 +45,5 @@
 
 .option-wheel__item--selected {
   font-weight: 500;
+  letter-spacing: -0.01em;
 }

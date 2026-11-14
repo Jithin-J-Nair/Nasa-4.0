@@ -21,6 +21,8 @@ const DEFAULT_ITEMS = [
 const OptionWheel = ({
   items = DEFAULT_ITEMS,
   defaultSelected = 3,
+  /** Controlled index — animates smoothly when it changes (no remount needed). */
+  selected = null,
   onChange,
   textColor = '#a6a6a6',
   activeColor = '#ffffff',
@@ -32,30 +34,35 @@ const OptionWheel = ({
   blur = 2,
   fade = 0.25,
   minOpacity = 0.05,
-  smoothing = 200,
+  /** Settling time constant in ms — higher = silkier forth/back. */
+  smoothing = 420,
   inset = 80,
   loop = false,
   draggable = true,
   soundUrl = '',
   soundVolume = 0.5,
   className = '',
+  'aria-label': ariaLabel = 'Option wheel',
 }) => {
   const rootRef = useRef(null)
   const itemRefs = useRef([])
-  const posRef = useRef(defaultSelected)
-  const targetRef = useRef(defaultSelected)
+  const initial = selected != null ? selected : defaultSelected
+  const posRef = useRef(initial)
+  const targetRef = useRef(initial)
+  const velRef = useRef(0)
   const rafRef = useRef(null)
   const lastRef = useRef(0)
   const cfgRef = useRef({})
   const onChangeRef = useRef(onChange)
-  const selectedRef = useRef(defaultSelected)
+  const selectedRef = useRef(initial)
   const wheelTimerRef = useRef(null)
   const dragRef = useRef(null)
   const dragMovedRef = useRef(false)
   const audioRef = useRef(null)
   const audioUrlRef = useRef('')
   const lastTickRef = useRef(0)
-  const [selectedIndex, setSelectedIndex] = useState(defaultSelected)
+  const suppressExternalRef = useRef(false)
+  const [selectedIndex, setSelectedIndex] = useState(initial)
   const [isDragging, setIsDragging] = useState(false)
 
   const remPx = typeof window !== 'undefined'
@@ -84,15 +91,26 @@ const OptionWheel = ({
     const dt = Math.min((now - lastRef.current) / 1000, 0.05)
     lastRef.current = now
     const cfg = cfgRef.current
-    const tau = Math.max(cfg.smoothing, 1) / 1000
-    const k = 1 - Math.exp(-dt / tau)
-
     const target = targetRef.current
     const cur = posRef.current
-    let next = cur + (target - cur) * k
-    const settled = Math.abs(target - next) < 0.001
-    if (settled) next = target
+
+    // Critically-damped spring — smooth when clicking forth/back across many rows
+    const tau = Math.max(cfg.smoothing, 1) / 1000
+    const omega = 2 / Math.max(tau, 0.05)
+    const zeta = 1.05
+    const x = cur - target
+    let v = velRef.current
+    const a = -omega * omega * x - 2 * zeta * omega * v
+    v += a * dt
+    let next = cur + v * dt
+    // Snap when nearly settled to avoid endless micro-jitter
+    if (Math.abs(target - next) < 0.0008 && Math.abs(v) < 0.02) {
+      next = target
+      v = 0
+    }
+    velRef.current = v
     posRef.current = next
+    const settled = next === target && v === 0
 
     const els = itemRefs.current
     const n = cfg.count
@@ -108,16 +126,16 @@ const OptionWheel = ({
         if (d > n / 2) d -= n
       }
       const dist = Math.abs(d)
-      let x = 0
+      let xOff = 0
       let y = d * cfg.rowH
       let rot = 0
       if (R > 0) {
         const ang = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, d * tiltRad))
         y = R * Math.sin(ang)
-        x = -mirror * R * (1 - Math.cos(ang)) * cfg.curve
+        xOff = -mirror * R * (1 - Math.cos(ang)) * cfg.curve
         rot = (mirror * ang * 180) / Math.PI
       }
-      el.style.transform = `translate(${x.toFixed(2)}px, calc(${y.toFixed(2)}px - 50%)) rotate(${rot.toFixed(3)}deg)`
+      el.style.transform = `translate(${xOff.toFixed(2)}px, calc(${y.toFixed(2)}px - 50%)) rotate(${rot.toFixed(3)}deg)`
       el.style.opacity = String(Math.max(cfg.minOpacity, 1 - dist * cfg.fade))
       el.style.filter = cfg.blur > 0 ? `blur(${(dist * cfg.blur).toFixed(2)}px)` : 'none'
       el.style.setProperty('--ow-p', Math.max(0, 1 - Math.min(dist, 1)).toFixed(4))
@@ -152,7 +170,7 @@ const OptionWheel = ({
   }, [])
 
   const applyTarget = useCallback(
-    (value, snap) => {
+    (value, snap, { fromExternal = false } = {}) => {
       const cfg = cfgRef.current
       let v = value
       if (!cfg.loop) v = Math.min(Math.max(v, 0), Math.max(cfg.count - 1, 0))
@@ -162,13 +180,28 @@ const OptionWheel = ({
       if (idx !== selectedRef.current) {
         selectedRef.current = idx
         setSelectedIndex(idx)
-        onChangeRef.current?.(idx, cfg.items[idx])
+        if (!fromExternal) {
+          suppressExternalRef.current = true
+          onChangeRef.current?.(idx, cfg.items[idx])
+          // Allow parent-controlled `selected` to echo back without re-targeting
+          queueMicrotask(() => {
+            suppressExternalRef.current = false
+          })
+        }
         playTick()
       }
       startLoop()
     },
     [startLoop, playTick],
   )
+
+  // External selection (e.g. Mars globe hotspot) — glide without remount
+  useEffect(() => {
+    if (selected == null || !Number.isFinite(selected)) return
+    if (suppressExternalRef.current) return
+    if (selected === selectedRef.current && Math.abs(targetRef.current - selected) < 0.01) return
+    applyTarget(selected, true, { fromExternal: true })
+  }, [selected, applyTarget])
 
   useEffect(() => {
     const el = rootRef.current
@@ -180,7 +213,7 @@ const OptionWheel = ({
       const step = Math.max(-1, Math.min(1, delta / cfg.rowH))
       applyTarget(targetRef.current + step, false)
       if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current)
-      wheelTimerRef.current = setTimeout(() => applyTarget(targetRef.current, true), 140)
+      wheelTimerRef.current = setTimeout(() => applyTarget(targetRef.current, true), 160)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => {
@@ -193,6 +226,7 @@ const OptionWheel = ({
     if (!cfgRef.current.draggable) return
     dragRef.current = { y: e.clientY, start: targetRef.current, id: e.pointerId }
     dragMovedRef.current = false
+    velRef.current = 0
     setIsDragging(true)
   }, [])
 
@@ -205,7 +239,10 @@ const OptionWheel = ({
         dragMovedRef.current = true
         rootRef.current?.setPointerCapture(drag.id)
       }
-      if (dragMovedRef.current) applyTarget(drag.start - dy / cfgRef.current.rowH, false)
+      if (dragMovedRef.current) {
+        velRef.current = 0
+        applyTarget(drag.start - dy / cfgRef.current.rowH, false)
+      }
     },
     [applyTarget],
   )
@@ -227,6 +264,8 @@ const OptionWheel = ({
         if (d > cfg.count / 2) d -= cfg.count
         else if (d < -cfg.count / 2) d += cfg.count
       }
+      // Soften velocity so a mid-flight reverse still feels continuous
+      velRef.current *= 0.35
       applyTarget(cur + d, true)
     },
     [applyTarget],
@@ -239,14 +278,16 @@ const OptionWheel = ({
       else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') delta = 1
       if (delta == null) return
       e.preventDefault()
+      velRef.current *= 0.35
       applyTarget(Math.round(targetRef.current) + delta, true)
     },
     [applyTarget],
   )
 
   useEffect(() => {
-    applyTarget(targetRef.current, false)
-  }, [items, fontSize, spacing, curve, tilt, blur, fade, minOpacity, side, loop, smoothing, applyTarget])
+    // Layout/config change — refresh transforms without jumping selection
+    startLoop()
+  }, [items, fontSize, spacing, curve, tilt, blur, fade, minOpacity, side, loop, smoothing, startLoop])
 
   useEffect(
     () => () => {
@@ -262,7 +303,7 @@ const OptionWheel = ({
       ref={rootRef}
       role="listbox"
       tabIndex={0}
-      aria-label="Option wheel"
+      aria-label={ariaLabel}
       className={`option-wheel${side === 'right' ? ' option-wheel--right' : ''}${isDragging ? ' option-wheel--dragging' : ''}${className ? ` ${className}` : ''}`}
       style={{
         '--ow-text-color': textColor,

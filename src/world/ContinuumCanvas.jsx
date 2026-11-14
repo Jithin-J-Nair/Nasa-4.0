@@ -127,7 +127,12 @@ function usePlanetYawDrag(enabled, reduced, onDraggingChange) {
     yaw.current = lerp(yaw.current, targetYaw.current, Math.min(1, (dragging.current ? 22 : 12) * step))
   })
 
-  return yaw
+  const reset = useCallback(() => {
+    targetYaw.current = 0
+    yaw.current = 0
+  }, [])
+
+  return { yaw, reset }
 }
 
 /* ─── planet material system ─── */
@@ -567,10 +572,14 @@ function SiteBeacon({
   onHover,
   onLeave,
   onOpen,
+  onReveal,
 }) {
-  const ref = useRef()
-  const groupRef = useRef()
+  const frontRef = useRef()
+  const frontMesh = useRef()
+  const limbRef = useRef()
+  const limbMesh = useRef()
   const uiRef = useRef()
+  const limbUiRef = useRef()
   const cardRef = useRef()
   // latLonToLocal returns [x,y,z] — keep both array (R3F position) and Vector3 (facing math)
   const posArr = useMemo(() => latLonToLocal(site.lat, site.lon, 1.012), [site.lat, site.lon])
@@ -581,94 +590,173 @@ function SiteBeacon({
   const worldPos = useMemo(() => new THREE.Vector3(), [])
   const worldNrm = useMemo(() => new THREE.Vector3(), [])
   const toCam = useMemo(() => new THREE.Vector3(), [])
+  const camLocal = useMemo(() => new THREE.Vector3(), [])
+  const limbLocal = useMemo(() => new THREE.Vector3(), [])
+  const tmp = useMemo(() => new THREE.Vector3(), [])
+
   useFrame((s) => {
-    if (!ref.current || !groupRef.current) return
-    // Front-face only — never paint a pin floating in empty sky behind the globe
-    groupRef.current.getWorldPosition(worldPos)
+    if (!frontRef.current || !limbRef.current) return
+    const stageOn = (visibleRef?.current ?? 0) > 0.42 && interactive
+    if (!stageOn) {
+      frontRef.current.visible = false
+      limbRef.current.visible = false
+      if (uiRef.current) {
+        uiRef.current.style.opacity = '0'
+        uiRef.current.style.visibility = 'hidden'
+        uiRef.current.style.pointerEvents = 'none'
+      }
+      if (limbUiRef.current) {
+        limbUiRef.current.style.opacity = '0'
+        limbUiRef.current.style.visibility = 'hidden'
+        limbUiRef.current.style.pointerEvents = 'none'
+      }
+      return
+    }
+
+    // Facing test in world space
+    frontRef.current.getWorldPosition(worldPos)
     worldNrm.copy(localNrm)
-    if (groupRef.current.parent) {
-      worldNrm.transformDirection(groupRef.current.parent.matrixWorld)
+    if (frontRef.current.parent) {
+      worldNrm.transformDirection(frontRef.current.parent.matrixWorld)
     }
     toCam.copy(s.camera.position).sub(worldPos).normalize()
-    const facing = worldNrm.dot(toCam) > 0.05
+    const facing = worldNrm.dot(toCam) > 0.08
 
-    // When not interactive, keep the beacon group hidden (hero / film)
-    const stageOn = (visibleRef?.current ?? 0) > 0.42 && interactive
-    const show = stageOn && facing
-    groupRef.current.visible = show
+    // Front pin — full interactive hotspot
+    frontRef.current.visible = facing
     if (uiRef.current) {
-      uiRef.current.style.opacity = show ? '1' : '0'
-      uiRef.current.style.pointerEvents = show ? 'auto' : 'none'
-      uiRef.current.style.visibility = show ? 'visible' : 'hidden'
+      uiRef.current.style.opacity = facing ? '1' : '0'
+      uiRef.current.style.pointerEvents = facing ? 'auto' : 'none'
+      uiRef.current.style.visibility = facing ? 'visible' : 'hidden'
     }
-    if (!show) return
-
-    // Keep dossier card fully inside the viewport (pins near screen edges)
-    if (cardRef.current && cardOpen) {
-      const ndc = worldPos.clone().project(s.camera)
-      const nx = (ndc.x + 1) * 0.5
-      const ny = 1 - (ndc.y + 1) * 0.5
-      const edgeX = nx > 0.62 ? 'edge-left' : nx < 0.28 ? 'edge-right' : 'edge-center'
-      const edgeY = ny < 0.28 ? 'edge-below' : ny > 0.72 ? 'edge-above' : 'edge-mid'
-      cardRef.current.dataset.edge = `${edgeX} ${edgeY}`
+    if (facing && frontMesh.current) {
+      if (cardRef.current && cardOpen) {
+        const ndc = worldPos.clone().project(s.camera)
+        const nx = (ndc.x + 1) * 0.5
+        const ny = 1 - (ndc.y + 1) * 0.5
+        const edgeX = nx > 0.62 ? 'edge-left' : nx < 0.28 ? 'edge-right' : 'edge-center'
+        const edgeY = ny < 0.28 ? 'edge-below' : ny > 0.72 ? 'edge-above' : 'edge-mid'
+        cardRef.current.dataset.edge = `${edgeX} ${edgeY}`
+      }
+      const active = hotspotRef?.current === site.id || cardOpen
+      const pulse = active ? 0.5 + Math.sin(s.clock.elapsedTime * 3.6) * 0.22 : 0.32
+      frontMesh.current.scale.setScalar(active ? 1.2 + pulse * 0.25 : 0.9)
+      frontMesh.current.material.opacity = pulse
     }
 
-    const active = hotspotRef?.current === site.id || cardOpen
-    const pulse = active ? 0.5 + Math.sin(s.clock.elapsedTime * 3.6) * 0.22 : 0.28
-    ref.current.scale.setScalar(active ? 1.15 + pulse * 0.2 : 0.85)
-    ref.current.material.opacity = pulse
+    // Far-side echo — park a pulsing limb marker so users know to drag/rotate
+    const showLimb = !facing
+    limbRef.current.visible = showLimb
+    if (limbUiRef.current) {
+      limbUiRef.current.style.opacity = showLimb ? '1' : '0'
+      limbUiRef.current.style.pointerEvents = showLimb ? 'auto' : 'none'
+      limbUiRef.current.style.visibility = showLimb ? 'visible' : 'hidden'
+    }
+    if (!showLimb || !limbMesh.current || !frontRef.current.parent) return
+
+    // Camera direction in the rotating mesh's local space
+    frontRef.current.parent.worldToLocal(camLocal.copy(s.camera.position)).normalize()
+    // Project site normal onto the view-facing silhouette disc
+    limbLocal.copy(localNrm).addScaledVector(camLocal, -localNrm.dot(camLocal))
+    if (limbLocal.lengthSq() < 1e-5) {
+      tmp.set(1, 0, 0).cross(camLocal)
+      if (tmp.lengthSq() < 1e-5) tmp.set(0, 1, 0).cross(camLocal)
+      limbLocal.copy(tmp)
+    }
+    limbLocal.normalize().multiplyScalar(1.02)
+    limbRef.current.position.copy(limbLocal)
+
+    const t = s.clock.elapsedTime
+    const sonar = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(t * 2.4 + localNrm.x * 6.0))
+    limbMesh.current.scale.setScalar(0.7 + sonar * 0.55)
+    limbMesh.current.material.opacity = 0.22 + sonar * 0.45
   })
+
   return (
-    <group ref={groupRef} position={posArr} visible={false}>
-      <mesh ref={ref} renderOrder={2}>
-        <sphereGeometry args={[0.0075, 12, 12]} />
-        <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
-      </mesh>
-      {interactive && (
-        <Html
-          center
-          distanceFactor={2.35}
-          zIndexRange={[80, 0]}
-          style={{ pointerEvents: 'none' }}
-          occlude={false}
-          wrapperClass="hotspot-html"
-        >
-          <div className="moon-hotspot" ref={uiRef} style={{ opacity: 0, visibility: 'hidden' }}>
-            <button
-              type="button"
-              className={`moon-hotspot-hit ${cardOpen ? 'on' : ''}`}
-              aria-label={`${site.name} at ${site.coords}`}
-              onMouseEnter={() => onHover?.(site)}
-              onFocus={() => onHover?.(site)}
-              onMouseLeave={() => onLeave?.(site)}
-              onBlur={() => onLeave?.(site)}
-              onClick={() => onOpen?.(site)}
-            />
-            {cardOpen && (
-              <article
-                ref={cardRef}
-                className="moon-hotspot-card"
-                data-edge="edge-center edge-mid"
-                role="dialog"
-                aria-label={site.name}
+    <>
+      <group ref={frontRef} position={posArr} visible={false}>
+        <mesh ref={frontMesh} renderOrder={2}>
+          <sphereGeometry args={[0.0075, 12, 12]} />
+          <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
+        </mesh>
+        {interactive && (
+          <Html
+            center
+            distanceFactor={2.35}
+            zIndexRange={[80, 0]}
+            style={{ pointerEvents: 'none' }}
+            occlude={false}
+            wrapperClass="hotspot-html"
+          >
+            <div className="moon-hotspot" ref={uiRef} style={{ opacity: 0, visibility: 'hidden' }}>
+              <button
+                type="button"
+                className={`moon-hotspot-hit ${cardOpen ? 'on' : ''}`}
+                aria-label={`${site.name} at ${site.coords}`}
+                onMouseEnter={() => onHover?.(site)}
+                onFocus={() => onHover?.(site)}
+                onMouseLeave={() => onLeave?.(site)}
+                onBlur={() => onLeave?.(site)}
+                onClick={() => onOpen?.(site)}
+              />
+              {cardOpen && (
+                <article
+                  ref={cardRef}
+                  className="moon-hotspot-card"
+                  data-edge="edge-center edge-mid"
+                  role="dialog"
+                  aria-label={site.name}
+                >
+                  {site.image && (
+                    <div className={`nasa-media body-${site.body}`}>
+                      <img src={site.image} alt={site.imageAlt || site.name} loading="lazy" decoding="async" />
+                      <span className="credit">{site.credit}</span>
+                    </div>
+                  )}
+                  <p className="kicker">{site.mission} · {site.status}</p>
+                  <h3>{site.name}</h3>
+                  <p className="mono coords">{site.coords}</p>
+                  <p className="blurb">{site.science}</p>
+                  <span className="mono open">OPEN DOSSIER →</span>
+                </article>
+              )}
+            </div>
+          </Html>
+        )}
+      </group>
+
+      {/* Limb echo — far-side sites pulse on the silhouette to invite a drag/rotate */}
+      <group ref={limbRef} visible={false}>
+        <mesh ref={limbMesh} renderOrder={3}>
+          <sphereGeometry args={[0.006, 10, 10]} />
+          <meshBasicMaterial color={color} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
+        </mesh>
+        {interactive && (
+          <Html
+            center
+            distanceFactor={2.6}
+            zIndexRange={[70, 0]}
+            style={{ pointerEvents: 'none' }}
+            occlude={false}
+            wrapperClass="hotspot-html"
+          >
+            <div className="moon-hotspot moon-hotspot--limb" ref={limbUiRef} style={{ opacity: 0, visibility: 'hidden' }}>
+              <button
+                type="button"
+                className="moon-hotspot-limb"
+                aria-label={`Rotate to reveal ${site.name}`}
+                title={`Drag to reveal ${site.name}`}
+                onClick={() => onReveal?.(site)}
               >
-                {site.image && (
-                  <div className={`nasa-media body-${site.body}`}>
-                    <img src={site.image} alt={site.imageAlt || site.name} loading="lazy" decoding="async" />
-                    <span className="credit">{site.credit}</span>
-                  </div>
-                )}
-                <p className="kicker">{site.mission} · {site.status}</p>
-                <h3>{site.name}</h3>
-                <p className="mono coords">{site.coords}</p>
-                <p className="blurb">{site.science}</p>
-                <span className="mono open">OPEN DOSSIER →</span>
-              </article>
-            )}
-          </div>
-        </Html>
-      )}
-    </group>
+                <span className="moon-hotspot-limb__ring" aria-hidden />
+                <span className="moon-hotspot-limb__ring moon-hotspot-limb__ring--delay" aria-hidden />
+                <span className="moon-hotspot-limb__core" aria-hidden />
+              </button>
+            </div>
+          </Html>
+        )}
+      </group>
+    </>
   )
 }
 
@@ -694,6 +782,7 @@ function BodySphere({
   onHotspotHover,
   onHotspotLeave,
   onHotspotOpen,
+  onHotspotReveal,
 }) {
   const mesh = useRef()
   const isMars = body > 0.5
@@ -806,6 +895,7 @@ function BodySphere({
             onHover={onHotspotHover}
             onLeave={onHotspotLeave}
             onOpen={onHotspotOpen}
+            onReveal={onHotspotReveal}
           />
         ))}
       </group>
@@ -1039,13 +1129,10 @@ function FilmDirector({
     const focus = hot ? SITE_FOCUS[hot] : null
     if (moonAimRef) {
       if (atlasLock) {
-        // Freeze facing for the whole Atlas session — hover must not chase the pin
-        if (atlasAimLon.current == null) {
-          const entry = SITE_FOCUS[focusSiteId || 'a11-lm']
-          atlasAimLon.current = entry?.body === 'moon'
-            ? entry.aimLon
-            : SITE_FOCUS['a11-lm'].aimLon
-        }
+        // Aim follows an explicit user choice (limb reveal / dossier) — not hover chase
+        const entry = SITE_FOCUS[focusSiteId || 'a11-lm']
+        if (entry?.body === 'moon') atlasAimLon.current = entry.aimLon
+        else if (atlasAimLon.current == null) atlasAimLon.current = SITE_FOCUS['a11-lm'].aimLon
         moonAimRef.current = atlasAimLon.current
       } else {
         atlasAimLon.current = null
@@ -1255,6 +1342,7 @@ function ContinuumScene({
   onHotspotHover,
   onHotspotLeave,
   onHotspotOpen,
+  onHotspotReveal,
   onPlanetDraggingChange,
 }) {
   const moonRef = useRef()
@@ -1277,8 +1365,18 @@ function ContinuumScene({
   const marsAimRef = useRef(null)
   const beaconsVisibleRef = useRef(0)
   const marsBeaconsVisibleRef = useRef(0)
-  const moonYawRef = usePlanetYawDrag(atlasLock, reduced, onPlanetDraggingChange)
-  const marsYawRef = usePlanetYawDrag(marsLock && !atlasLock, reduced, onPlanetDraggingChange)
+  const moonDrag = usePlanetYawDrag(atlasLock, reduced, onPlanetDraggingChange)
+  const marsDrag = usePlanetYawDrag(marsLock && !atlasLock, reduced, onPlanetDraggingChange)
+
+  const revealMoonSite = useCallback((site) => {
+    moonDrag.reset()
+    onHotspotReveal?.(site)
+  }, [moonDrag, onHotspotReveal])
+
+  const revealMarsSite = useCallback((site) => {
+    marsDrag.reset()
+    onHotspotReveal?.(site)
+  }, [marsDrag, onHotspotReveal])
   // Full masters — bytes warmed during preloader (see preloadTextures.js)
   const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_8k.jpg'
   const moonHeight = mobile ? '/textures/moon_height_2k.jpg' : '/textures/moon_height_4k.jpg'
@@ -1343,13 +1441,14 @@ function ContinuumScene({
           sites={MOON_SITES}
           hotspotRef={hotspotRef}
           aimLonRef={moonAimRef}
-          yawOffsetRef={moonYawRef}
+          yawOffsetRef={moonDrag.yaw}
           beaconsVisibleRef={beaconsVisibleRef}
           hotspotsInteractive={moonHotspotsInteractive}
           cardSiteId={cardSiteId}
           onHotspotHover={onHotspotHover}
           onHotspotLeave={onHotspotLeave}
           onHotspotOpen={onHotspotOpen}
+          onHotspotReveal={revealMoonSite}
         />
         <MoonReadySignal onReady={onMoonReady} />
       </Suspense>
@@ -1369,13 +1468,14 @@ function ContinuumScene({
           sites={MARS_SITES}
           hotspotRef={hotspotRef}
           aimLonRef={marsAimRef}
-          yawOffsetRef={marsYawRef}
+          yawOffsetRef={marsDrag.yaw}
           beaconsVisibleRef={marsBeaconsVisibleRef}
           hotspotsInteractive={marsHotspotsInteractive}
           cardSiteId={cardSiteId}
           onHotspotHover={onHotspotHover}
           onHotspotLeave={onHotspotLeave}
           onHotspotOpen={onHotspotOpen}
+          onHotspotReveal={revealMarsSite}
         />
       </Suspense>
 
@@ -1411,6 +1511,7 @@ export default function ContinuumCanvas({
   onHotspotHover,
   onHotspotLeave,
   onHotspotOpen,
+  onHotspotReveal,
 }) {
   // Keep rendering during boot so textures upload + FilmDirector places the Moon
   // behind the preloader. Demand mode for reduced-motion + when the tab is hidden.
@@ -1475,6 +1576,7 @@ export default function ContinuumCanvas({
           onHotspotHover={onHotspotHover}
           onHotspotLeave={onHotspotLeave}
           onHotspotOpen={onHotspotOpen}
+          onHotspotReveal={onHotspotReveal}
           onPlanetDraggingChange={onPlanetDraggingChange}
         />
       </Canvas>
