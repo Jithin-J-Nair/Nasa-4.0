@@ -1021,6 +1021,8 @@ function BodySphere({
 
 /** NASA VTAD Voyager — https://science.nasa.gov/resource/voyager-3d-model/ */
 const VOYAGER_GLB = '/models/Voyager.glb'
+// Warm the craft during Continuum boot so Silence never mounts an empty Suspense hole
+try { useGLTF.preload(VOYAGER_GLB) } catch { /* SSR / first paint */ }
 
 function VoyagerCraft({ groupRef, carrierRef }) {
   const { scene } = useGLTF(VOYAGER_GLB)
@@ -1431,7 +1433,7 @@ function FilmDirector({
       }
 
       // Transit: snappy exit so Moon never sits under Mars
-      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 5.2 : 4.2)) * step)
+      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 3.6 : 4.2)) * step)
       moonScale.current = lerp(moonScale.current, targetScale, poseDamp)
       moonPos.current.x = lerp(moonPos.current.x, tx, poseDamp)
       moonPos.current.y = lerp(moonPos.current.y, ty, poseDamp)
@@ -1439,21 +1441,23 @@ function FilmDirector({
       moonRef.current.scale.setScalar(moonScale.current)
       moonRef.current.position.copy(moonPos.current)
     }
-    // Mars: one continuous center→right rail (no branch snaps)
+    // Mars: readable disc from transit frame 0 → right-limb Meridiani lock (never a void)
     if (marsRef.current) {
-      const showMars = marsLive || (transit && journey.marsPresence > 0.02)
+      const showMars = marsLive
+        || (transit && journey.marsPresence > 0.01)
+        || f === 'mars'
+        || f === 'storm'
       marsRef.current.visible = showMars
       if (showMars) {
-        // Presence fades the disc in without a scale pop
         const presence = transit
-          ? clamp(journey.marsPresence, 0, 1)
+          ? clamp(Math.max(journey.marsPresence, 0.55), 0, 1)
           : 1
-        // Enter from far-right after Moon clears — grow into Meridiani right-limb lock
-        const hemiX = lerp(2.4, 3.05, slide)
+        // Start near center (readable), ease to right-limb lock — never spawn off-screen
+        const hemiX = lerp(0.12, 3.05, slide)
         const ty = lerp(0.08, 0.04, slide)
-        const tz = lerp(-2.8, -0.5, slide)
-        const hemiScale = lerp(0.55, 1.82, slide) * lerp(0.55, 1, easeInOutCubic(presence))
-        const poseDamp = Math.min(1, (reduced ? 5.5 : (transit ? 2.35 : 2.05)) * step)
+        const tz = lerp(-1.7, -0.5, slide)
+        const hemiScale = lerp(1.12, 1.82, slide) * lerp(0.82, 1, easeInOutCubic(presence))
+        const poseDamp = Math.min(1, (reduced ? 5.5 : (transit ? 1.55 : 2.05)) * step)
         marsScale.current = lerp(marsScale.current, hemiScale, poseDamp)
         marsPos.current.x = lerp(marsPos.current.x, hemiX, poseDamp)
         marsPos.current.y = lerp(marsPos.current.y, ty, poseDamp)
@@ -1468,16 +1472,16 @@ function FilmDirector({
       }
     }
     if (pioneerRef.current) {
-      // Stay visible for the whole carrier→silence farewell — never hide under Atlas linger
-      const show = f === 'pioneer'
+      // Carrier + Silence — Voyager must stay on stage for the whole farewell
+      const show = f === 'pioneer' || sample.act?.id === 'carrier' || sample.act?.id === 'silence'
       pioneerRef.current.visible = show
       // Hero craft — large enough to read as Voyager, not a silhouette speck
       const craftScale = show
-        ? (mobile ? lerp(1.35, 1.65, sample.eased) : lerp(1.85, 2.45, sample.eased))
+        ? (mobile ? lerp(1.45, 1.78, sample.eased) : lerp(2.05, 2.65, sample.eased))
         : 0.01
-      const craftX = mobile ? 0.04 : 0.42
-      const craftY = mobile ? 2.35 : 0.08
-      const craftZ = mobile ? -7.4 : -7.6
+      const craftX = mobile ? 0.04 : 0.38
+      const craftY = mobile ? 2.25 : 0.1
+      const craftZ = mobile ? -7.1 : -7.2
       pioneerRef.current.position.set(craftX, craftY, craftZ)
       pioneerRef.current.scale.setScalar(
         lerp(pioneerRef.current.scale.x || craftScale, craftScale, Math.min(1, 3.2 * step)),
@@ -1792,10 +1796,14 @@ export default function ContinuumCanvas({
     const oTo = gsap.quickTo(root, 'opacity', { duration: 0.22, ease: 'power2.out' })
     let lastExit = 1
     const apply = () => {
+      // Hold Continuum through carrier + silence so Voyager never fades mid-farewell
       const silenceLive = !!document.querySelector('.journey-spacer.is-silence-live')
+      const hud = document.querySelector('.journey-hud')?.textContent || ''
+      const farewellLive = silenceLive
+        || /CARRIER|SILENCE|VOYAGER/i.test(hud)
       const fleet = document.getElementById('fleet')
       const vh = window.innerHeight || 1
-      if (silenceLive || !fleet) {
+      if (farewellLive || !fleet) {
         if (lastExit !== 0) {
           lastExit = 0
           yTo(0)

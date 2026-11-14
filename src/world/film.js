@@ -428,12 +428,13 @@ export function sampleActs(progress) {
     warp: event.warp,
   }
   if (act.id === 'transit') {
-    // Moon slides left while Mars grows in from the right — no empty void, no equal-size clash
+    // ALWAYS keep a planet on stage: Moon recedes fast, Mars is a readable disc from frame 0.
+    // (Do not delay marsPresence — that empties the corridor and Mars “goes missing”.)
     journey = {
-      moonPresence: 1 - smoothstep(0.0, 0.4, local),
-      marsPresence: smoothstep(0.18, 0.48, local),
-      moonExit: smoothstep(0.0, 0.42, local),
-      marsApproach: smoothstep(0.22, 0.82, local),
+      moonPresence: 1 - smoothstep(0.0, 0.36, local),
+      marsPresence: smoothstep(0.0, 0.26, local),
+      moonExit: smoothstep(0.0, 0.4, local),
+      marsApproach: smoothstep(0.0, 0.52, local),
       warp: event.warp,
     }
   }

@@ -15,7 +15,9 @@ import {
 import { createSoundscape } from './audio/Soundscape'
 import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
 import { VOYAGER_LIGHT_DAY, lightDayRemaining, pad2 } from './data/voyagerLightDay'
-import { preloadContinuumModule, preloadCriticalMoon, preloadPlanetTextures } from './world/preloadTextures'
+import {
+  preloadContinuumModule, preloadCriticalMoon, preloadPlanetTextures, preloadMarsAndVoyager,
+} from './world/preloadTextures'
 import { GLOBAL_CSS } from './styles/global.css.js'
 import { FLEET_SHELF_CSS } from './styles/fleet-shelf.css.js'
 import {
@@ -344,6 +346,7 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
       finish()
     })
     preloadPlanetTextures(mobile)
+    preloadMarsAndVoyager(mobile)
 
     const dur = ranged(1.7, 2.4, 3)
     const stopAnim = playBootSequence(rootRef.current, {
@@ -1459,6 +1462,7 @@ export default function App() {
     preloadContinuumModule()
     preloadCriticalMoon(mobile)
     preloadPlanetTextures(mobile)
+    preloadMarsAndVoyager(mobile)
   }, [mobile])
 
   // Score unlocks on first intentional gesture — mute is escape, not the designed path

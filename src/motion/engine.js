@@ -396,8 +396,8 @@ export function playMoonToMarsJourney({
 
   tl.to(state, {
     p: toP,
-    // Faster land on Meridiani — long 14s scrub felt like Mars never arrived
-    duration: 8.6,
+    // Land on Meridiani with Mars already owning the frame
+    duration: 7.2,
     ease: 'power2.inOut',
     onUpdate: () => {
       const y = filmProgressToScrollY(state.p)
