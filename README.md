@@ -2,24 +2,24 @@
 
 **Abandoned but not Forgotten** — NASA Space Apps Challenge 2026
 
-An immersive storytelling experience about hardware NASA left on the Moon, Mars, and in deep space — and the science each piece made possible.
+A scroll-driven continuum experience about hardware NASA left on the Moon, Mars, and in deep space — built so school-age space fans walk away with a personal connection to these explorers and the science they conducted.
 
-Built as a single-file React experience with Framer Motion, React Three Fiber, Drei, and procedural GLSL (no external image assets).
-
-## Challenge
+## Challenge objective
 
 [NASA's Discarded Equipment Storytelling](https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details)
 
-## NASA data sources used
+> By the end of your story, your audience might walk away feeling a personal connection to these forgotten robotic explorers and inspired by the science they conducted. **Accuracy is important throughout.**
 
-- [Catalogue of Manmade Material on the Moon](https://www.nasa.gov/wp-content/uploads/2024/02/final-catalogue-of-manmade-material-on-the-moon.pdf)
-- [NSSDCA Master Catalog](https://nssdc.gsfc.nasa.gov/nmc/)
-- [LROC Image Archive](https://lroc.im-ldi.com/images)
-- [Apollo Lunar Surface Journal](https://www.nasa.gov/history/alsj-and-afj/)
-- [HiRISE / MRO](https://hirise-pds.lpl.arizona.edu/PDS/)
-- [Apollo ALSEP / PDS Geosciences](https://pds-geosciences.wustl.edu/missions/apollo/)
+## What this build is
 
-Coordinates for lunar sites follow LROC Mean Earth / Polar Axis solutions.
+One persistent WebGL world (Moon → Mars → Pioneer) directed by scroll, with editorial HTML chapters overlaid — not separate canvases per section.
+
+- **Continuum camera** — scroll progress keys a cinematic journey through the solar system
+- **NASA SVS CGI Moon Kit** — 4K LROC color + LOLA height (`public/textures/`)
+- **Connect chapter** — Opportunity, Apollo 17, Voyager told by last transmission + science
+- **15 verified dossiers** — NSSDCA / LROC / HiRISE coordinates + NASA imagery links
+- **Procedural soundscape** — Web Audio bed that shifts with Moon / Mars / Deep acts (tap **AUDIO**)
+- **Live Pioneer 10 AU counter** — heliocentric range estimate
 
 ## Run locally
 
@@ -37,22 +37,30 @@ npm run preview
 
 ## Experience map
 
-1. **Preloader** — scramble decode + mission log  
-2. **Hero** — WebGL Moon / Mars / debris / starfield  
-3. **Prologue** — pinned scroll narrative  
-4. **Fleet** — horizontal dossier cards (15 artifacts)  
-5. **Archive** — filterable grid  
-6. **Moon map** — interactive nearside beacons  
-7. **Timeline** — 24 mission beacons  
-8. **Voices** — six archival quotes  
-9. **Stats** — odometer metrics  
-10. **Deep space** — Pioneer 10 probe + live AU counter  
-11. **Footer** — Space Apps attribution + UTC clock  
+1. Preloader — mission uplink  
+2. Hero — brand + continuum Moon  
+3. Prologue — pinned narrative (challenge objective)  
+4. Connect — three personal explorer heartbeats  
+5. Fleet / Archive — 15 dossiers with NASA media  
+6. Moon map — LROC-anchored nearside pins  
+7. Timeline · Voices · Stats  
+8. Deep space — Pioneer 10 + live AU  
+9. Footer — NASA resources + UTC clock  
+
+## NASA data sources
+
+- [Catalogue of Manmade Material on the Moon](https://www.nasa.gov/wp-content/uploads/2024/02/final-catalogue-of-manmade-material-on-the-moon.pdf)
+- [NSSDCA Master Catalog](https://nssdc.gsfc.nasa.gov/nmc/)
+- [CGI Moon Kit (SVS 4720)](https://svs.gsfc.nasa.gov/4720/)
+- [LROC Image Archive](https://lroc.im-ldi.com/images)
+- [Apollo Lunar Surface Journal](https://www.nasa.gov/history/alsj-and-afj/)
+- [HiRISE / MRO](https://hirise.lpl.arizona.edu/)
+- [Apollo ALSEP / PDS](https://pds-geosciences.wustl.edu/missions/apollo/)
 
 ## AI disclosure
 
-Visuals are procedural (shaders / SVG / CSS). Application code was AI-assisted and is disclosed per NASA Space Apps 2026 guidelines. No NASA logos or branding marks are generated or modified.
+Textures are NASA public products (see `public/textures/ATTRIBUTION.txt`). Application code was AI-assisted and is disclosed per NASA Space Apps 2026 guidelines.
 
 ## Stack
 
-React 19 · Vite · Framer Motion · Three.js · @react-three/fiber · @react-three/drei · Fontsource (Syne, Space Grotesk, IBM Plex Mono, Unbounded)
+React 19 · Vite · Framer Motion · Lenis · Three.js · React Three Fiber · Drei · Postprocessing · Fontsource (Syne, Space Grotesk, IBM Plex Mono, Unbounded)
