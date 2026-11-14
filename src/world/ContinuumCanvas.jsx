@@ -1303,10 +1303,10 @@ function FilmDirector({
       camera.updateProjectionMatrix()
     }
 
-    // Mobile silence: bias look upward so Voyager sits in the open sky above the coda copy
+    // Mobile silence: look hard upward so Voyager sits in clear sky above coda copy
     const lookY = marsStageLock
       ? 0.06
-      : (f === 'pioneer' && mobile ? sample.look[1] + 1.05 : sample.look[1])
+      : (f === 'pioneer' && mobile ? sample.look[1] + 1.72 : sample.look[1])
     look.set(
       moonLock ? 0 : (transit ? sample.look[0] : lookHemiX),
       lookY,
@@ -1382,13 +1382,13 @@ function FilmDirector({
     if (pioneerRef.current) {
       const show = !atlasClear && f === 'pioneer'
       pioneerRef.current.visible = show
-      // Desktop: mid frame. Mobile: lift into the blank sky above silence copy.
+      // Desktop: mid frame. Mobile: park high in the sky so title never sits on the dish.
       const craftScale = show
-        ? (mobile ? lerp(1.2, 1.55, sample.eased) : lerp(1.35, 1.85, sample.eased))
+        ? (mobile ? lerp(1.02, 1.22, sample.eased) : lerp(1.35, 1.85, sample.eased))
         : 0.01
-      const craftX = mobile ? 0.08 : 0.55
-      const craftY = mobile ? 1.55 : 0.02
-      const craftZ = mobile ? -7.85 : -8.55
+      const craftX = mobile ? 0.06 : 0.55
+      const craftY = mobile ? 2.55 : 0.02
+      const craftZ = mobile ? -8.15 : -8.55
       pioneerRef.current.position.set(craftX, craftY, craftZ)
       pioneerRef.current.scale.setScalar(
         lerp(pioneerRef.current.scale.x || craftScale, craftScale, Math.min(1, 3.2 * step)),
@@ -1396,7 +1396,7 @@ function FilmDirector({
     }
     // Lighting lockstep with events — keep a readable sun on Voyager (pioneer)
     if (sunRef.current) {
-      const pioneerSunY = f === 'pioneer' ? (mobile ? 4.4 : 3.6) : 2.5
+      const pioneerSunY = f === 'pioneer' ? (mobile ? 5.2 : 3.6) : 2.5
       sunRef.current.position.set(
         marsish ? 4.0 : f === 'pioneer' ? 3.2 : 6.0,
         marsish ? 3.2 : pioneerSunY,

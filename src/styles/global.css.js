@@ -417,19 +417,22 @@ img, svg { display: block; max-width: 100%; }
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-end;
-    gap: 0.85rem;
-    /* Reserve upper ~42% as clear sky for Voyager — copy stays bottom */
-    padding-top: 42svh;
+    gap: 0.75rem;
+    /* Upper half reserved for Voyager — copy locked to the lower band */
+    padding-top: 52svh;
     padding-bottom: max(5.5rem, calc(env(safe-area-inset-bottom) + 4.5rem));
     background:
-      linear-gradient(0deg, rgba(3, 4, 10, 0.82) 0%, rgba(3, 4, 10, 0.35) 38%, transparent 58%);
+      linear-gradient(0deg, rgba(3, 4, 10, 0.88) 0%, rgba(3, 4, 10, 0.55) 32%, rgba(3, 4, 10, 0.18) 48%, transparent 62%);
   }
   .silence-coda__copy {
     max-width: none;
     margin-top: 0;
+    position: relative;
+    z-index: 2;
   }
   .silence-coda__title {
     font-size: clamp(1.55rem, 7.2vw, 2.25rem);
+    text-shadow: 0 10px 28px rgba(0, 0, 0, 0.85), 0 2px 8px rgba(0, 0, 0, 0.7);
   }
   .silence-coda__lede {
     font-size: 0.88rem;
@@ -437,6 +440,8 @@ img, svg { display: block; max-width: 100%; }
   }
   .light-day--silence {
     max-width: none;
+    position: relative;
+    z-index: 2;
   }
 }
 .story-plate .journey-spacer .section-rail {
