@@ -59,12 +59,13 @@ const attach = () => {
     arbitrate();
   };
   window.addEventListener('pointermove', onPointerMove, { passive: true });
-  window.addEventListener('scroll', arbitrate, { passive: true, capture: true });
+  // Do NOT re-arbitrate on scroll: as the magnetized node moves under a fixed
+  // pointer, scroll-driven measure/spring fights Lenis and shakes the section
+  // (worst on short viewports where the CTA stays near the cursor).
   document.documentElement.addEventListener('pointerleave', onLeave);
   window.addEventListener('blur', onLeave);
   return () => {
     window.removeEventListener('pointermove', onPointerMove);
-    window.removeEventListener('scroll', arbitrate, { capture: true });
     document.documentElement.removeEventListener('pointerleave', onLeave);
     window.removeEventListener('blur', onLeave);
   };
@@ -218,9 +219,11 @@ const Magnet = ({
     };
   }, []);
 
+  // Wake only when magnet tuning changes — never on every parent re-render
+  // (film HUD / Lenis scroll would otherwise restart springs every frame).
   useEffect(() => {
     wakeRef.current?.();
-  });
+  }, [padding, disabled, magnetStrength, maxOffset, exclusive, axis, tilt, scale]);
 
   return (
     <div

@@ -218,11 +218,31 @@ function MagneticButton({ children, onClick, href, className = '', ...rest }) {
   const onLeave = () => { x.set(0); y.set(0) }
   const Comp = href ? motion.a : motion.button
 
+  // Hash links must go through Lenis — native jump + smooth scroll = earthquake
+  const handleClick = (e) => {
+    x.set(0)
+    y.set(0)
+    if (href && href.startsWith('#')) {
+      e.preventDefault()
+      const id = href.slice(1)
+      if (id === 'top') {
+        scrollToHash('#top', { duration: 0.95, offset: 0 })
+        if (typeof history !== 'undefined') {
+          history.replaceState(null, '', window.location.pathname + window.location.search)
+        }
+      } else {
+        scrollToHash(href, { duration: 1.05 })
+        if (typeof history !== 'undefined') history.replaceState(null, '', href)
+      }
+    }
+    onClick?.(e)
+  }
+
   return (
     <Comp
       ref={ref}
       href={href}
-      onClick={onClick}
+      onClick={handleClick}
       className={`mag-btn ${className}`}
       onPointerMove={onMove}
       onPointerLeave={onLeave}
@@ -332,7 +352,20 @@ function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
   const scaleX = useSpring(progress, { stiffness: 90, damping: 24 })
   return (
     <nav className="nav" aria-label="Primary">
-      <a href="#top" className="nav-brand" aria-label="Silent Fleet home">SILENT FLEET</a>
+      <a
+        href="#top"
+        className="nav-brand"
+        aria-label="Silent Fleet home"
+        onClick={(e) => {
+          e.preventDefault()
+          scrollToHash('#top', { duration: 0.95, offset: 0 })
+          if (typeof history !== 'undefined') {
+            history.replaceState(null, '', window.location.pathname + window.location.search)
+          }
+        }}
+      >
+        SILENT FLEET
+      </a>
       <div className="nav-links">
         <a
           href="#objective"
@@ -497,6 +530,8 @@ function FilmScrubber() {
 function Hero({ ready, reduced, onOpen }) {
   const { setLabel } = useCursor()
   const rootRef = useRef(null)
+  const shortViewport = useMediaQuery('(max-height: 719px)')
+  const coarse = useIsCoarse()
   useEffect(() => {
     if (!ready || reduced) return undefined
     const delay = ranged(0.05, 0.18, 7)
@@ -554,7 +589,13 @@ function Hero({ ready, reduced, onOpen }) {
           </p>
         </div>
         <div data-hero-cta style={{ opacity: ready ? undefined : 1, marginTop: '0.35rem' }}>
-          <Magnet padding={80} magnetStrength={2.4} maxOffset={18}>
+          {/* Short / touch: no Magnet field — spring vs Lenis shake is worst here */}
+          <Magnet
+            padding={80}
+            magnetStrength={2.4}
+            maxOffset={18}
+            disabled={shortViewport || coarse || reduced}
+          >
             <GlareHover
               width="auto"
               height="auto"
