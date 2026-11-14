@@ -468,6 +468,28 @@ function ChallengeObjective({ reduced }) {
   )
 }
 
+/** In-flow Atlas title — sticky across Objective→Atlas so the chapter never “tabs” in */
+function AtlasBridgeHeading({ atlasActive }) {
+  return (
+    <header
+      className={`atlas-heading atlas-heading--bridge ${atlasActive ? 'is-atlas' : 'is-peek'}`}
+      id="atlas-bridge"
+      aria-label="Where they still sit"
+    >
+      <p className="kicker">
+        <ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active={atlasActive} />
+      </p>
+      <h2 className="display atlas-title">
+        Where they<br /><span className="outline-text">still sit</span>
+      </h2>
+      <p className="atlas-lede">
+        Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
+        Hover a hotspot on the Moon for the NASA image and exact location.
+      </p>
+    </header>
+  )
+}
+
 function Heartbeats({ onOpen, reduced }) {
   const { setLabel } = useCursor()
   return (
@@ -545,27 +567,6 @@ function Heartbeats({ onOpen, reduced }) {
   )
 }
 
-/** Full Atlas copy — fixed under SILENT FLEET, above the moon canvas */
-function AtlasTitleHud({ active }) {
-  if (!active) return null
-  return (
-    <div
-      className="atlas-overlay atlas-overlay--hud is-on"
-      style={{ opacity: 1, visibility: 'visible', zIndex: 95 }}
-    >
-      <header className="atlas-heading">
-        <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active /></p>
-        <h2 className="display atlas-title">
-          Where they<br /><span className="outline-text">still sit</span>
-        </h2>
-        <p className="atlas-lede">
-          Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
-          Hover a hotspot on the Moon for the NASA image and exact location.
-        </p>
-      </header>
-    </div>
-  )
-}
 
 function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) {
   const sectionRef = useRef(null)
@@ -576,8 +577,8 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
     let wasOn = false
     const io = new IntersectionObserver(
       ([entry]) => {
-        // Any meaningful intersection locks Atlas (nav jump + scroll)
-        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.15
+        // Lock early — title is already bridging in from Objective
+        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.08
         onActiveChange?.(on)
         if (on && !wasOn) {
           onFocusSite?.('a11-lm')
@@ -586,7 +587,8 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
         if (!on && wasOn) onCardSite?.(null)
         wasOn = on
       },
-      { threshold: [0, 0.15, 0.35, 0.55, 0.75], rootMargin: '0px' },
+      // Grow root upward so Atlas begins while Objective is still dissolving
+      { threshold: [0, 0.08, 0.2, 0.4, 0.65], rootMargin: '28% 0px 0px 0px' },
     )
     io.observe(el)
     return () => io.disconnect()
@@ -601,8 +603,7 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
     >
       <span className="section-rail">02B · ATLAS</span>
       <span className="section-num" aria-hidden>LOC</span>
-      {/* Scroll target + SEO; visible title is AtlasTitleHud under SILENT FLEET */}
-      <h2 className="sr-only">Where they still sit</h2>
+      {/* Visible title is AtlasBridgeHeading — sticky from Objective into Atlas */}
     </section>
   )
 }
@@ -1040,7 +1041,8 @@ export default function App() {
     setAtlasLock(true)
     setFocusSiteId('a11-lm')
     setCardSiteId('a11-lm')
-    scrollToHash('#atlas')
+    // Land on the sticky title bridge so Objective→Atlas reads as one page
+    scrollToHash('#atlas-bridge')
     history.replaceState(null, '', '#atlas')
   }, [])
 
@@ -1173,9 +1175,6 @@ export default function App() {
 
           <Nav progress={smoothProgress} onNavAtlas={onNavAtlas} />
 
-          {/* Fixed under SILENT FLEET — z above Continuum hotspots */}
-          <AtlasTitleHud active={atlasLock} />
-
           <button
             type="button"
             className={`audio-toggle ${audioOn ? 'on' : ''}`}
@@ -1193,21 +1192,26 @@ export default function App() {
 
             {/* One continuous scroll plate — Objective → Fleet reads as a single page */}
             <div className="story-plate">
-              <ErrorBoundary>
-                <ChallengeObjective reduced={reduced} />
-              </ErrorBoundary>
+              {/* Sticky band: “Where they still sit” enters in Objective and holds through Atlas */}
+              <div className="objective-atlas-band">
+                <ErrorBoundary>
+                  <ChallengeObjective reduced={reduced} />
+                </ErrorBoundary>
 
-              <div className="story-seam story-seam--into-atlas" aria-hidden />
+                <AtlasBridgeHeading atlasActive={atlasLock} />
 
-              <ErrorBoundary>
-                <LocationAtlas
-                  locked={atlasLock}
-                  onActiveChange={onAtlasActive}
-                  onFocusSite={onFocusSite}
-                  onCardSite={setCardSiteId}
-                  cardSiteId={cardSiteId}
-                />
-              </ErrorBoundary>
+                <div className="story-seam story-seam--into-atlas" aria-hidden />
+
+                <ErrorBoundary>
+                  <LocationAtlas
+                    locked={atlasLock}
+                    onActiveChange={onAtlasActive}
+                    onFocusSite={onFocusSite}
+                    onCardSite={setCardSiteId}
+                    cardSiteId={cardSiteId}
+                  />
+                </ErrorBoundary>
+              </div>
 
               <div className="story-seam story-seam--into-film" aria-hidden />
 

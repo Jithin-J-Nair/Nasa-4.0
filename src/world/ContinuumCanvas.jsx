@@ -338,22 +338,100 @@ void main(){
 `
 
 /* Crater bowl — geometry you enter */
+/* Premium lunar local surface — multi-crater displacement + NASA albedo/height + Armstrong bootprint stamp */
 const CRATER_VERT = `
 uniform float uDepth;
+uniform float uDive;
+uniform sampler2D uHeightMap;
+uniform sampler2D uBootMap;
+uniform vec2 uPatchOrigin;
+uniform float uPatchScale;
 varying vec2 vUv;
-varying float vDepth;
+varying vec2 vPatchUv;
+varying float vBowl;
 varying vec3 vWorld;
+varying vec3 vView;
+
+float hash21(vec2 p){
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float noise(vec2 p){
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  float a = hash21(i);
+  float b = hash21(i + vec2(1.0, 0.0));
+  float c = hash21(i + vec2(0.0, 1.0));
+  float d = hash21(i + vec2(1.0, 1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+float fbm(vec2 p){
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 5; i++) {
+    v += a * noise(p);
+    p = p * 2.07 + vec2(17.1, 9.3);
+    a *= 0.5;
+  }
+  return v;
+}
+/* Soft bowl: deep floor, raised rim, subtle central peak */
+float craterBowl(vec2 uv, float radius, float depth){
+  float d = length(uv) / max(radius, 1e-4);
+  float floorH = -depth * (1.0 - smoothstep(0.0, 0.78, d));
+  float rim = smoothstep(0.62, 0.86, d) * (1.0 - smoothstep(0.86, 1.12, d));
+  float peak = exp(-d * d * 18.0) * depth * 0.12;
+  return floorH + rim * depth * 0.34 + peak;
+}
+/* Neil Armstrong bootprint (AS11-40-5878 proportions) — chevron tread stamp */
+float bootprintHeight(vec2 uv){
+  // Local stamp window near crater floor (slightly off-center, as in Apollo photos)
+  vec2 b = (uv - vec2(0.42, 0.46)) * vec2(7.2, 5.4);
+  float outline = 1.0 - smoothstep(0.92, 1.08, length(max(abs(b) - vec2(0.55, 0.78), 0.0)));
+  // Chevron / lug tread (classic PLSS overshoe pattern)
+  float chev = abs(fract((b.y + abs(b.x) * 0.55) * 3.4) - 0.5);
+  float tread = smoothstep(0.22, 0.08, chev) * outline;
+  float heel = smoothstep(0.35, 0.15, length(b - vec2(0.0, -0.55))) * outline;
+  float toe = smoothstep(0.42, 0.18, length((b - vec2(0.0, 0.62)) * vec2(1.15, 0.75))) * outline;
+  float stamp = max(tread * 0.85, max(heel * 0.55, toe * 0.4));
+  // Photo luminance adds micro irregularity when available
+  vec2 bootUv = clamp((b + 1.2) * 0.42, 0.0, 1.0);
+  float photo = texture2D(uBootMap, bootUv).r;
+  stamp = mix(stamp, stamp * (0.55 + 0.45 * (1.0 - photo)), 0.55);
+  return -stamp * 0.045;
+}
 void main(){
   vUv = uv;
+  vPatchUv = uPatchOrigin + uv * uPatchScale;
   vec3 p = position;
+
   float r = length(uv - 0.5) * 2.0;
-  float bowl = pow(smoothstep(0.0, 1.0, r), 1.6);
-  p.z -= (1.0 - bowl) * uDepth;
-  // rim lip
-  p.z += smoothstep(0.72, 0.92, r) * (1.0 - smoothstep(0.92, 1.05, r)) * uDepth * 0.22;
-  vDepth = 1.0 - bowl;
+  float primary = craterBowl(uv - 0.5, 0.92, uDepth);
+  // Secondary / tertiary impacts — real lunar surfaces are saturated with small craters
+  float secondary = 0.0;
+  secondary += craterBowl(uv - vec2(0.28, 0.66), 0.22, uDepth * 0.28);
+  secondary += craterBowl(uv - vec2(0.74, 0.30), 0.16, uDepth * 0.22);
+  secondary += craterBowl(uv - vec2(0.62, 0.72), 0.11, uDepth * 0.16);
+  secondary += craterBowl(uv - vec2(0.22, 0.28), 0.13, uDepth * 0.18);
+  secondary += craterBowl(uv - vec2(0.78, 0.58), 0.09, uDepth * 0.12);
+
+  float terrain = (texture2D(uHeightMap, vPatchUv).r - 0.48) * 0.085;
+  terrain += (fbm(uv * 18.0) - 0.5) * 0.028;
+  terrain += (fbm(uv * 54.0) - 0.5) * 0.01;
+
+  float boot = bootprintHeight(uv) * smoothstep(0.25, 0.7, uDive);
+
+  float h = primary + secondary * 0.85 + terrain + boot;
+  // Soft edge falloff so the patch dissolves into space
+  h *= smoothstep(1.12, 0.55, r);
+  p.z += h;
+
+  vBowl = clamp(-primary / max(uDepth, 1e-3), 0.0, 1.0);
   vec4 w = modelMatrix * vec4(p, 1.0);
   vWorld = w.xyz;
+  vView = cameraPosition - w.xyz;
   gl_Position = projectionMatrix * viewMatrix * w;
 }
 `
@@ -362,23 +440,86 @@ uniform float uDive;
 uniform float uDark;
 uniform float uTime;
 uniform vec3 uSunDir;
+uniform sampler2D uColorMap;
+uniform sampler2D uHeightMap;
+uniform sampler2D uBootMap;
+uniform vec2 uPatchOrigin;
+uniform float uPatchScale;
 varying vec2 vUv;
-varying float vDepth;
+varying vec2 vPatchUv;
+varying float vBowl;
 varying vec3 vWorld;
-float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+varying vec3 vView;
+
+float hash21(vec2 p){
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float noise(vec2 p){
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  float a = hash21(i);
+  float b = hash21(i + vec2(1.0, 0.0));
+  float c = hash21(i + vec2(0.0, 1.0));
+  float d = hash21(i + vec2(1.0, 1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+/* Bootprint mask for albedo darkening (same UV window as vertex stamp) */
+float bootMask(vec2 uv){
+  vec2 b = (uv - vec2(0.42, 0.46)) * vec2(7.2, 5.4);
+  float outline = 1.0 - smoothstep(0.92, 1.08, length(max(abs(b) - vec2(0.55, 0.78), 0.0)));
+  float chev = abs(fract((b.y + abs(b.x) * 0.55) * 3.4) - 0.5);
+  float tread = smoothstep(0.22, 0.08, chev) * outline;
+  vec2 bootUv = clamp((b + 1.2) * 0.42, 0.0, 1.0);
+  float photo = 1.0 - texture2D(uBootMap, bootUv).r;
+  return clamp(max(tread, photo * outline * 0.85), 0.0, 1.0);
+}
 void main(){
   float r = length(vUv - 0.5) * 2.0;
-  float n = hash(vUv * 40.0 + uTime * 0.01);
-  vec3 regolith = vec3(0.38, 0.36, 0.34) * (0.85 + 0.15 * n);
-  regolith *= mix(0.35, 1.0, vDepth * 0.5 + 0.5);
+  // NASA Clementine / LRO-style albedo patch — desaturate toward classic Apollo grey
+  vec3 nasa = texture2D(uColorMap, vPatchUv).rgb;
+  float luma = dot(nasa, vec3(0.299, 0.587, 0.114));
+  vec3 regolith = mix(nasa, vec3(luma), 0.42);
+  regolith = pow(regolith, vec3(0.92));
+  // Micro speckles (ilmenite / glass beads)
+  float grain = noise(vUv * 220.0 + uTime * 0.002);
+  regolith *= 0.82 + 0.22 * grain;
+  // Bowl AO — floors go charcoal under vacuum sun
+  regolith *= mix(1.0, 0.42, vBowl * 0.85);
+  // Ejecta brightening on rim
+  float rim = smoothstep(0.55, 0.82, r) * (1.0 - smoothstep(0.82, 1.05, r));
+  regolith += vec3(0.06, 0.055, 0.05) * rim;
+
+  float boot = bootMask(vUv) * smoothstep(0.3, 0.75, uDive);
+  regolith *= 1.0 - boot * 0.38;
+  // Soft highlight on compressed tread edges
+  regolith += vec3(0.04) * boot * (1.0 - vBowl);
+
+  // Screen-space derivative normals from displaced mesh — hard lunar shadows
   vec3 N = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
-  float lit = max(dot(N, normalize(uSunDir)), 0.0);
-  vec3 col = regolith * (0.15 + lit * 0.85);
-  col *= 1.0 - uDark * 0.6;
-  float a = smoothstep(1.05, 0.55, r) * clamp(uDive * 1.4, 0.0, 1.0);
-  if (a < 0.02) discard;
-  // floor darkness at dive peak
-  col *= mix(1.0, 0.25, vDepth * uDive);
+  vec3 L = normalize(uSunDir);
+  vec3 V = normalize(vView);
+  float NdotL = dot(N, L);
+  // Vacuum: almost no fill — terminator is a knife edge
+  float diffuse = max(NdotL, 0.0);
+  float wrap = max(NdotL + 0.08, 0.0) * 0.12;
+  float ambient = 0.045;
+  // Soft GGX-ish glints on sunlit facets (anorthosite)
+  vec3 H = normalize(L + V);
+  float spec = pow(max(dot(N, H), 0.0), 48.0) * diffuse * 0.18;
+
+  vec3 col = regolith * (ambient + diffuse * 0.95 + wrap) + vec3(spec);
+  // Height-map micro AO
+  float h = texture2D(uHeightMap, vPatchUv).r;
+  col *= 0.78 + 0.28 * h;
+  col *= 1.0 - uDark * 0.65;
+  // Dive deepens floor shadow
+  col *= mix(1.0, 0.32, vBowl * uDive * 0.9);
+
+  float a = smoothstep(1.08, 0.52, r) * clamp(uDive * 1.35, 0.0, 1.0);
+  if (a < 0.015) discard;
   gl_FragColor = vec4(col, a);
 }
 `
@@ -565,39 +706,75 @@ function DustSheets({ stormRef, darkRef, sunDirRef }) {
   )
 }
 
-function CraterBowl({ diveRef, darkRef, sunDirRef, groupRef }) {
+function CraterBowl({ diveRef, darkRef, sunDirRef, groupRef, mobile = false }) {
+  // NASA maps already in /public/textures — local patch reads as real regolith, not a plastic bowl
+  const [colorMap, heightMap, bootMap] = useTexture([
+    '/textures/moon_color_4k.jpg',
+    '/textures/moon_height_4k.jpg',
+    '/textures/lunar/armstrong_bootprint.jpg',
+  ])
+
+  useEffect(() => {
+    colorMap.colorSpace = THREE.SRGBColorSpace
+    heightMap.colorSpace = THREE.NoColorSpace
+    bootMap.colorSpace = THREE.NoColorSpace
+    ;[colorMap, heightMap, bootMap].forEach((tex) => {
+      tex.anisotropy = 8
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
+      tex.generateMipmaps = true
+      tex.minFilter = THREE.LinearMipmapLinearFilter
+      tex.magFilter = THREE.LinearFilter
+      tex.needsUpdate = true
+    })
+  }, [colorMap, heightMap, bootMap])
+
   const mat = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: CRATER_VERT,
     fragmentShader: CRATER_FRAG,
     uniforms: {
-      uDepth: { value: 0.55 },
+      uDepth: { value: 0.62 },
       uDive: { value: 0 },
       uDark: { value: 0 },
       uTime: { value: 0 },
-      uSunDir: { value: new THREE.Vector3(0.85, 0.32, 0.42) },
+      uSunDir: { value: new THREE.Vector3(0.92, 0.28, 0.26) },
+      uColorMap: { value: colorMap },
+      uHeightMap: { value: heightMap },
+      uBootMap: { value: bootMap },
+      // Near Tranquility / Apollo 11 longitude band on the global moon maps
+      uPatchOrigin: { value: new THREE.Vector2(0.54, 0.48) },
+      uPatchScale: { value: 0.085 },
     },
     transparent: true,
     depthWrite: true,
     side: THREE.DoubleSide,
-  }), [])
+    extensions: { derivatives: true },
+  }), [colorMap, heightMap, bootMap])
 
   useFrame((s) => {
     const dive = diveRef?.current ?? 0
     mat.uniforms.uDive.value = dive
     mat.uniforms.uDark.value = darkRef?.current ?? 0
     mat.uniforms.uTime.value = s.clock.elapsedTime
-    mat.uniforms.uDepth.value = 0.35 + dive * 0.85
+    // Deeper bowl + harder rim as the dive commits
+    mat.uniforms.uDepth.value = 0.42 + dive * 0.95
     if (sunDirRef?.current) mat.uniforms.uSunDir.value.copy(sunDirRef.current)
     if (groupRef?.current) groupRef.current.visible = dive > 0.08
   })
 
+  // Dense tessellation so displacement reads as geology, not a low-poly cloth
+  const segs = mobile ? 128 : 256
+
   return (
     <group ref={groupRef} visible={false}>
-      <mesh rotation={[-Math.PI / 2.15, 0.1, 0.2]} position={[0.08, -0.15, 0.35]} scale={[1.4, 1.4, 1.4]}>
-        <planeGeometry args={[2.4, 2.4, 64, 64]} />
+      <mesh
+        rotation={[-Math.PI / 2.12, 0.08, 0.16]}
+        position={[0.06, -0.18, 0.32]}
+        scale={[1.55, 1.55, 1.55]}
+        frustumCulled={false}
+      >
+        <planeGeometry args={[2.55, 2.55, segs, segs]} />
         <primitive object={mat} attach="material" />
       </mesh>
-      {/* ejecta particles rush toward camera during dive */}
       <EjectaBurst diveRef={diveRef} />
     </group>
   )
@@ -1371,7 +1548,15 @@ function ContinuumScene({
         />
       </Suspense>
 
-      <CraterBowl diveRef={diveRef} darkRef={darkRef} sunDirRef={sunDirRef} groupRef={craterRef} />
+      <Suspense fallback={null}>
+        <CraterBowl
+          diveRef={diveRef}
+          darkRef={darkRef}
+          sunDirRef={sunDirRef}
+          groupRef={craterRef}
+          mobile={mobile}
+        />
+      </Suspense>
       <PioneerProbe groupRef={pioneerRef} carrierRef={carrierRef} />
       <SignalBeam carrierRef={carrierRef} activeRef={beamActiveRef} groupRef={beamRef} />
       <ContinuumPost mobile={mobile} reduced={reduced} stormRef={stormRef} diveRef={diveRef} darkRef={darkRef} />

@@ -1,0 +1,11 @@
+Lunar local-surface textures — Silent Fleet
+
+armstrong_bootprint.jpg
+  Source: NASA / Apollo 11 — AS11-40-5878 (Neil Armstrong bootprint in lunar dust)
+  https://images.nasa.gov/details/as11-40-5878
+  Public domain (NASA imagery)
+
+Global moon albedo / height used by CraterBowl patch sampling:
+  public/textures/moon_color_4k.jpg
+  public/textures/moon_height_4k.jpg
+  (see /public/textures/ATTRIBUTION.txt for full map credits)

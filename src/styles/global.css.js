@@ -123,7 +123,9 @@ img, svg { display: block; max-width: 100%; }
 .story-plate > .section,
 .story-plate > .heartbeats,
 .story-plate > .journey-spacer,
-.story-plate > .location-atlas {
+.story-plate > .location-atlas,
+.story-plate .objective-atlas-band > .section,
+.story-plate .objective-atlas-band > .location-atlas {
   /* Kill the generic section opacity tween that makes chapters “load in” */
   transition: none;
   content-visibility: visible;
@@ -136,14 +138,52 @@ img, svg { display: block; max-width: 100%; }
   margin: 0;
 }
 .story-seam--into-atlas {
-  height: clamp(5rem, 14vh, 9rem);
-  margin-top: clamp(-3rem, -8vh, -1.5rem);
+  height: clamp(3rem, 8vh, 5.5rem);
+  margin-top: clamp(-1.5rem, -4vh, -0.5rem);
   background: linear-gradient(
     180deg,
-    rgba(3, 3, 8, 0.42) 0%,
-    rgba(3, 3, 8, 0.12) 42%,
+    rgba(3, 3, 8, 0.28) 0%,
+    rgba(3, 3, 8, 0.08) 50%,
     transparent 100%
   );
+}
+
+/* Objective → Atlas: one sticky title so the chapter never pops in as a tab */
+.objective-atlas-band {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+}
+.atlas-heading--bridge {
+  position: sticky;
+  top: calc(var(--nav-h) + 2.75rem);
+  z-index: 95;
+  align-self: flex-start;
+  width: min(420px, 86vw);
+  max-width: min(420px, 86vw);
+  /* Pull up into Objective so the title is already on-screen while finishing the challenge copy */
+  margin: clamp(-1.25rem, -4vh, 0.25rem) 0 clamp(-8rem, -16vh, -4rem);
+  margin-left: clamp(1.25rem, 5vw, 5rem);
+  padding: 0.35rem 0 0;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  transition: opacity 0.55s ease, filter 0.55s ease;
+}
+.atlas-heading--bridge.is-peek {
+  opacity: 0.9;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.45));
+}
+.atlas-heading--bridge.is-atlas {
+  opacity: 1;
+  filter: drop-shadow(0 12px 36px rgba(0, 0, 0, 0.55));
+}
+@media (max-width: 720px) {
+  .atlas-heading--bridge {
+    margin-left: clamp(1rem, 4vw, 1.5rem);
+    width: min(100%, 92vw);
+    max-width: min(100%, 92vw);
+  }
 }
 .story-seam--into-film {
   height: clamp(4rem, 11vh, 7.5rem);
@@ -696,8 +736,8 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .challenge-objective {
   position: relative;
   padding-top: clamp(3.5rem, 10vh, 6rem);
-  /* Continuous into Atlas — no hard chapter void */
-  padding-bottom: clamp(2rem, 6vh, 3.5rem);
+  /* Leave room for Atlas title to enter while Objective copy is still readable */
+  padding-bottom: clamp(1rem, 3vh, 2rem);
   margin-bottom: 0;
 }
 .challenge-objective::after {
@@ -706,14 +746,14 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   left: 0;
   right: 0;
   bottom: 0;
-  height: clamp(4rem, 14vh, 8rem);
+  height: clamp(2.5rem, 8vh, 5rem);
   pointer-events: none;
   z-index: 1;
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(2, 2, 6, 0.22) 55%,
-    rgba(2, 2, 6, 0.55) 100%
+    rgba(2, 2, 6, 0.12) 55%,
+    rgba(2, 2, 6, 0.28) 100%
   );
 }
 .objective-grid {
@@ -761,14 +801,15 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   min-height: 118vh;
   min-height: 118dvh;
   height: auto;
-  padding: calc(var(--nav-h) + 1.25rem) clamp(1.25rem, 5vw, 5rem) clamp(2rem, 6vh, 4rem);
+  /* Extra top pad so sticky “Where they still sit” has clear air over the moon */
+  padding: calc(var(--nav-h) + 7.5rem) clamp(1.25rem, 5vw, 5rem) clamp(2rem, 6vh, 4rem);
   box-sizing: border-box;
   background: transparent;
   overflow: hidden;
   pointer-events: none;
-  scroll-margin-top: var(--nav-h);
-  /* Pull up into the Objective dissolve so Atlas begins mid-breath */
-  margin-top: clamp(-4rem, -10vh, -2rem);
+  scroll-margin-top: calc(var(--nav-h) + 1rem);
+  /* Pull up under the sticky bridge — one continuous plate */
+  margin-top: clamp(-6rem, -12vh, -3rem);
 }
 .atlas-overlay {
   max-width: min(460px, 92vw);
