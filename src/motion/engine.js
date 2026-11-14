@@ -533,23 +533,37 @@ export function revealOnScroll(el, { reduced } = {}) {
   const parts = el.querySelectorAll('[data-reveal]')
   const targets = parts.length ? parts : el
   gsap.set(targets, { autoAlpha: 0, y: 36 })
+  let done = false
+  const play = () => {
+    if (done) return
+    done = true
+    gsap.to(targets, {
+      autoAlpha: 1,
+      y: 0,
+      duration: 0.9,
+      stagger: 0.08,
+      ease: 'power3.out',
+      force3D: true,
+      onComplete: () => {
+        gsap.set(targets, { clearProps: 'willChange' })
+      },
+    })
+  }
   const st = ScrollTrigger.create({
     trigger: el,
-    start: 'top 82%',
+    start: 'top 88%',
     once: true,
-    onEnter: () => {
-      gsap.to(targets, {
-        autoAlpha: 1,
-        y: 0,
-        duration: 0.9,
-        stagger: 0.08,
-        ease: 'power3.out',
-        force3D: true,
-        onComplete: () => {
-          gsap.set(targets, { clearProps: 'willChange' })
-        },
-      })
-    },
+    onEnter: play,
+  })
+  // Nav jumps / Lenis can skip onEnter — never leave CTAs/images stranded at autoAlpha 0
+  requestAnimationFrame(() => {
+    ScrollTrigger.refresh()
+    const top = el.getBoundingClientRect().top
+    const vh = window.innerHeight || 1
+    if (st.progress > 0 || (top < vh * 0.92 && top + el.offsetHeight > vh * 0.08)) {
+      play()
+      st.kill()
+    }
   })
   return () => st.kill()
 }

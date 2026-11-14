@@ -103,11 +103,27 @@ function usePlanetYawDrag(enabled, reduced, onDraggingChange) {
       targetYaw.current += dx * radPerPx
     }
 
+    // Hover + wheel → OptionScroll-style yaw (rotate globe without dragging)
+    let hovering = false
+    const onEnter = () => { hovering = true }
+    const onLeave = () => { hovering = false }
+    const onWheel = (e) => {
+      if (!hovering && e.target !== el) return
+      // Prefer horizontal intent; allow vertical wheel to yaw when hovering the globe
+      e.preventDefault()
+      const delta = e.deltaMode === 1 ? e.deltaY * 18 : e.deltaY
+      const radPerPx = (Math.PI * 1.35) / Math.max(1, size.width)
+      targetYaw.current += delta * radPerPx * 0.55
+    }
+
     el.addEventListener('pointerdown', onDown)
     el.addEventListener('pointermove', onMove)
     el.addEventListener('pointerup', clearDrag)
     el.addEventListener('pointercancel', clearDrag)
     el.addEventListener('lostpointercapture', clearDrag)
+    el.addEventListener('pointerenter', onEnter)
+    el.addEventListener('pointerleave', onLeave)
+    el.addEventListener('wheel', onWheel, { passive: false })
 
     return () => {
       el.removeEventListener('pointerdown', onDown)
@@ -115,6 +131,9 @@ function usePlanetYawDrag(enabled, reduced, onDraggingChange) {
       el.removeEventListener('pointerup', clearDrag)
       el.removeEventListener('pointercancel', clearDrag)
       el.removeEventListener('lostpointercapture', clearDrag)
+      el.removeEventListener('pointerenter', onEnter)
+      el.removeEventListener('pointerleave', onLeave)
+      el.removeEventListener('wheel', onWheel)
       dragging.current = false
       pending.current = false
       activePointer.current = null
@@ -514,38 +533,73 @@ function DustSheets({ stormRef, darkRef, sunDirRef }) {
 
 
 /** Keep hotspot dossier cards fully inside the viewport (Mars right-limb safe). */
-function placeHotspotCard(card, uiRoot, size) {
+function placeHotspotCard(card, uiRoot, size, screenXY) {
   if (!card || typeof document === 'undefined') return
-  const hit = uiRoot?.querySelector?.('.moon-hotspot-hit')
-  const pin = hit?.getBoundingClientRect?.()
-  if (!pin) return
-  // Pin may be opacity-hidden mid-frame — keep last placement
-  if (pin.width === 0 && pin.height === 0 && pin.left === 0 && pin.top === 0) return
   const pad = 16
   const vw = size?.width || window.innerWidth
   const vh = size?.height || window.innerHeight
   const cw = Math.min(card.offsetWidth || 240, vw - pad * 2)
   const ch = Math.min(card.offsetHeight || 280, vh - pad * 2)
 
+  const hit = uiRoot?.querySelector?.('.moon-hotspot-hit')
+  const pin = hit?.getBoundingClientRect?.()
+  const pinAlive = pin
+    && !(pin.width === 0 && pin.height === 0 && pin.left === 0 && pin.top === 0)
+    && Number.isFinite(pin.left)
+    && pin.left > -vw
+    && pin.left < vw * 2
+
+  // Prefer live hit rect; else projected 3D site; else never leave the card at 0,0
+  let pinCx
+  let pinCy
+  let pinBottom
+  let pinTop
+  let pinLeft
+  let pinRight
+  if (pinAlive) {
+    pinCx = pin.left + pin.width / 2
+    pinCy = pin.top + pin.height / 2
+    pinBottom = pin.bottom
+    pinTop = pin.top
+    pinLeft = pin.left
+    pinRight = pin.right
+  } else if (screenXY && Number.isFinite(screenXY.x) && Number.isFinite(screenXY.y)) {
+    pinCx = screenXY.x
+    pinCy = screenXY.y
+    pinBottom = screenXY.y + 10
+    pinTop = screenXY.y - 10
+    pinLeft = screenXY.x - 10
+    pinRight = screenXY.x + 10
+  } else {
+    // Safe readable dock — never the top-left corner flash
+    pinCx = vw * 0.58
+    pinCy = vh * 0.42
+    pinBottom = pinCy + 12
+    pinTop = pinCy - 12
+    pinLeft = pinCx - 12
+    pinRight = pinCx + 12
+  }
+
   // Prefer under the pin, centered (image-2 grammar)
-  let left = pin.left + pin.width / 2 - cw / 2
-  let top = pin.bottom + 14
+  let left = pinCx - cw / 2
+  let top = pinBottom + 14
 
   // Near right limb → bias card left of pin; near left → bias right
-  const pinCx = pin.left + pin.width / 2
   if (pinCx > vw * 0.58) {
-    left = pin.left - cw - 14
+    left = pinLeft - cw - 14
   } else if (pinCx < vw * 0.32) {
-    left = pin.right + 14
+    left = pinRight + 14
   }
 
-  left = Math.min(Math.max(pad, left), vw - pad - cw)
+  // Keep clear of OptionWheel HUD on the left
+  const wheelGuard = Math.min(vw * 0.34, 280)
+  left = Math.min(Math.max(Math.max(pad, wheelGuard), left), vw - pad - cw)
 
   if (top + ch > vh - pad) {
-    top = pin.top - 14 - ch
+    top = pinTop - 14 - ch
   }
   if (top < pad) {
-    top = Math.min(pad, Math.max(pad, vh - pad - ch))
+    top = pad
   }
   top = Math.min(Math.max(pad, top), vh - pad - ch)
 
@@ -557,6 +611,9 @@ function placeHotspotCard(card, uiRoot, size) {
   card.style.transform = 'none'
   card.style.zIndex = '140'
   card.style.maxWidth = `${Math.min(240, vw - pad * 2)}px`
+  card.style.opacity = '1'
+  card.style.visibility = 'visible'
+  card.dataset.placed = '1'
 }
 
 function SiteBeacon({
@@ -593,11 +650,11 @@ function SiteBeacon({
   const tmp = useMemo(() => new THREE.Vector3(), [])
   const { size } = useThree()
 
-  // First paint placement before paint — avoids one-frame corner flash
+  // First paint — project site to screen so the card never flashes at 0,0
   useLayoutEffect(() => {
     if (!cardOpen) return undefined
     const id = requestAnimationFrame(() => {
-      placeHotspotCard(cardRef.current, uiRef.current, size)
+      placeHotspotCard(cardRef.current, uiRef.current, size, null)
     })
     return () => cancelAnimationFrame(id)
   }, [cardOpen, site.id, size.width, size.height])
@@ -605,6 +662,15 @@ function SiteBeacon({
   useFrame((s) => {
     if (!frontRef.current || !limbRef.current) return
     const stageOn = (visibleRef?.current ?? 0) > 0.42 && interactive
+
+    // Always know where the site is in screen space while its card is open
+    frontRef.current.getWorldPosition(worldPos)
+    const ndc = worldPos.clone().project(s.camera)
+    const screenXY = {
+      x: (ndc.x * 0.5 + 0.5) * s.size.width,
+      y: (-ndc.y * 0.5 + 0.5) * s.size.height,
+    }
+
     if (!stageOn) {
       frontRef.current.visible = false
       limbRef.current.visible = false
@@ -618,11 +684,14 @@ function SiteBeacon({
         limbUiRef.current.style.visibility = 'hidden'
         limbUiRef.current.style.pointerEvents = 'none'
       }
+      // OptionWheel can open a card while stage chrome flickers — still dock it
+      if (cardOpen && cardRef.current) {
+        placeHotspotCard(cardRef.current, uiRef.current, s.size, screenXY)
+      }
       return
     }
 
     // Facing test in world space
-    frontRef.current.getWorldPosition(worldPos)
     worldNrm.copy(localNrm)
     if (frontRef.current.parent) {
       worldNrm.transformDirection(frontRef.current.parent.matrixWorld)
@@ -637,11 +706,11 @@ function SiteBeacon({
       uiRef.current.style.pointerEvents = facing ? 'auto' : 'none'
       uiRef.current.style.visibility = facing ? 'visible' : 'hidden'
     }
+    // Place whenever the card is open — even if the pin is on the far limb
+    if (cardOpen && cardRef.current) {
+      placeHotspotCard(cardRef.current, uiRef.current, s.size, screenXY)
+    }
     if (facing && frontMesh.current) {
-      if (cardRef.current && cardOpen) {
-        // Screen-space clamp — drei Html distanceFactor breaks CSS edge offsets
-        placeHotspotCard(cardRef.current, uiRef.current, s.size)
-      }
       const active = hotspotRef?.current === site.id || cardOpen
       const pulse = active ? 0.5 + Math.sin(s.clock.elapsedTime * 3.6) * 0.22 : 0.32
       frontMesh.current.scale.setScalar(active ? 1.2 + pulse * 0.25 : 0.9)
@@ -1326,8 +1395,8 @@ function FilmDirector({
     camera.lookAt(look)
 
     if (moonRef.current) {
-      const show = f === 'moon' || f === 'dive' || ab > 0.02 || (transit && journey.moonPresence > 0.02)
-      moonRef.current.visible = show || sample.event.dive > 0.05
+      const show = f === 'moon' || f === 'dive' || ab > 0.02 || (transit && journey.moonPresence > 0.08)
+      moonRef.current.visible = (show || sample.event.dive > 0.05) && !(transit && journey.moonExit > 0.88)
 
       let targetScale = 0.01
       let tx = 0
@@ -1347,16 +1416,16 @@ function FilmDirector({
         ty = 0
         tz = 0
       } else if (transit && journey.moonPresence > 0.01) {
-        // Soft fade-recede along the corridor — longer arc, no pop
+        // Recede hard left/back — leave the corridor clear before Mars grows
         const exit = easeInOutCubic(journey.moonExit)
-        targetScale = lerp(mobile ? 1.52 : 1.72, 0.04, exit)
-        tx = lerp(0, -1.15, exit)
-        ty = lerp(0, 0.18, exit)
-        tz = lerp(0, -4.4, exit)
+        targetScale = lerp(mobile ? 1.48 : 1.62, 0.02, exit)
+        tx = lerp(0, -2.4, exit)
+        ty = lerp(0, 0.22, exit)
+        tz = lerp(0, -5.2, exit)
       }
 
-      // Transit: faster catch-up so Moon actually leaves (slow damp left it stuck on stage)
-      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 3.4 : 4.2)) * step)
+      // Transit: snappy exit so Moon never sits under Mars
+      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 5.2 : 4.2)) * step)
       moonScale.current = lerp(moonScale.current, targetScale, poseDamp)
       moonPos.current.x = lerp(moonPos.current.x, tx, poseDamp)
       moonPos.current.y = lerp(moonPos.current.y, ty, poseDamp)
@@ -1373,12 +1442,12 @@ function FilmDirector({
         const presence = transit
           ? clamp(journey.marsPresence, 0, 1)
           : 1
-        // Center → right: keep a readable disc early; ~50% of body at Meridiani lock
-        const hemiX = lerp(0.08, 3.05, slide)
+        // Enter from far-right after Moon clears — grow into Meridiani right-limb lock
+        const hemiX = lerp(2.4, 3.05, slide)
         const ty = lerp(0.08, 0.04, slide)
-        const tz = lerp(-1.85, -0.5, slide)
-        const hemiScale = lerp(1.05, 1.82, slide) * lerp(0.78, 1, easeInOutCubic(presence))
-        const poseDamp = Math.min(1, (reduced ? 5.5 : (transit ? 1.45 : 2.05)) * step)
+        const tz = lerp(-2.8, -0.5, slide)
+        const hemiScale = lerp(0.55, 1.82, slide) * lerp(0.55, 1, easeInOutCubic(presence))
+        const poseDamp = Math.min(1, (reduced ? 5.5 : (transit ? 2.35 : 2.05)) * step)
         marsScale.current = lerp(marsScale.current, hemiScale, poseDamp)
         marsPos.current.x = lerp(marsPos.current.x, hemiX, poseDamp)
         marsPos.current.y = lerp(marsPos.current.y, ty, poseDamp)

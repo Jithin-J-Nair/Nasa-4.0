@@ -705,48 +705,75 @@ function ChallengeObjective({ reduced }) {
           scrambleColor="#8ec8ff"
         />
       </p>
-      <div className="objective-focus-wrap" data-reveal>
-        {reduced || coarse ? (
-          <h2 className="display" style={{ fontSize: 'clamp(2.1rem, 6vw, 4.4rem)', marginBottom: '1.25rem', maxWidth: '16ch' }}>
-            They stayed behind<br />
-            <span className="outline-text">so we could learn.</span>
-          </h2>
-        ) : (
-          <TrueFocus
-            sentence="They stayed behind so we could learn."
-            borderColor="#8ec8ff"
-            glowColor="rgba(142, 200, 255, 0.35)"
-            blurAmount={4}
-            animationDuration={0.55}
-            pauseBetweenAnimations={1.15}
-            cornerSize={14}
-            borderWidth={2}
-            unfocusedOpacity={0.42}
-          />
-        )}
+      <div className="objective-hero-row" data-reveal>
+        <div className="objective-focus-wrap">
+          {reduced || coarse ? (
+            <h2 className="display objective-headline">
+              They stayed behind<br />
+              <span className="outline-text">so we could learn.</span>
+            </h2>
+          ) : (
+            <TrueFocus
+              sentence="They stayed behind so we could learn."
+              borderColor="#8ec8ff"
+              glowColor="rgba(142, 200, 255, 0.35)"
+              blurAmount={4}
+              animationDuration={0.55}
+              pauseBetweenAnimations={1.15}
+              cornerSize={14}
+              borderWidth={2}
+              unfocusedOpacity={0.42}
+            />
+          )}
+        </div>
+        <div className="objective-figure-fade">
+          <SpotlightCard
+            className="objective-spotlight"
+            spotlightColor="rgba(142, 200, 255, 0.22)"
+            intensity={0.22}
+            spotlightSize={280}
+            softness={0.75}
+            borderGlow={0.55}
+            proximity={64}
+            smoothing={0.28}
+          >
+            <figure className="objective-figure">
+              <div className="nasa-media body-moon objective-figure__media">
+                <img
+                  src="/images/eagle-descent.jpg"
+                  alt={HERO_LEFTOVER?.imageAlt || 'Apollo 11 Lunar Module Eagle descent stage on the Moon'}
+                  loading="eager"
+                  decoding="async"
+                />
+                <span className="credit">
+                  {HERO_LEFTOVER?.credit || 'NASA / JSC'} · {HERO_LEFTOVER?.coords || '0.67416° N, 23.47314° E'}
+                </span>
+              </div>
+              <figcaption className="mono">
+                {HERO_LEFTOVER?.name || 'Eagle Descent Stage'} · still on the Moon
+              </figcaption>
+            </figure>
+          </SpotlightCard>
+        </div>
       </div>
-      <div className="objective-grid" data-reveal>
-        <FadeContent
-          className="objective-copy"
-          blur
-          duration={0.9}
-          delay={0.05}
-          threshold={0.15}
-          once
-        >
-          <LineReveal>
-            <span style={{ color: 'var(--ink-dim)', fontSize: '1.12rem', lineHeight: 1.7, display: 'block' }}>
-              Since the 1960s, NASA has left teammates across the solar system — landers that dug for ice,
-              rovers that tasted ancient lakes, probes that still phone home from the dark.
-              The Catalogue of Manmade Material on the Moon alone lists hundreds still sitting in the dust.
-            </span>
-          </LineReveal>
-          <LineReveal delay={0.08}>
-            <span style={{ color: 'var(--ink-dim)', fontSize: '1.12rem', lineHeight: 1.7, display: 'block', marginTop: '1.1rem' }}>
-              This challenge asks us to feel them as explorers, not scrap — to remember the science they gave us,
-              and to leave changed. Accuracy matters: every coordinate ties to NSSDCA, LROC, ALSJ, HiRISE, or PDS.
-            </span>
-          </LineReveal>
+      <div className="objective-copy" data-reveal>
+        <LineReveal>
+          <span style={{ color: 'var(--ink-dim)', fontSize: '1.12rem', lineHeight: 1.7, display: 'block' }}>
+            Since the 1960s, NASA has left teammates across the solar system — landers that dug for ice,
+            rovers that tasted ancient lakes, probes that still phone home from the dark.
+            The Catalogue of Manmade Material on the Moon alone lists hundreds still sitting in the dust.
+          </span>
+        </LineReveal>
+        <LineReveal delay={0.08}>
+          <span style={{ color: 'var(--ink-dim)', fontSize: '1.12rem', lineHeight: 1.7, display: 'block', marginTop: '1.1rem' }}>
+            This challenge asks us to feel them as explorers, not scrap — to remember the science they gave us,
+            and to leave changed. Accuracy matters: every coordinate ties to NSSDCA, LROC, ALSJ, HiRISE, or PDS.
+          </span>
+        </LineReveal>
+        <div className="objective-cta-row">
+          <MagneticButton href="#atlas" className="objective-cta">
+            ENTER THE ATLAS
+          </MagneticButton>
           <p className="mono objective-link-row">
             <a
               href="https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details"
@@ -757,36 +784,7 @@ function ChallengeObjective({ reduced }) {
             </a>
             <a href="#fleet">BROWSE NASA LEFTOVERS →</a>
           </p>
-        </FadeContent>
-        {HERO_LEFTOVER?.image && (
-          <FadeContent blur duration={1} delay={0.12} threshold={0.12} once className="objective-figure-fade">
-            <SpotlightCard
-              className="objective-spotlight"
-              spotlightColor="rgba(142, 200, 255, 0.22)"
-              intensity={0.22}
-              spotlightSize={280}
-              softness={0.75}
-              borderGlow={0.55}
-              proximity={64}
-              smoothing={0.28}
-            >
-              <figure className="objective-figure">
-                <div className="nasa-media body-moon" style={{ aspectRatio: '4/5', marginBottom: 0 }}>
-                  <img
-                    src={HERO_LEFTOVER.image}
-                    alt={HERO_LEFTOVER.imageAlt || HERO_LEFTOVER.name}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <span className="credit">{HERO_LEFTOVER.credit} · {HERO_LEFTOVER.coords}</span>
-                </div>
-                <figcaption className="mono">
-                  {HERO_LEFTOVER.name} · {HERO_LEFTOVER.coords} · still on the Moon
-                </figcaption>
-              </figure>
-            </SpotlightCard>
-          </FadeContent>
-        )}
+        </div>
       </div>
     </section>
   )
@@ -825,7 +823,7 @@ function AtlasBridgeHeading({ atlasActive }) {
         {atlasActive && (
           <p className="atlas-drag-cue mono" aria-live="polite">
             <span className="atlas-drag-cue__orb" aria-hidden />
-            Drag to rotate · pulsing rings mark far-side sites
+            Hover + scroll the wheel or globe to rotate · drag also works
           </p>
         )}
       </header>

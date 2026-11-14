@@ -9,6 +9,12 @@ SILENT FLEET — still imagery
    Source page: https://science.nasa.gov/mission/voyager/voyager-1s-pale-blue-dot/
    Local file: web downscale (~1600px) of the NASA still for continuum silence coda.
 
+2) eagle-descent.jpg
+   Title: Apollo 11 — Lunar Module Eagle at Tranquility Base (as11-40-5903)
+   Credit: NASA / JSC
+   Source: https://images.nasa.gov/details/as11-40-5903
+   Local file: objective “They stayed behind” figure (cached NASA medium still).
+
 License / use
 -------------
 NASA media may be used for educational and informational purposes in accordance with

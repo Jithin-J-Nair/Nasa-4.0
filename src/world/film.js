@@ -428,12 +428,12 @@ export function sampleActs(progress) {
     warp: event.warp,
   }
   if (act.id === 'transit') {
-    // Short crossfade: Moon recedes fast so Mars owns the corridor (no "Moon forever" beat)
+    // Moon slides left while Mars grows in from the right — no empty void, no equal-size clash
     journey = {
-      moonPresence: 1 - smoothstep(0.0, 0.38, local),
-      marsPresence: smoothstep(0.0, 0.28, local),
+      moonPresence: 1 - smoothstep(0.0, 0.4, local),
+      marsPresence: smoothstep(0.18, 0.48, local),
       moonExit: smoothstep(0.0, 0.42, local),
-      marsApproach: smoothstep(0.0, 0.55, local),
+      marsApproach: smoothstep(0.22, 0.82, local),
       warp: event.warp,
     }
   }
