@@ -109,12 +109,6 @@ img, svg { display: block; max-width: 100%; }
   height: 520vh;
   pointer-events: none;
 }
-.journey-spacer.journey-moon {
-  height: 170vh;
-}
-.journey-spacer.journey-deep {
-  height: 380vh;
-}
 .chapter-thin {
   padding-top: clamp(3rem, 8vw, 5rem);
   padding-bottom: clamp(3rem, 8vw, 5rem);

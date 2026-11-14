@@ -301,24 +301,46 @@ function Nav({ progress }) {
   )
 }
 
-function FilmMoonApproach() {
+function FilmJourney() {
   return (
-    <section
-      id="journey-moon"
-      className="journey-spacer journey-moon"
-      aria-label="Moon approach continuum"
-    >
-      <span className="section-rail" style={{ position: 'sticky', top: '30vh' }}>FILM · LUNA</span>
+    <section id="journey" className="journey-spacer" aria-label="Film continuum journey">
+      <span className="section-rail" style={{ position: 'sticky', top: '30vh' }}>FILM · CONTINUUM</span>
     </section>
   )
 }
 
-function FilmJourney() {
-  return (
-    <section id="journey" className="journey-spacer journey-deep" aria-label="Film continuum journey">
-      <span className="section-rail" style={{ position: 'sticky', top: '30vh' }}>FILM · CONTINUUM</span>
-    </section>
-  )
+/** Keep film on the Moon until Atlas ends; dive/Mars only after. */
+function useAtlasGatedFilmProgress(scrollYProgress) {
+  const film = useMotionValue(0)
+  useEffect(() => {
+    const ATLAS_END = 0.2 // moon lock tip — matches ATLAS_LOCK_PROGRESS family
+    const read = () => {
+      const atlas = document.getElementById('atlas')
+      const doc = Math.max(1, document.documentElement.scrollHeight - window.innerHeight)
+      const y = scrollYProgress.get() * doc
+      if (!atlas) {
+        film.set(scrollYProgress.get())
+        return
+      }
+      const atlasEnd = atlas.offsetTop + atlas.offsetHeight * 0.72
+      if (y <= atlasEnd) {
+        const t = Math.max(0, Math.min(1, y / Math.max(1, atlasEnd)))
+        // Ease toward front-facing hotspot pose as Atlas approaches
+        film.set(t * ATLAS_END)
+      } else {
+        const t = Math.max(0, Math.min(1, (y - atlasEnd) / Math.max(1, doc - atlasEnd)))
+        film.set(ATLAS_END + t * (1 - ATLAS_END))
+      }
+    }
+    read()
+    const unsub = scrollYProgress.on('change', read)
+    window.addEventListener('resize', read, { passive: true })
+    return () => {
+      unsub()
+      window.removeEventListener('resize', read)
+    }
+  }, [scrollYProgress, film])
+  return film
 }
 
 function Hero({ ready, reduced, onOpen }) {
@@ -1053,7 +1075,8 @@ export default function App() {
   const mobile = useMediaQuery('(max-width: 768px)')
   const reduced = usePrefersReduced()
   const { scrollYProgress } = useScroll()
-  const smoothProgress = useSpring(scrollYProgress, { stiffness: 80, damping: 24, mass: 0.85 })
+  const gatedProgress = useAtlasGatedFilmProgress(scrollYProgress)
+  const smoothProgress = useSpring(gatedProgress, { stiffness: 80, damping: 24, mass: 0.85 })
 
   useEffect(() => {
     const style = document.createElement('style')
@@ -1213,8 +1236,6 @@ export default function App() {
             <ErrorBoundary>
               <ChallengeObjective reduced={reduced} />
             </ErrorBoundary>
-
-            <FilmMoonApproach />
 
             <ErrorBoundary>
               <LocationAtlas

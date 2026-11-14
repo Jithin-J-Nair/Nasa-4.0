@@ -906,11 +906,14 @@ function FilmDirector({
     darkRef.current = sample.dark
     gradeRef.current = sample.grade
 
-    const hot = focusSiteId || sample.hotspot || null
+    const hot = focusSiteId || sample.hotspot || (p < 0.22 || atlasLock ? 'a11-lm' : null)
     if (hotspotRef) hotspotRef.current = hot
     const focus = hot ? SITE_FOCUS[hot] : null
     if (moonAimRef) {
-      moonAimRef.current = focus?.body === 'moon' ? focus.aimLon : (atlasLock ? 23.47 : null)
+      // Rotate existing hotspot to face the camera by Atlas (Tranquility / focused site)
+      if (focus?.body === 'moon') moonAimRef.current = focus.aimLon
+      else if (p < 0.22 || atlasLock) moonAimRef.current = 23.47
+      else moonAimRef.current = null
     }
     if (marsAimRef) {
       marsAimRef.current = focus?.body === 'mars' ? focus.aimLon : null
