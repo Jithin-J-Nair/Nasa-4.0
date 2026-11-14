@@ -1026,11 +1026,6 @@ function FilmDirector({
     // Atlas blend is interaction chrome only — never freezes film tip
     atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 1.55 * step))
     const ab = atlasBlend.current
-    // Arrival + Atlas: keep lunar leftovers visible on the front face (image-2 default)
-    if (beaconsVisibleRef) {
-      const moonFront = (f === 'moon' || f === 'dive') ? 0.92 : 0
-      beaconsVisibleRef.current = Math.max(ab, moonFront)
-    }
 
     // Shot-aware catch-up: silk during journey, punch into death
     const catchUp = filmTarget >= 0.64 && filmTarget < 0.76 ? 6.5 : 4.2
@@ -1039,6 +1034,11 @@ function FilmDirector({
     onSample?.(sample)
 
     const f = sample.focus
+    // Arrival + Atlas: lunar leftovers on the front face (must run AFTER f is defined)
+    if (beaconsVisibleRef) {
+      const moonFront = (f === 'moon' || f === 'dive') ? 0.92 : 0
+      beaconsVisibleRef.current = Math.max(ab, moonFront)
+    }
     const transit = f === 'transit' || sample.act?.id === 'transit'
     const journey = sample.journey || {
       moonPresence: f === 'moon' || f === 'dive' ? 1 : 0,
