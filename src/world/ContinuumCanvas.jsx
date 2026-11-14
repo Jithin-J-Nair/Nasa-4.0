@@ -1355,7 +1355,8 @@ function FilmDirector({
         tz = lerp(0, -4.4, exit)
       }
 
-      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 1.55 : 4.2)) * step)
+      // Transit: faster catch-up so Moon actually leaves (slow damp left it stuck on stage)
+      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 3.4 : 4.2)) * step)
       moonScale.current = lerp(moonScale.current, targetScale, poseDamp)
       moonPos.current.x = lerp(moonPos.current.x, tx, poseDamp)
       moonPos.current.y = lerp(moonPos.current.y, ty, poseDamp)

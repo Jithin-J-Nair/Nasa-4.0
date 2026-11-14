@@ -428,12 +428,12 @@ export function sampleActs(progress) {
     warp: event.warp,
   }
   if (act.id === 'transit') {
-    // Overlap Moon exit with Mars approach — Mars must read as a real disc early
+    // Short crossfade: Moon recedes fast so Mars owns the corridor (no "Moon forever" beat)
     journey = {
-      moonPresence: 1 - smoothstep(0.22, 0.82, local),
-      marsPresence: smoothstep(0.02, 0.32, local),
-      moonExit: smoothstep(0.25, 0.85, local),
-      marsApproach: smoothstep(0.05, 0.7, local),
+      moonPresence: 1 - smoothstep(0.0, 0.38, local),
+      marsPresence: smoothstep(0.0, 0.28, local),
+      moonExit: smoothstep(0.0, 0.42, local),
+      marsApproach: smoothstep(0.0, 0.55, local),
       warp: event.warp,
     }
   }
