@@ -1630,7 +1630,7 @@ export default function App() {
                 atlasLock={atlasLock}
                 marsLock={marsLock && !atlasLock}
                 focusSiteId={focusSiteId}
-                moonHotspotsInteractive={atlasLock || (!marsLock && !booting && (actLabel === 'ARRIVAL' || actLabel === 'NEAR SIDE' || actLabel === 'NEAR PASS'))}
+                moonHotspotsInteractive={atlasLock}
                 marsHotspotsInteractive={marsLock && !atlasLock && chromeKill < 0.55}
                 cardSiteId={cardSiteId}
                 onHotspotHover={onHotspotHover}

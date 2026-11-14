@@ -56,13 +56,20 @@ img, svg { display: block; max-width: 100%; }
 .sf-app {
   position: relative;
   background: transparent;
-  overflow-x: clip;
+  /* Do not overflow-clip here — it traps position:fixed Continuum and can
+     inflate the WebGL canvas to document height (blank Moon/Mars/Voyager). */
 }
 .continuum-canvas {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100svh;
+  max-width: 100vw;
+  max-height: 100svh;
   z-index: 0;
   pointer-events: none;
+  overflow: hidden;
 }
 .continuum-canvas.is-hotspots {
   /* Above chapter scroll layer so Html hotspot cards paint; title HUD is z=95 */
@@ -102,10 +109,10 @@ img, svg { display: block; max-width: 100%; }
   contain: content;
 }
 .nav,
-.continuum-canvas,
 .atlas-overlay--hud {
   contain: layout style;
 }
+/* Never CSS-contain the WebGL root — containment can zero Canvas size */
 
 /* ─── Story plate: Objective → Fleet as one continuous scroll surface ─── */
 .story-plate {

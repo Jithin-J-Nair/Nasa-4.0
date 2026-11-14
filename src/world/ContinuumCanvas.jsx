@@ -4,7 +4,7 @@
  * Moon / Mars as place · Meridiani dust · carrier death as physics.
  * Material system: albedo + height AO/roughness + GGX + ASC-CDL grade.
  */
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, useTexture, useGLTF } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@react-three/postprocessing'
@@ -870,7 +870,6 @@ function BodySphere({
 
 /** NASA VTAD Voyager — https://science.nasa.gov/resource/voyager-3d-model/ */
 const VOYAGER_GLB = '/models/Voyager.glb'
-useGLTF.preload(VOYAGER_GLB)
 
 function VoyagerCraft({ groupRef, carrierRef }) {
   const { scene } = useGLTF(VOYAGER_GLB)
@@ -1337,6 +1336,17 @@ function FilmDirector({
   return null
 }
 
+/** Keep post FX from taking down the whole Continuum if the composer fails. */
+class ContinuumFxGate extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { failed: false }
+  }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(err) { console.warn('[SilentFleet] Continuum FX disabled', err?.message || err) }
+  render() { return this.state.failed ? null : this.props.children }
+}
+
 function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
   const [aberration] = useState(() => new Vector2(0.00004, 0.00005))
   const noiseRef = useRef(null)
@@ -1418,10 +1428,10 @@ function ContinuumScene({
     marsDrag.reset()
     onHotspotReveal?.(site)
   }, [marsDrag, onHotspotReveal])
-  // Full masters — bytes warmed during preloader (see preloadTextures.js)
-  const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_8k.jpg'
+  // Cap at 4K — dual 8K uploads were blowing WebGL memory on some GPUs
+  const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_4k.jpg'
   const moonHeight = mobile ? '/textures/moon_height_2k.jpg' : '/textures/moon_height_4k.jpg'
-  const marsColor = mobile ? '/textures/mars_color_2k.jpg' : '/textures/mars_color_8k.jpg'
+  const marsColor = mobile ? '/textures/mars_color_2k.jpg' : '/textures/mars_color_4k.jpg'
   const marsHeight = mobile ? '/textures/mars_bump_2k.jpg' : '/textures/mars_bump_4k.jpg'
 
   return (
@@ -1522,7 +1532,9 @@ function ContinuumScene({
       <Suspense fallback={null}>
         <VoyagerCraft groupRef={pioneerRef} carrierRef={carrierRef} />
       </Suspense>
-      <ContinuumPost mobile={mobile} reduced={reduced} stormRef={stormRef} diveRef={diveRef} darkRef={darkRef} />
+      <ContinuumFxGate>
+        <ContinuumPost mobile={mobile} reduced={reduced} stormRef={stormRef} diveRef={diveRef} darkRef={darkRef} />
+      </ContinuumFxGate>
     </>
   )
 }
@@ -1598,6 +1610,15 @@ export default function ContinuumCanvas({
         onCreated={({ gl }) => {
           gl.setClearColor('#020206')
           gl.toneMapping = THREE.ACESFilmicToneMapping
+          const canvas = gl.domElement
+          canvas.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault()
+            console.warn('[SilentFleet] WebGL context lost')
+          }, false)
+          canvas.addEventListener('webglcontextrestored', () => {
+            gl.setClearColor('#020206')
+            gl.setSize(canvas.clientWidth, canvas.clientHeight, false)
+          }, false)
         }}
       >
         <ContinuumScene
