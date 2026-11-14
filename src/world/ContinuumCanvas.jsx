@@ -782,14 +782,14 @@ function BodySphere({
     blending: THREE.AdditiveBlending,
   }), [rim, isMars])
 
-  // −π/2 puts lon 0 on +Z after SphereGeometry UV; aimLon rotates that meridian to camera
+  // SphereGeometry lon0 at local +X; −π/2 swings it to camera +Z. Aim: base − lon.
   const baseYaw = -Math.PI / 2
-  // Start facing Eagle (or Mars Meridiani) so the first painted frame is front-on
+  // Start facing Eagle (or Mars Meridiani) — first frame matches image-2 front face
   const defaultAim = isMars
     ? SITE_FOCUS.opportunity.aimLon
     : SITE_FOCUS['a11-lm'].aimLon
   const yawSmooth = useRef(baseYaw - (defaultAim * Math.PI) / 180)
-  const aimedOnce = useRef(false)
+  const aimedOnce = useRef(true) // already snapped to defaultAim
   useFrame((s, dt) => {
     uniforms.uTime.value = s.clock.elapsedTime
     const g = gradeRef?.current
@@ -807,7 +807,6 @@ function BodySphere({
       const step = Math.min(0.05, Math.max(0.001, dt))
       if (aim != null && Number.isFinite(aim)) {
         const target = baseYaw - (aim * Math.PI) / 180
-        // Snap the first lock so Arrival never paints a limb hotspot
         if (!aimedOnce.current) {
           yawSmooth.current = target
           aimedOnce.current = true
@@ -815,7 +814,7 @@ function BodySphere({
           let delta = target - yawSmooth.current
           while (delta > Math.PI) delta -= Math.PI * 2
           while (delta < -Math.PI) delta += Math.PI * 2
-          yawSmooth.current += delta * Math.min(1, 2.8 * step)
+          yawSmooth.current += delta * Math.min(1, 3.2 * step)
         }
       } else {
         // Soft idle spin only when nothing is aimed (deep-space handoff)
@@ -1028,7 +1027,11 @@ function FilmDirector({
     // Atlas blend is interaction chrome only — never freezes film tip
     atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 1.55 * step))
     const ab = atlasBlend.current
-    if (beaconsVisibleRef) beaconsVisibleRef.current = ab
+    // Arrival + Atlas: keep lunar leftovers visible on the front face (image-2 default)
+    if (beaconsVisibleRef) {
+      const moonFront = (f === 'moon' || f === 'dive') ? 0.92 : 0
+      beaconsVisibleRef.current = Math.max(ab, moonFront)
+    }
 
     // Shot-aware catch-up: silk during journey, punch into death
     const catchUp = filmTarget >= 0.64 && filmTarget < 0.76 ? 6.5 : 4.2

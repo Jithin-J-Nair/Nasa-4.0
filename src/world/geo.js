@@ -1,17 +1,20 @@
 /**
  * Geographic helpers — Mean Earth / Polar Axis (Moon) and planetocentric east lon (Mars).
- * Positions match Three.js SphereGeometry UV after BodySphere baseYaw (−π/2):
- * lon 0° faces +Z (camera-forward for our hero framing).
+ *
+ * Matches Three.js SphereGeometry UV (equirect: lon 0 at u=0.5 → local +X).
+ * BodySphere then applies baseYaw (−π/2) so lon 0 faces the camera (+Z).
+ * Aim formula: yaw = baseYaw − aimLon° — puts that meridian front-and-center.
  */
 
 export function latLonToLocal(lat, lon, radius = 1.008) {
   const φ = (Number(lat) * Math.PI) / 180
   const λ = (Number(lon) * Math.PI) / 180
   const cosφ = Math.cos(φ)
+  // lon 0 → +X, lon +90°E → −Z (east); matches SphereGeometry + equirect maps
   return [
-    radius * cosφ * Math.sin(λ),
-    radius * Math.sin(φ),
     radius * cosφ * Math.cos(λ),
+    radius * Math.sin(φ),
+    -radius * cosφ * Math.sin(λ),
   ]
 }
 
