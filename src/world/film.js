@@ -191,6 +191,8 @@ export const ACTS = [
     fog: [24, 100],
     focus: 'moon',
     cue: 'arrive',
+    // Front-face Eagle from the first frame — no free-spin limb drift
+    hotspot: 'a11-lm',
     lookId: 'lunar_steel',
   },
   {

@@ -784,7 +784,12 @@ function BodySphere({
 
   // −π/2 puts lon 0 on +Z after SphereGeometry UV; aimLon rotates that meridian to camera
   const baseYaw = -Math.PI / 2
-  const yawSmooth = useRef(baseYaw)
+  // Start facing Eagle (or Mars Meridiani) so the first painted frame is front-on
+  const defaultAim = isMars
+    ? SITE_FOCUS.opportunity.aimLon
+    : SITE_FOCUS['a11-lm'].aimLon
+  const yawSmooth = useRef(baseYaw - (defaultAim * Math.PI) / 180)
+  const aimedOnce = useRef(false)
   useFrame((s, dt) => {
     uniforms.uTime.value = s.clock.elapsedTime
     const g = gradeRef?.current
@@ -801,15 +806,21 @@ function BodySphere({
       const spinMul = isMars ? (1 - (stormRef?.current ?? 0) * 0.92) : 1
       const step = Math.min(0.05, Math.max(0.001, dt))
       if (aim != null && Number.isFinite(aim)) {
-        // Shortest-path ease to face the hotspot — never jump via absolute freeSpin time
         const target = baseYaw - (aim * Math.PI) / 180
-        let delta = target - yawSmooth.current
-        while (delta > Math.PI) delta -= Math.PI * 2
-        while (delta < -Math.PI) delta += Math.PI * 2
-        yawSmooth.current += delta * Math.min(1, 2.4 * step)
+        // Snap the first lock so Arrival never paints a limb hotspot
+        if (!aimedOnce.current) {
+          yawSmooth.current = target
+          aimedOnce.current = true
+        } else {
+          let delta = target - yawSmooth.current
+          while (delta > Math.PI) delta -= Math.PI * 2
+          while (delta < -Math.PI) delta += Math.PI * 2
+          yawSmooth.current += delta * Math.min(1, 2.8 * step)
+        }
       } else {
-        // Gentle continuous spin (~0.02 rad/s) — same feel as the locked hero tip
+        // Soft idle spin only when nothing is aimed (deep-space handoff)
         yawSmooth.current += spin * spinMul * step
+        aimedOnce.current = false
       }
       // Atlas user drag is additive yaw on top of the locked site facing
       const userYaw = yawOffsetRef?.current ?? 0
@@ -1099,12 +1110,17 @@ function FilmDirector({
     const hemi = marsHemi.current
     const slide = easeInOutCubic(marsSlide.current)
 
-    // Hero: free spin. From Objective→Atlas: ease the site onto the lens center.
+    // Always prefer a real lunar leftover while the Moon is on stage (Arrival front-faces Eagle)
+    const moonHotDefault = (
+      (focusSiteId && SITE_FOCUS[focusSiteId]?.body === 'moon' && focusSiteId)
+      || sample.hotspot
+      || 'a11-lm'
+    )
     const hot = ab > 0.2
       ? (focusSiteId || sample.hotspot || 'a11-lm')
       : (marsStage
         ? (focusSiteId && SITE_FOCUS[focusSiteId]?.body === 'mars' ? focusSiteId : (sample.hotspot || 'opportunity'))
-        : (sample.hotspot || null))
+        : ((f === 'moon' || f === 'dive') ? moonHotDefault : (sample.hotspot || null)))
     if (hotspotRef) {
       hotspotRef.current = ab > 0.4 || (marsStage && marsLock) ? hot : null
     }
@@ -1118,12 +1134,13 @@ function FilmDirector({
         moonAimRef.current = atlasAimLon.current
       } else {
         atlasAimLon.current = null
-        const shouldAim = focus?.body === 'moon' && (
-          ab > 0.08
-          || sample.act?.id === 'intimacy'
-          || !!sample.hotspot
+        // Keep the active Moon leftover front-facing from Arrival onward (no free-spin limb)
+        const moonSiteId = (
+          (focus?.body === 'moon' && hot)
+          || (f === 'moon' || f === 'dive' ? moonHotDefault : null)
         )
-        moonAimRef.current = shouldAim ? focus.aimLon : null
+        const entry = moonSiteId ? SITE_FOCUS[moonSiteId] : null
+        moonAimRef.current = entry?.body === 'moon' ? entry.aimLon : null
       }
     }
     if (marsAimRef) {
