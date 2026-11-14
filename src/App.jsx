@@ -1134,13 +1134,14 @@ function useUTCClock() {
 
 function usePioneerDistance() {
   // Epoch: ~132.67 AU on 2023-01-01, ~2.54 AU/year outbound
-  const [au, setAu] = useState(134.2)
+  const [au, setAu] = useState(139.2)
   useEffect(() => {
+    // ~129.5 AU on 2023-01-01; heliocentric ~2.48 AU/yr
     const epoch = Date.UTC(2023, 0, 1)
-    const auPerMs = 2.54 / (365.25 * 24 * 3600 * 1000)
+    const auPerMs = 2.48 / (365.25 * 24 * 3600 * 1000)
     const tick = () => {
       const now = Date.now()
-      setAu(132.67 + (now - epoch) * auPerMs)
+      setAu(129.5 + (now - epoch) * auPerMs)
     }
     tick()
     const id = setInterval(tick, 1000)
@@ -2627,10 +2628,12 @@ function MoonMap({ onOpen }) {
   const pins = MOON_PINS
 
   const toXY = (lat, lon) => {
-    // orthographic-ish projection onto disc
-    const x = ((lon + 180) / 360) * 100
-    const y = ((90 - lat) / 180) * 100
-    return { left: `${clamp(x, 8, 92)}%`, top: `${clamp(y, 8, 92)}%` }
+    // Orthographic nearside projection (centered on 0°E / equator)
+    const φ = (lat * Math.PI) / 180
+    const λ = (lon * Math.PI) / 180
+    const x = 50 + Math.cos(φ) * Math.sin(λ) * 46
+    const y = 50 - Math.sin(φ) * 46
+    return { left: `${clamp(x, 6, 94)}%`, top: `${clamp(y, 6, 94)}%` }
   }
 
   const openPin = (pin) => {
