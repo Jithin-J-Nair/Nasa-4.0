@@ -65,12 +65,26 @@ img, svg { display: block; max-width: 100%; }
   pointer-events: none;
 }
 .continuum-canvas.is-hotspots {
-  /* Above chapter scroll layer so Html hotspot cards paint; title HUD is z=8 */
+  /* Above chapter scroll layer so Html hotspot cards paint; title HUD is z=95 */
   z-index: 3;
   pointer-events: none;
 }
 .continuum-canvas.is-hotspots canvas {
   pointer-events: none;
+}
+.continuum-canvas.is-atlas-drag {
+  z-index: 3;
+  pointer-events: none;
+}
+/* Atlas drag wins over hotspot canvas:none — Html pins still catch their own hits */
+.continuum-canvas.is-atlas-drag canvas,
+.continuum-canvas.is-atlas-drag.is-hotspots canvas {
+  pointer-events: auto;
+  touch-action: pan-y;
+  cursor: grab;
+}
+.continuum-canvas.is-atlas-drag.is-dragging canvas {
+  cursor: grabbing;
 }
 .sf-chapters {
   position: relative;

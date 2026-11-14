@@ -4,7 +4,7 @@
  * Crater you enter · Meridiani dust as place · carrier death as physics.
  * Material system: albedo + height AO/roughness + GGX + ASC-CDL grade.
  */
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, useTexture } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@react-three/postprocessing'
@@ -17,6 +17,119 @@ import { ARTIFACTS } from '../data/artifacts'
 
 const MOON_SITES = ARTIFACTS.filter((a) => a.body === 'moon' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
 const MARS_SITES = ARTIFACTS.filter((a) => a.body === 'mars' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
+
+/** Atlas-only: click-hold drag moves the moon on X. Facing angle stays locked. */
+const ATLAS_DRAG_LIMIT = 1.45
+const ATLAS_DRAG_SLOP = 8
+
+function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
+  const offsetX = useRef(0)
+  const targetX = useRef(0)
+  const dragging = useRef(false)
+  const pending = useRef(false)
+  const originX = useRef(0)
+  const originY = useRef(0)
+  const lastClientX = useRef(0)
+  const activePointer = useRef(null)
+  const { gl, size } = useThree()
+
+  useEffect(() => {
+    if (!atlasLock || reduced) {
+      targetX.current = 0
+      dragging.current = false
+      pending.current = false
+      activePointer.current = null
+      onDraggingChange?.(false)
+      return undefined
+    }
+
+    const el = gl.domElement
+
+    const clearDrag = (e) => {
+      const was = dragging.current
+      pending.current = false
+      dragging.current = false
+      activePointer.current = null
+      if (was) onDraggingChange?.(false)
+      try {
+        if (e?.pointerId != null) el.releasePointerCapture(e.pointerId)
+      } catch {
+        /* already released */
+      }
+    }
+
+    const onDown = (e) => {
+      // Only the WebGL canvas — Html hotspot hits are a different target
+      if (e.target !== el) return
+      if (e.button != null && e.button !== 0) return
+      pending.current = true
+      dragging.current = false
+      activePointer.current = e.pointerId
+      originX.current = e.clientX
+      originY.current = e.clientY
+      lastClientX.current = e.clientX
+    }
+
+    const onMove = (e) => {
+      if (activePointer.current != null && e.pointerId !== activePointer.current) return
+
+      if (pending.current && !dragging.current) {
+        const ax = e.clientX - originX.current
+        const ay = e.clientY - originY.current
+        if (Math.abs(ax) < ATLAS_DRAG_SLOP && Math.abs(ay) < ATLAS_DRAG_SLOP) return
+        // Vertical intent → abandon so Lenis / pan-y can scroll
+        if (Math.abs(ay) > Math.abs(ax)) {
+          clearDrag(e)
+          return
+        }
+        dragging.current = true
+        pending.current = false
+        lastClientX.current = e.clientX
+        onDraggingChange?.(true)
+        try {
+          el.setPointerCapture(e.pointerId)
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (!dragging.current) return
+      const dx = e.clientX - lastClientX.current
+      lastClientX.current = e.clientX
+      const worldPerPx = (ATLAS_DRAG_LIMIT * 2.15) / Math.max(1, size.width)
+      targetX.current = clamp(targetX.current + dx * worldPerPx, -ATLAS_DRAG_LIMIT, ATLAS_DRAG_LIMIT)
+    }
+
+    el.addEventListener('pointerdown', onDown)
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerup', clearDrag)
+    el.addEventListener('pointercancel', clearDrag)
+    el.addEventListener('lostpointercapture', clearDrag)
+
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('pointerup', clearDrag)
+      el.removeEventListener('pointercancel', clearDrag)
+      el.removeEventListener('lostpointercapture', clearDrag)
+      dragging.current = false
+      pending.current = false
+      activePointer.current = null
+      onDraggingChange?.(false)
+    }
+  }, [atlasLock, reduced, gl, size.width, onDraggingChange])
+
+  useFrame((_, dt) => {
+    const step = Math.min(0.05, Math.max(0.001, dt))
+    if (!atlasLock) {
+      // Leave Atlas → ease back to centered default
+      targetX.current = lerp(targetX.current, 0, Math.min(1, 3.5 * step))
+    }
+    offsetX.current = lerp(offsetX.current, targetX.current, Math.min(1, (dragging.current ? 18 : 10) * step))
+  })
+
+  return offsetX
+}
 
 /* ─── planet material system ─── */
 const PLANET_VERT = `
@@ -902,6 +1015,7 @@ function FilmDirector({
   moonAimRef,
   marsAimRef,
   beaconsVisibleRef,
+  atlasDragXRef,
   onSample,
   atlasLock = false,
   focusSiteId = null,
@@ -1020,9 +1134,15 @@ function FilmDirector({
         tz = 0
       }
 
+      // Atlas drag: horizontal translate only — facing/aim stays locked
+      const dragX = (atlasDragXRef?.current ?? 0) * ab
+      tx += dragX
+
       const poseDamp = Math.min(1, (reduced ? 8 : 4.5) * step)
       moonScale.current = lerp(moonScale.current, targetScale, poseDamp)
-      moonPos.current.x = lerp(moonPos.current.x, tx, poseDamp)
+      // While dragging, follow X tightly; otherwise keep cinematic pose damp
+      const xDamp = ab > 0.5 ? Math.min(1, 14 * step) : poseDamp
+      moonPos.current.x = lerp(moonPos.current.x, tx, xDamp)
       moonPos.current.y = lerp(moonPos.current.y, ty, poseDamp)
       moonPos.current.z = lerp(moonPos.current.z, tz, poseDamp)
       moonRef.current.scale.setScalar(moonScale.current)
@@ -1122,6 +1242,7 @@ function ContinuumScene({
   onHotspotHover,
   onHotspotLeave,
   onHotspotOpen,
+  onAtlasDraggingChange,
 }) {
   const moonRef = useRef()
   const marsRef = useRef()
@@ -1143,6 +1264,7 @@ function ContinuumScene({
   const moonAimRef = useRef(null)
   const marsAimRef = useRef(null)
   const beaconsVisibleRef = useRef(0)
+  const atlasDragXRef = useAtlasMoonDrag(atlasLock, reduced, onAtlasDraggingChange)
   // Full masters — bytes warmed during preloader (see preloadTextures.js)
   const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_8k.jpg'
   const moonHeight = mobile ? '/textures/moon_height_2k.jpg' : '/textures/moon_height_4k.jpg'
@@ -1180,6 +1302,7 @@ function ContinuumScene({
         moonAimRef={moonAimRef}
         marsAimRef={marsAimRef}
         beaconsVisibleRef={beaconsVisibleRef}
+        atlasDragXRef={atlasDragXRef}
         onSample={onSample}
         atlasLock={atlasLock}
         focusSiteId={focusSiteId}
@@ -1268,9 +1391,21 @@ export default function ContinuumCanvas({
   // behind the preloader. Demand mode only for reduced-motion (was the refresh bug).
   void active
   const frameloop = reduced ? 'demand' : 'always'
+  const [atlasDragging, setAtlasDragging] = useState(false)
+  const onAtlasDraggingChange = useCallback((on) => {
+    setAtlasDragging(!!on)
+  }, [])
 
   return (
-    <div className={`continuum-canvas ${hotspotsInteractive ? 'is-hotspots' : ''}`} aria-hidden={!hotspotsInteractive}>
+    <div
+      className={[
+        'continuum-canvas',
+        hotspotsInteractive ? 'is-hotspots' : '',
+        atlasLock ? 'is-atlas-drag' : '',
+        atlasDragging ? 'is-dragging' : '',
+      ].filter(Boolean).join(' ')}
+      aria-hidden={!hotspotsInteractive}
+    >
       <Canvas
         dpr={mobile ? [1, 1.3] : [1, 1.65]}
         camera={{ position: [0, 0.02, 6.8], fov: 36, near: 0.04, far: 220 }}
@@ -1301,6 +1436,7 @@ export default function ContinuumCanvas({
           onHotspotHover={onHotspotHover}
           onHotspotLeave={onHotspotLeave}
           onHotspotOpen={onHotspotOpen}
+          onAtlasDraggingChange={onAtlasDraggingChange}
         />
       </Canvas>
     </div>
