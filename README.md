@@ -10,15 +10,22 @@ A scroll-driven **film continuum**: one WebGL world that owns the story through 
 
 Accuracy throughout. Connection over scrap lists.
 
+## Art direction
+
+- **Thesis:** Abandoned hardware as a touchable scroll-film — silence as material  
+- **Hero:** Brand left · LROC Moon stage-right  
+- **Type:** Syne / Unbounded at exaggerated display sizes; IBM Plex Mono for telemetry  
+- **Motion stack:** GSAP + ScrollTrigger + Lenis (sole smooth-scroll engine)  
+- **WebGL:** Justified continuum — albedo/AO/roughness planets, Fresnel atmosphere, diegetic scene events  
+- **Assets:** NASA SVS / LROC / RSS-Mars (see `public/textures/ATTRIBUTION.txt`)
+
 ## Craft
 
-- **Directed acts** (`src/world/film.js`) — holds, smash cuts, darkness / fog as punctuation
-- **Scene events** — crater bowl you enter · Meridiani dust sheets · Pioneer signal beam that dies
-- **Material system** — albedo + height AO/roughness + GGX + ASC-CDL grade
-- **Diegetic captions** — story rides the continuum; recover dossiers from the beat
-- **Scored silence** — Opportunity death and carrier lost are narrative audio, not a bed
-- **One timeline** — Hero → continuum → three heartbeats → footer (no secondary site)
-- **NASA SVS CGI Moon Kit** — 4K LROC + LOLA height
+- Directed acts with holds, smash, darkness / fog punctuation  
+- Scene events — crater bowl · Meridiani dust sheets · Pioneer signal beam  
+- GSAP boot + hero stagger; session-seeded timing variance on reload  
+- Cursor trail + magnetic CTA; diegetic captions open dossiers  
+- Scored silence for Opportunity death and carrier lost  
 
 ## Run
 
@@ -30,16 +37,10 @@ npm run build && npm run preview
 
 ## Journey
 
-1. Hero — brand  
-2. Film continuum — Moon → dive → Mars → storm → Pioneer (the world *is* the story)  
-3. Recover — three named heartbeats open dossiers  
+1. Hero — brand + Moon  
+2. Continuum — dive → Mars → storm → Pioneer  
+3. Recover — three heartbeats  
 4. Footer — NASA resources  
-
-## Sources
-
-NSSDCA · LROC · [SVS 4720](https://svs.gsfc.nasa.gov/4720/) · ALSJ · HiRISE · PDS · Catalogue of Manmade Material on the Moon  
-
-See `public/textures/ATTRIBUTION.txt`.
 
 ## AI disclosure
 
@@ -47,4 +48,4 @@ Code AI-assisted per Space Apps guidelines. Textures are NASA public products.
 
 ## Stack
 
-React 19 · Vite · Framer Motion · Lenis · Three · R3F · Drei · postprocessing · Fontsource
+React 19 · Vite · GSAP · ScrollTrigger · Lenis · Framer Motion (UI springs) · Three · R3F · Drei · postprocessing · Fontsource

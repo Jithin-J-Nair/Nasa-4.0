@@ -1,4 +1,9 @@
 export const GLOBAL_CSS = `
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
 :root {
   --bg: #07070c;
   --bg-elev: #0c0c14;
@@ -69,8 +74,8 @@ img, svg { display: block; max-width: 100%; }
   z-index: 1;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(3,3,8,0.55) 0%, rgba(3,3,8,0.15) 28%, rgba(3,3,8,0.2) 70%, rgba(3,3,8,0.72) 100%),
-    radial-gradient(ellipse at 50% 40%, transparent 30%, rgba(3,3,8,0.45) 100%);
+    linear-gradient(180deg, rgba(3,3,8,0.35) 0%, rgba(3,3,8,0.04) 32%, rgba(3,3,8,0.08) 68%, rgba(3,3,8,0.55) 100%),
+    radial-gradient(ellipse at 62% 48%, transparent 22%, rgba(3,3,8,0.28) 100%);
 }
 .audio-toggle {
   position: fixed;
@@ -250,7 +255,14 @@ img, svg { display: block; max-width: 100%; }
   line-height: 0.92;
 }
 .display-xl {
-  font-size: clamp(2.8rem, 10.5vw, 8.5rem);
+  font-size: clamp(3.8rem, 16vw, 13rem);
+  letter-spacing: -0.055em;
+  line-height: 0.82;
+}
+.display-xxl {
+  font-size: clamp(4.2rem, 18vw, 15rem);
+  letter-spacing: -0.06em;
+  line-height: 0.8;
 }
 .outline-text {
   color: transparent;
@@ -471,13 +483,67 @@ img, svg { display: block; max-width: 100%; }
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: calc(var(--nav-h) + 1.5rem) clamp(1.25rem, 4vw, 4rem) 5.5rem;
+  padding: calc(var(--nav-h) + 2rem) clamp(1.25rem, 5vw, 5rem) 6rem;
   overflow: clip;
   background: transparent;
+  perspective: 1200px;
 }
-.hero-content h1 { margin-bottom: 1rem !important; max-width: min(14ch, 100%); }
-.hero-content p { margin-bottom: 1.5rem !important; }
-.hero-content { position: relative; z-index: 2; max-width: 1200px; }
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: min(920px, 58vw);
+}
+@media (max-width: 900px) {
+  .hero-content { max-width: 100%; }
+}
+.hero-content h1 {
+  margin-bottom: 1.35rem !important;
+  max-width: none;
+  transform-style: preserve-3d;
+}
+.hero-content p { margin-bottom: 1.75rem !important; }
+.hero-line {
+  display: block;
+  will-change: transform, opacity, filter;
+}
+.boot-bar {
+  width: min(220px, 50vw);
+  height: 2px;
+  margin: 1.75rem auto 0;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+  border-radius: 1px;
+}
+.boot-bar > i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--ice), var(--rust));
+  transform-origin: left;
+}
+.sf-cursor-trail {
+  position: fixed;
+  left: 0; top: 0;
+  width: 10px; height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: rgba(142,200,255,0.35);
+  pointer-events: none;
+  z-index: 10000;
+  mix-blend-mode: screen;
+}
+.heartbeats h2 {
+  font-size: clamp(2.6rem, 9vw, 7rem) !important;
+  max-width: 10ch !important;
+  line-height: 0.9 !important;
+  letter-spacing: -0.045em;
+}
+.heartbeat-row {
+  margin-top: 2.5rem;
+}
+.world-caption h2 {
+  font-size: clamp(2rem, 5.5vw, 3.6rem) !important;
+}
 .section {
   background: transparent;
 }

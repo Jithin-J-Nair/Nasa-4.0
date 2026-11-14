@@ -57,36 +57,40 @@ varying float vH;
 float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
 
 void main(){
+  // Albedo first — planet must read as a world, not a shader disc
   vec3 tex = texture2D(uColorMap, vUv).rgb;
-  tex = pow(max(tex, 0.0), vec3(mix(0.92, 0.94, uBody)));
-  tex = (tex - 0.5) * mix(1.18, 1.08, uBody) + 0.5;
-  tex = clamp(tex, 0.0, 1.0);
+  tex = pow(max(tex, vec3(0.001)), vec3(mix(0.9, 0.92, uBody)));
+  // Mild contrast without crushing maria / highlands
+  tex = clamp((tex - 0.5) * mix(1.12, 1.06, uBody) + 0.5, 0.0, 1.0);
 
   float h = texture2D(uHeightMap, vUv).r;
-  // AO from height curvature — valleys darker, ridges catch light
-  float ao = 1.0 - uAOStrength * (1.0 - smoothstep(0.2, 0.65, h));
-  ao *= mix(1.0, 0.55, uDark);
+  float ao = mix(1.0, smoothstep(0.15, 0.7, h), uAOStrength);
+  ao = mix(ao, ao * 0.55, uDark);
 
   vec3 N = normalize(vN);
   vec3 dp1 = dFdx(vWorld);
   vec3 dp2 = dFdy(vWorld);
-  vec2 duv1 = dFdx(vUv);
-  vec2 duv2 = dFdy(vUv);
-  vec3 T = normalize(dp1 * duv2.y - dp2 * duv1.y);
-  vec3 B = normalize(-dp1 * duv2.x + dp2 * duv1.x);
-  N = normalize(N - (T * dFdx(h) + B * dFdy(h)) * uBump);
+  float hl = length(dp1) * length(dp2);
+  // Guard derivatives — avoid concentric banding at grazing angles
+  if (hl > 1e-8) {
+    vec2 duv1 = dFdx(vUv);
+    vec2 duv2 = dFdy(vUv);
+    vec3 T = normalize(dp1 * duv2.y - dp2 * duv1.y);
+    vec3 B = normalize(-dp1 * duv2.x + dp2 * duv1.x);
+    float bump = uBump * (1.0 - uStorm * 0.35);
+    N = normalize(N - (T * dFdx(h) + B * dFdy(h)) * bump);
+  }
 
-  // Roughness: highlands matte, maria tighter; storm kills specular
-  float rough = mix(0.88, 0.52, smoothstep(0.32, 0.78, h));
-  rough = mix(rough, 0.97, uStorm * uBody);
-  rough = clamp(rough + uDark * 0.12, 0.35, 0.98);
-  float metal = mix(0.02, 0.08, uBody) * (1.0 - uStorm);
+  float rough = mix(0.86, 0.48, smoothstep(0.28, 0.82, h));
+  rough = mix(rough, 0.96, uStorm * uBody);
+  rough = clamp(rough + uDark * 0.1, 0.4, 0.98);
 
   vec3 L = normalize(uSunDir);
-  vec3 Lfill = normalize(vec3(-0.55, -0.15, -0.48));
+  vec3 Lfill = normalize(vec3(-0.55, -0.12, -0.45));
   vec3 V = normalize(cameraPosition - vWorld);
   float ndl = max(dot(N, L), 0.0);
-  float term = smoothstep(-0.1, 0.22, ndl);
+  // Soft terminator — lunar limb, not hard cut
+  float term = smoothstep(-0.12, 0.28, ndl);
   float night = 1.0 - term;
 
   vec3 albedo = tex;
@@ -98,27 +102,51 @@ void main(){
   }
 
   float hemi = N.y * 0.5 + 0.5;
-  vec3 ambient = albedo * mix(0.03, 0.09, hemi) * ao;
-  vec3 key = albedo * ndl * mix(1.15, 1.0, uBody) * mix(0.12, 1.0, term) * ao;
-  vec3 fill = albedo * max(dot(N, Lfill), 0.0) * 0.1 * mix(0.25, 1.0, term) * ao;
+  vec3 ambient = albedo * mix(0.06, 0.14, hemi) * ao;
+  vec3 key = albedo * ndl * mix(1.35, 1.15, uBody) * mix(0.18, 1.0, term) * ao;
+  vec3 fill = albedo * max(dot(N, Lfill), 0.0) * 0.16 * mix(0.35, 1.0, term) * ao;
 
-  // GGX-ish specular
   vec3 H = normalize(L + V);
   float nh = max(dot(N, H), 0.0);
-  float a = rough * rough;
+  float a = max(rough * rough, 0.04);
   float a2 = a * a;
-  float d = a2 / max(3.14159 * pow(nh * nh * (a2 - 1.0) + 1.0, 2.0), 1e-4);
-  float spec = d * (1.0 - rough) * mix(0.18, 0.35, metal) * term * (1.0 - uDark * 0.7);
+  float dDen = max(3.14159 * pow(nh * nh * (a2 - 1.0) + 1.0, 2.0), 1e-4);
+  float spec = (a2 / dDen) * (1.0 - rough) * mix(0.12, 0.28, uBody) * term * (1.0 - uDark * 0.65);
 
-  float fres = pow(1.0 - max(dot(N, V), 0.0), 3.2);
-  vec3 rim = uRim * fres * mix(0.45, 0.2, uBody) * term * (1.0 - uStorm * 0.8);
-  vec3 nightGlow = mix(vec3(0.012, 0.018, 0.035), vec3(0.04, 0.012, 0.006), uBody) * night * 0.35 * (1.0 - uDark);
+  float fres = pow(1.0 - max(dot(N, V), 0.0), 3.4);
+  vec3 rim = uRim * fres * mix(0.55, 0.28, uBody) * term * (1.0 - uStorm * 0.75);
+  vec3 nightGlow = mix(vec3(0.018, 0.024, 0.045), vec3(0.05, 0.016, 0.008), uBody) * night * 0.45 * (1.0 - uDark);
 
   vec3 col = ambient + key + fill + rim + nightGlow + vec3(spec);
-  col *= uExposure * (1.0 - uDark * 0.55);
+  col *= uExposure * (1.0 - uDark * 0.5);
   col = col * uGain + uLift;
-  col = pow(max(col, 0.0), vec3(0.96));
+  col = pow(max(col, 0.0), vec3(0.95));
   gl_FragColor = vec4(col, 1.0);
+}
+`
+
+const ATMO_VERT = `
+varying vec3 vN;
+varying vec3 vWorld;
+void main(){
+  vN = normalize(normalMatrix * normal);
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vWorld = w.xyz;
+  gl_Position = projectionMatrix * viewMatrix * w;
+}
+`
+const ATMO_FRAG = `
+uniform vec3 uColor;
+uniform float uIntensity;
+uniform float uPower;
+varying vec3 vN;
+varying vec3 vWorld;
+void main(){
+  vec3 V = normalize(cameraPosition - vWorld);
+  float f = pow(1.0 - max(dot(normalize(vN), V), 0.0), uPower);
+  float a = f * uIntensity;
+  if (a < 0.01) discard;
+  gl_FragColor = vec4(uColor, a);
 }
 `
 
@@ -567,8 +595,9 @@ function BodySphere({
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
     uBody: { value: body },
-    uHeightScale: { value: isMars ? 0.018 : 0.01 },
-    uBump: { value: isMars ? 2.35 : 1.7 },
+    // Gentle relief — readable planet, not potato displacement
+    uHeightScale: { value: isMars ? 0.012 : 0.0065 },
+    uBump: { value: isMars ? 1.85 : 1.25 },
     uRim: { value: new THREE.Color(rim) },
     uExposure: { value: 1 },
     uSunDir: { value: new THREE.Vector3(0.85, 0.32, 0.42) },
@@ -576,10 +605,24 @@ function BodySphere({
     uGain: { value: new THREE.Vector3(1, 1, 1) },
     uStorm: { value: 0 },
     uDark: { value: 0 },
-    uAOStrength: { value: isMars ? 0.45 : 0.38 },
+    uAOStrength: { value: isMars ? 0.4 : 0.32 },
     uColorMap: { value: colorMap },
     uHeightMap: { value: heightMap },
   }), [body, isMars, rim, colorMap, heightMap])
+
+  const atmoMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: ATMO_VERT,
+    fragmentShader: ATMO_FRAG,
+    uniforms: {
+      uColor: { value: new THREE.Color(rim) },
+      uIntensity: { value: isMars ? 0.55 : 0.42 },
+      uPower: { value: isMars ? 3.2 : 4.0 },
+    },
+    transparent: true,
+    depthWrite: false,
+    side: THREE.BackSide,
+    blending: THREE.AdditiveBlending,
+  }), [rim, isMars])
 
   const baseYaw = -Math.PI / 2
   useFrame((s) => {
@@ -599,7 +642,7 @@ function BodySphere({
     }
   })
 
-  const segs = mobile ? 72 : 144
+  const segs = mobile ? 96 : 192
   return (
     <group ref={groupRef}>
       <mesh ref={mesh}>
@@ -611,16 +654,10 @@ function BodySphere({
           extensions={{ derivatives: true }}
         />
       </mesh>
-      <mesh scale={1.035}>
-        <sphereGeometry args={[1, 20, 20]} />
-        <meshBasicMaterial
-          color={rim}
-          transparent
-          opacity={isMars ? 0.04 : 0.035}
-          side={THREE.BackSide}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
+      {/* Limb atmosphere — soft Fresnel shell, not a flat glow sticker */}
+      <mesh scale={isMars ? 1.055 : 1.045}>
+        <sphereGeometry args={[1, 48, 48]} />
+        <primitive object={atmoMat} attach="material" />
       </mesh>
     </group>
   )
@@ -799,13 +836,14 @@ function FilmDirector({
       const show = f === 'moon' || f === 'dive'
       moonRef.current.visible = show || sample.event.dive > 0.05
       if (f === 'dive') {
-        // Enter the crater — moon grows into a world, not a sticker
-        const s = lerp(1.7, 5.4, sample.event.dive)
+        const s = lerp(2.0, 5.8, sample.event.dive)
         moonRef.current.scale.setScalar(s)
-        moonRef.current.position.set(0.04, -0.06, -0.15)
+        moonRef.current.position.set(0.85, -0.1, -0.2)
       } else if (f === 'moon') {
-        moonRef.current.scale.setScalar(lerp(1.55, 1.72, sample.eased * 0.35))
-        moonRef.current.position.set(0, -0.04, 0)
+        // Hero: large Moon parked stage-right behind the brand
+        const arrival = sample.act?.id === 'hero'
+        moonRef.current.scale.setScalar(arrival ? lerp(2.05, 2.2, sample.eased) : lerp(1.85, 2.05, sample.eased))
+        moonRef.current.position.set(arrival ? 1.35 : 0.55, arrival ? -0.12 : -0.06, 0)
       } else {
         moonRef.current.scale.setScalar(0.01)
       }
@@ -813,8 +851,10 @@ function FilmDirector({
     if (craterRef.current) {
       if (f === 'dive' || sample.event.dive > 0.08) {
         craterRef.current.visible = true
-        craterRef.current.position.set(0.06, -0.12, 0.55)
-        craterRef.current.scale.setScalar(lerp(0.8, 2.4, sample.event.dive))
+        craterRef.current.position.set(0.9, -0.18, 0.65)
+        craterRef.current.scale.setScalar(lerp(0.9, 2.6, sample.event.dive))
+      } else {
+        craterRef.current.visible = false
       }
     }
     if (marsRef.current) {
@@ -869,18 +909,20 @@ function FilmDirector({
 }
 
 function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
-  const [aberration] = useState(() => new Vector2(0.00012, 0.00016))
+  const [aberration] = useState(() => new Vector2(0.00004, 0.00005))
   useFrame(() => {
-    const w = Math.max(stormRef?.current ?? 0, diveRef?.current ?? 0, (darkRef?.current ?? 0) * 0.5)
-    aberration.set(0.00012 + w * 0.0014, 0.00016 + w * 0.0011)
+    // Aberration only during owned events — never invent concentric ring artifacts on hero
+    const w = Math.max(stormRef?.current ?? 0, diveRef?.current ?? 0) * 0.85
+    aberration.set(0.00004 + w * 0.0011, 0.00005 + w * 0.0009)
+    void darkRef
   })
   if (mobile || reduced) return null
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
-      <Bloom intensity={0.07} luminanceThreshold={0.94} luminanceSmoothing={0.22} mipmapBlur />
+      <Bloom intensity={0.055} luminanceThreshold={0.96} luminanceSmoothing={0.25} mipmapBlur />
       <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={aberration} />
-      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.04} />
-      <Vignette eskil={false} offset={0.22} darkness={0.62} />
+      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.03} />
+      <Vignette eskil={false} offset={0.28} darkness={0.48} />
     </EffectComposer>
   )
 }
@@ -979,7 +1021,7 @@ export default function ContinuumCanvas({ progress, mouse, mobile, reduced, acti
     <div className="continuum-canvas" aria-hidden>
       <Canvas
         dpr={mobile ? [1, 1.3] : [1, 1.65]}
-        camera={{ position: [0.55, 0.28, 6.4], fov: 42, near: 0.04, far: 220 }}
+        camera={{ position: [-0.85, 0.22, 5.6], fov: 40, near: 0.04, far: 220 }}
         gl={{
           antialias: !mobile,
           alpha: false,

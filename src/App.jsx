@@ -12,11 +12,15 @@ import {
   motion, AnimatePresence, useScroll, useSpring, useMotionValue,
   useInView,
 } from 'framer-motion'
-import Lenis from 'lenis'
 import { createSoundscape } from './audio/Soundscape'
 import { activeCaption } from './world/film'
 import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
 import { GLOBAL_CSS } from './styles/global.css.js'
+import {
+  createScrollEngine, destroyScrollEngine, playHeroIntro, playBootSequence,
+  revealOnScroll,
+} from './motion/engine'
+import { ranged, getSessionSeed } from './motion/seed'
 
 const ContinuumCanvas = lazy(() => import('./world/ContinuumCanvas'))
 
@@ -168,36 +172,32 @@ class ErrorBoundary extends Component {
 const CursorCtx = createContext({ setLabel: () => {}, setVisible: () => {} })
 function useCursor() { return useContext(CursorCtx) }
 
-function Preloader({ onDone }) {
+function Preloader({ onDone, reduced }) {
+  const rootRef = useRef(null)
   useEffect(() => {
-    const t = setTimeout(onDone, 1600)
-    return () => clearTimeout(t)
-  }, [onDone])
+    const dur = ranged(1.7, 2.4, 3)
+    return playBootSequence(rootRef.current, { onDone, reduced, duration: dur })
+  }, [onDone, reduced])
   return (
-    <motion.div
-      className="preloader"
-      initial={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.7, ease: EASE }}
-    >
+    <div className="preloader" ref={rootRef}>
       <div className="preloader-panels" aria-hidden>
-        {[0, 1, 2, 3].map((i) => (
-          <motion.span
-            key={i}
-            initial={{ scaleY: 1 }}
-            animate={{ scaleY: 0 }}
-            transition={{ duration: 0.85, delay: 0.55 + i * 0.07, ease: EASE }}
-          />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <span key={i} data-boot-panel style={{ transformOrigin: i % 2 ? 'bottom' : 'top' }} />
         ))}
       </div>
       <div style={{ textAlign: 'center', position: 'relative', zIndex: 2 }}>
-        <p className="kicker" style={{ marginBottom: '1rem', color: 'var(--ice)' }}>CONTINUUM · LOCKING</p>
-        <div className="display" style={{ fontSize: 'clamp(2rem, 6vw, 3.5rem)' }}>SILENT FLEET</div>
-        <p className="mono" style={{ marginTop: '1rem', fontSize: '0.65rem', letterSpacing: '0.18em', color: 'var(--ink-mute)' }}>
+        <p className="kicker" data-boot-meta style={{ marginBottom: '1rem', color: 'var(--ice)' }}>
+          CONTINUUM · LOCKING · SEED {String(getSessionSeed()).slice(-4)}
+        </p>
+        <div className="display" data-boot-brand style={{ fontSize: 'clamp(2.8rem, 9vw, 5.5rem)', letterSpacing: '-0.05em' }}>
+          SILENT FLEET
+        </div>
+        <div className="boot-bar" aria-hidden><i data-boot-bar /></div>
+        <p className="mono" data-boot-meta style={{ marginTop: '1.25rem', fontSize: '0.65rem', letterSpacing: '0.18em', color: 'var(--ink-mute)' }}>
           HARDWARE STILL OUT THERE
         </p>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -265,42 +265,44 @@ function FilmJourney() {
   )
 }
 
-function Hero({ ready }) {
+function Hero({ ready, reduced }) {
   const { setLabel } = useCursor()
+  const rootRef = useRef(null)
+  useEffect(() => {
+    if (!ready) return undefined
+    const delay = ranged(0.05, 0.22, 7)
+    return playHeroIntro(rootRef.current, { reduced, seedDelay: delay })
+  }, [ready, reduced])
+
   return (
-    <section className="hero" id="top" aria-label="Hero">
+    <section className="hero" id="top" aria-label="Hero" ref={rootRef}>
       <div className="hero-content">
-        <p className="kicker" style={{ marginBottom: '1.25rem' }}>
+        <p className="kicker" data-hero-kicker style={{ marginBottom: '1.5rem', opacity: ready ? undefined : 1 }}>
           NASA SPACE APPS 2026 · ABANDONED BUT NOT FORGOTTEN
         </p>
-        <h1 className="display display-xl" style={{ marginBottom: '1.25rem' }}>
-          {ready ? (
-            <motion.span
-              initial={{ opacity: 0, y: 28, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              transition={{ duration: 0.9, ease: EASE }}
-              style={{ display: 'block' }}
-            >
-              SILENT
-              <br />
-              <span className="grad-text">FLEET</span>
-            </motion.span>
-          ) : (
-            <>SILENT<br /><span className="grad-text">FLEET</span></>
-          )}
+        <h1 className="display display-xl" style={{ marginBottom: '1.35rem' }}>
+          <span className="hero-line" data-hero-line>SILENT</span>
+          <span className="hero-line grad-text" data-hero-line>FLEET</span>
         </h1>
-        <p style={{ maxWidth: 480, color: 'var(--ink-dim)', fontSize: 'clamp(1rem, 2.2vw, 1.15rem)', lineHeight: 1.55, marginBottom: '2rem' }}>
+        {/* Accessible unsplit twin for assistive tech when lines animate */}
+        <span className="sr-only">Silent Fleet</span>
+        <p
+          data-hero-body
+          style={{ maxWidth: '34ch', color: 'var(--ink-dim)', fontSize: 'clamp(1.05rem, 2.4vw, 1.3rem)', lineHeight: 1.5, marginBottom: '2.25rem', opacity: ready ? undefined : 1 }}
+        >
           Hardware NASA left behind — and the science that still belongs to it.
         </p>
-        <MagneticButton
-          href="#journey"
-          onMouseEnter={() => setLabel('ENTER')}
-          onMouseLeave={() => setLabel('')}
-        >
-          ENTER THE CONTINUUM
-        </MagneticButton>
+        <div data-hero-cta style={{ opacity: ready ? undefined : 1 }}>
+          <MagneticButton
+            href="#journey"
+            onMouseEnter={() => setLabel('ENTER')}
+            onMouseLeave={() => setLabel('')}
+          >
+            ENTER THE CONTINUUM
+          </MagneticButton>
+        </div>
       </div>
-      <div className="hero-scroll-cue" aria-hidden>
+      <div className="hero-scroll-cue" data-hero-cue aria-hidden style={{ opacity: ready ? undefined : 0.7 }}>
         <span>SCROLL THE JOURNEY</span>
         <span className="streak"><i /></span>
       </div>
@@ -308,15 +310,17 @@ function Hero({ ready }) {
   )
 }
 
-function Heartbeats({ onOpen }) {
+function Heartbeats({ onOpen, reduced }) {
   const { setLabel } = useCursor()
+  const rootRef = useRef(null)
+  useEffect(() => revealOnScroll(rootRef.current, { reduced }), [reduced])
   return (
-    <section className="heartbeats" id="recover" aria-label="Recover hardware">
-      <p className="kicker" style={{ marginBottom: '0.75rem' }}>THREE HEARTBEATS · STILL OUT THERE</p>
-      <h2 className="display" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', marginBottom: '1.5rem', maxWidth: 16 }}>
-        Recover them by name
+    <section className="heartbeats" id="recover" aria-label="Recover hardware" ref={rootRef}>
+      <p className="kicker" data-reveal style={{ marginBottom: '0.75rem' }}>THREE HEARTBEATS · STILL OUT THERE</p>
+      <h2 className="display" data-reveal style={{ marginBottom: '0.5rem' }}>
+        Recover them<br />by name
       </h2>
-      <div className="heartbeat-row">
+      <div className="heartbeat-row" data-reveal>
         {HEARTBEATS.map((a) => (
           <button
             key={a.id}
@@ -460,6 +464,7 @@ function CursorProvider({ children }) {
   const ry = useSpring(y, { stiffness: 550, damping: 40 })
   const ringX = useSpring(x, { stiffness: 160, damping: 24 })
   const ringY = useSpring(y, { stiffness: 160, damping: 24 })
+  const trailRefs = useRef([])
 
   useEffect(() => {
     document.body.classList.toggle('is-coarse', coarse)
@@ -467,9 +472,39 @@ function CursorProvider({ children }) {
 
   useEffect(() => {
     if (coarse) return undefined
-    const move = (e) => { x.set(e.clientX); y.set(e.clientY) }
+    let mx = -100
+    let my = -100
+    const trail = Array.from({ length: 5 }, () => ({ x: -100, y: -100 }))
+    const move = (e) => {
+      mx = e.clientX
+      my = e.clientY
+      x.set(mx)
+      y.set(my)
+    }
+    let raf
+    const loop = () => {
+      let px = mx
+      let py = my
+      trail.forEach((t, i) => {
+        const ease = 0.22 - i * 0.03
+        t.x += (px - t.x) * ease
+        t.y += (py - t.y) * ease
+        px = t.x
+        py = t.y
+        const el = trailRefs.current[i]
+        if (el) {
+          el.style.transform = `translate3d(${t.x}px, ${t.y}px, 0) scale(${1 - i * 0.14})`
+          el.style.opacity = String(0.45 - i * 0.07)
+        }
+      })
+      raf = requestAnimationFrame(loop)
+    }
     window.addEventListener('pointermove', move, { passive: true })
-    return () => window.removeEventListener('pointermove', move)
+    raf = requestAnimationFrame(loop)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      cancelAnimationFrame(raf)
+    }
   }, [coarse, x, y])
 
   const api = useMemo(() => ({ setLabel, setVisible }), [])
@@ -479,6 +514,13 @@ function CursorProvider({ children }) {
       {children}
       {!coarse && visible && createPortal(
         <div className={`sf-cursor ${label ? 'has-label' : ''}`} aria-hidden>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="sf-cursor-trail"
+              ref={(el) => { trailRefs.current[i] = el }}
+            />
+          ))}
           <motion.div style={{ position: 'fixed', left: 0, top: 0, x: rx, y: ry, width: 6, height: 6, borderRadius: '50%', background: '#fff', marginLeft: -3, marginTop: -3, pointerEvents: 'none', zIndex: 10001, mixBlendMode: 'difference' }} />
           <motion.div style={{
             position: 'fixed', left: 0, top: 0, x: ringX, y: ringY,
@@ -538,26 +580,11 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reducedMotion || booting) return undefined
-    const lenis = new Lenis({
-      duration: 1.45,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-      touchMultiplier: 1.3,
-    })
-    let raf
-    const loop = (time) => {
-      lenis.raf(time)
-      raf = requestAnimationFrame(loop)
-    }
-    raf = requestAnimationFrame(loop)
-    document.documentElement.classList.add('lenis', 'lenis-smooth')
-    return () => {
-      cancelAnimationFrame(raf)
-      lenis.destroy()
-      document.documentElement.classList.remove('lenis', 'lenis-smooth')
-    }
+    if (booting) return undefined
+    createScrollEngine()
+    // Warm session seed so reload variance is live
+    getSessionSeed()
+    return () => destroyScrollEngine()
   }, [booting])
 
   const onBootDone = useCallback(() => {
@@ -615,9 +642,7 @@ export default function App() {
           Skip to content
         </a>
 
-        <AnimatePresence>
-          {booting && <Preloader onDone={onBootDone} />}
-        </AnimatePresence>
+        {booting && <Preloader onDone={onBootDone} reduced={reduced} />}
 
         <Nav progress={smoothProgress} />
         {!booting && <WorldCaption progress={smoothProgress} onOpen={openDossier} />}
@@ -634,13 +659,13 @@ export default function App() {
 
         <div className="sf-chapters">
           <ErrorBoundary fallback={<section className="hero"><div className="hero-content"><h1 className="display display-xl">SILENT FLEET</h1></div></section>}>
-            <Hero ready={ready && !booting} />
+            <Hero ready={ready && !booting} reduced={reduced} />
           </ErrorBoundary>
 
           <FilmJourney />
 
           <ErrorBoundary>
-            <Heartbeats onOpen={openDossier} />
+            <Heartbeats onOpen={openDossier} reduced={reduced} />
           </ErrorBoundary>
 
           <Footer />
