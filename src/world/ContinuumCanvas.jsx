@@ -572,7 +572,12 @@ function SiteBeacon({
   const groupRef = useRef()
   const uiRef = useRef()
   const cardRef = useRef()
-  const pos = useMemo(() => latLonToLocal(site.lat, site.lon, 1.012), [site.lat, site.lon])
+  // latLonToLocal returns [x,y,z] — keep both array (R3F position) and Vector3 (facing math)
+  const posArr = useMemo(() => latLonToLocal(site.lat, site.lon, 1.012), [site.lat, site.lon])
+  const localNrm = useMemo(
+    () => new THREE.Vector3(posArr[0], posArr[1], posArr[2]).normalize(),
+    [posArr],
+  )
   const worldPos = useMemo(() => new THREE.Vector3(), [])
   const worldNrm = useMemo(() => new THREE.Vector3(), [])
   const toCam = useMemo(() => new THREE.Vector3(), [])
@@ -580,14 +585,16 @@ function SiteBeacon({
     if (!ref.current || !groupRef.current) return
     // Front-face only — never paint a pin floating in empty sky behind the globe
     groupRef.current.getWorldPosition(worldPos)
-    worldNrm.copy(pos).normalize()
+    worldNrm.copy(localNrm)
     if (groupRef.current.parent) {
       worldNrm.transformDirection(groupRef.current.parent.matrixWorld)
     }
     toCam.copy(s.camera.position).sub(worldPos).normalize()
-    const facing = worldNrm.dot(toCam) > 0.12
+    const facing = worldNrm.dot(toCam) > 0.05
 
-    const show = facing && (visibleRef?.current ?? 0) > 0.42 && interactive
+    // When not interactive, keep the beacon group hidden (hero / film)
+    const stageOn = (visibleRef?.current ?? 0) > 0.42 && interactive
+    const show = stageOn && facing
     groupRef.current.visible = show
     if (uiRef.current) {
       uiRef.current.style.opacity = show ? '1' : '0'
@@ -598,9 +605,9 @@ function SiteBeacon({
 
     // Keep dossier card fully inside the viewport (pins near screen edges)
     if (cardRef.current && cardOpen) {
-      const rect = worldPos.clone().project(s.camera)
-      const nx = (rect.x + 1) * 0.5
-      const ny = 1 - (rect.y + 1) * 0.5
+      const ndc = worldPos.clone().project(s.camera)
+      const nx = (ndc.x + 1) * 0.5
+      const ny = 1 - (ndc.y + 1) * 0.5
       const edgeX = nx > 0.62 ? 'edge-left' : nx < 0.28 ? 'edge-right' : 'edge-center'
       const edgeY = ny < 0.28 ? 'edge-below' : ny > 0.72 ? 'edge-above' : 'edge-mid'
       cardRef.current.dataset.edge = `${edgeX} ${edgeY}`
@@ -612,7 +619,7 @@ function SiteBeacon({
     ref.current.material.opacity = pulse
   })
   return (
-    <group ref={groupRef} position={pos} visible={false}>
+    <group ref={groupRef} position={posArr} visible={false}>
       <mesh ref={ref} renderOrder={2}>
         <sphereGeometry args={[0.0075, 12, 12]} />
         <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />

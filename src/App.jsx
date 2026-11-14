@@ -1070,13 +1070,9 @@ export default function App() {
   const onFilmSample = useCallback((sample) => {
     soundRef.current?.setFilm(sample)
     if (sample?.label) setActLabel((prev) => (prev === sample.label ? prev : sample.label))
-    // Dual-path Mars stage lock — don't rely only on the R3F callback
-    const marsOn = sample?.focus === 'mars' || sample?.focus === 'storm'
-    if (atlasLock) {
-      setMarsLock(false)
-    } else {
-      setMarsLock(!!marsOn)
-    }
+    // Dual-path Mars stage lock — only commit when the value actually changes
+    const marsOn = !atlasLock && (sample?.focus === 'mars' || sample?.focus === 'storm')
+    setMarsLock((prev) => (prev === marsOn ? prev : marsOn))
   }, [atlasLock])
 
   const onMoonReady = useCallback(() => {
