@@ -14,6 +14,7 @@ import {
 } from 'framer-motion'
 import { createSoundscape } from './audio/Soundscape'
 import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
+import { preloadCriticalMoon, preloadPlanetTextures } from './world/preloadTextures'
 import { GLOBAL_CSS } from './styles/global.css.js'
 import {
   createScrollEngine, destroyScrollEngine, playHeroIntro, playBootSequence,
@@ -209,12 +210,54 @@ class ErrorBoundary extends Component {
 const CursorCtx = createContext({ setLabel: () => {}, setVisible: () => {} })
 function useCursor() { return useContext(CursorCtx) }
 
-function Preloader({ onDone, reduced }) {
+function Preloader({ onDone, reduced, mobile }) {
   const rootRef = useRef(null)
   useEffect(() => {
+    let cancelled = false
+    let animDone = false
+    let texturesDone = false
+    let finished = false
+
+    const finish = () => {
+      if (cancelled || finished || !animDone || !texturesDone) return
+      finished = true
+      onDone?.()
+    }
+
+    // Kick moon masters immediately; warm Mars in parallel without blocking enter
+    const moonReady = preloadCriticalMoon(mobile).then(() => {
+      texturesDone = true
+      finish()
+    })
+    preloadPlanetTextures(mobile)
+
     const dur = ranged(1.7, 2.4, 3)
-    return playBootSequence(rootRef.current, { onDone, reduced, duration: dur })
-  }, [onDone, reduced])
+    const stopAnim = playBootSequence(rootRef.current, {
+      reduced,
+      duration: dur,
+      onDone: () => {
+        animDone = true
+        finish()
+      },
+    })
+
+    // Never trap the user if a texture host stalls
+    const safety = window.setTimeout(() => {
+      texturesDone = true
+      finish()
+    }, reduced ? 2500 : 14000)
+
+    moonReady.catch(() => {
+      texturesDone = true
+      finish()
+    })
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(safety)
+      stopAnim?.()
+    }
+  }, [onDone, reduced, mobile])
   return (
     <div className="preloader" ref={rootRef}>
       <div className="preloader-panels" aria-hidden>
@@ -231,7 +274,7 @@ function Preloader({ onDone, reduced }) {
         </div>
         <div className="boot-bar" aria-hidden><i data-boot-bar /></div>
         <p className="mono" data-boot-meta style={{ marginTop: '1.25rem', fontSize: '0.65rem', letterSpacing: '0.18em', color: 'var(--ink-mute)' }}>
-          HARDWARE STILL OUT THERE
+          LOADING LUNAR SURFACE
         </p>
       </div>
     </div>
@@ -1038,18 +1081,17 @@ export default function App() {
       >
         <div className="sf-app" ref={mainRef}>
           <ErrorBoundary fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
-            {!booting && (
-              <Suspense fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
-                <ContinuumCanvas
-                  progress={smoothProgress}
-                  mouse={mouse}
-                  mobile={mobile}
-                  reduced={reduced}
-                  active={!booting}
-                  onSample={onFilmSample}
-                />
-              </Suspense>
-            )}
+            {/* Mount during preloader so 8K GPU upload overlaps boot choreography */}
+            <Suspense fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
+              <ContinuumCanvas
+                progress={smoothProgress}
+                mouse={mouse}
+                mobile={mobile}
+                reduced={reduced}
+                active={!booting}
+                onSample={onFilmSample}
+              />
+            </Suspense>
           </ErrorBoundary>
           <div className="sf-veil" aria-hidden />
 
@@ -1071,7 +1113,7 @@ export default function App() {
             Skip to content
           </a>
 
-          {booting && <Preloader onDone={onBootDone} reduced={reduced} />}
+          {booting && <Preloader onDone={onBootDone} reduced={reduced} mobile={mobile} />}
 
           <Nav progress={smoothProgress} />
 

@@ -16,8 +16,8 @@ Mars color (8K / 4K / 2K):
     mars_bump_4k.jpg · mars_bump_2k.jpg · mars_bump_1k.jpg
   Geographic frame: planetocentric east longitude equirectangular.
 
-Desktop continuum paints 2K color+height first, then upgrades to 8K color + 4K
-height/bump in the background. Mobile stays on 2K. 8K masters are progressive JPEGs.
+Desktop continuum uses 8K color + 4K height/bump; mobile uses 2K.
+8K moon masters are preloaded during the boot preloader so the hero opens on full quality.
 Credit / provenance: project texture pack for Space Apps storytelling.
 Related public references: NASA SVS CGI Moon Kit (https://svs.gsfc.nasa.gov/4720/),
 RSS-Mars (https://github.com/RSS-Reborn/RSS-Mars).
