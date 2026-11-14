@@ -1778,6 +1778,109 @@ html.lenis, html.lenis body { height: auto; }
   margin: 0.45rem 0 0.55rem;
   line-height: 1.25;
 }
+.heartbeat-voice {
+  color: var(--ink-dim);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  font-style: italic;
+  margin: 0;
+}
+.fleet-voice {
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  font-style: italic;
+  margin: 0 0 1rem;
+}
+.dossier-voice {
+  margin: 0 0 1.15rem;
+  padding: 1rem 1.05rem;
+  border-left: 2px solid rgba(142, 200, 255, 0.55);
+  background: linear-gradient(90deg, rgba(142, 200, 255, 0.08), transparent 70%);
+}
+.dossier-voice__label {
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  color: var(--ice);
+  margin: 0 0 0.55rem;
+}
+.dossier-voice p:last-child {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.02rem;
+  line-height: 1.65;
+  font-style: italic;
+}
+.light-day {
+  margin: 1.35rem 0 0;
+  padding: 1.1rem 1.15rem 1rem;
+  border: 1px solid rgba(142, 200, 255, 0.22);
+  background:
+    radial-gradient(ellipse 80% 120% at 100% 0%, rgba(142, 200, 255, 0.1), transparent 55%),
+    rgba(6, 8, 14, 0.72);
+}
+.light-day--recover { max-width: 42rem; }
+.light-day--compact {
+  margin-top: 1rem;
+  padding: 0.85rem 0.95rem;
+}
+.light-day--dossier { margin-top: 1.25rem; }
+.light-day--footer {
+  margin-top: 0.85rem;
+  max-width: 28rem;
+  background: transparent;
+  border-color: rgba(142, 200, 255, 0.14);
+}
+.light-day__kicker {
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  color: var(--ice);
+  margin: 0 0 0.45rem;
+}
+.light-day__lede {
+  color: var(--ink-dim);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  margin: 0 0 0.85rem;
+  max-width: 48ch;
+}
+.light-day__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+.light-day__cell {
+  text-align: center;
+  padding: 0.55rem 0.25rem 0.45rem;
+  border: 1px solid rgba(232, 238, 245, 0.08);
+  background: rgba(2, 3, 8, 0.45);
+}
+.light-day__num {
+  display: block;
+  font-size: clamp(1.35rem, 3.5vw, 1.85rem);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--ink);
+}
+.light-day__unit {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-mute);
+}
+.light-day__meta {
+  margin: 0.75rem 0 0;
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-mute);
+  line-height: 1.5;
+}
+.light-day__meta a {
+  color: var(--ice);
+  text-decoration: none;
+}
+.light-day__meta a:hover { text-decoration: underline; }
 .audio-toggle {
   right: 16px;
   bottom: 20px;

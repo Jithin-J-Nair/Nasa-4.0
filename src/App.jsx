@@ -14,6 +14,7 @@ import {
 } from 'framer-motion'
 import { createSoundscape } from './audio/Soundscape'
 import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
+import { VOYAGER_LIGHT_DAY, lightDayRemaining, pad2 } from './data/voyagerLightDay'
 import { preloadContinuumModule, preloadCriticalMoon, preloadPlanetTextures } from './world/preloadTextures'
 import { GLOBAL_CSS } from './styles/global.css.js'
 import {
@@ -130,6 +131,58 @@ function useUTCClock() {
     return () => clearInterval(id)
   }, [])
   return utc
+}
+
+/** Live countdown to Voyager 1 · 1 light-day (18 Nov 2026, 10:16:07 UTC). */
+function useLightDayCountdown() {
+  const [rem, setRem] = useState(() => lightDayRemaining())
+  useEffect(() => {
+    const id = setInterval(() => setRem(lightDayRemaining()), 250)
+    return () => clearInterval(id)
+  }, [])
+  return rem
+}
+
+function LightDayCountdown({ compact = false, className = '' }) {
+  const rem = useLightDayCountdown()
+  const units = [
+    { label: 'DAYS', value: rem.days },
+    { label: 'HRS', value: rem.hours },
+    { label: 'MIN', value: rem.minutes },
+    { label: 'SEC', value: rem.seconds },
+  ]
+  return (
+    <aside
+      className={`light-day ${compact ? 'light-day--compact' : ''} ${className}`.trim()}
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <p className="light-day__kicker mono">
+        {rem.past ? 'VOYAGER 1 · MILESTONE REACHED' : 'VOYAGER 1 · APPROACHING 1 LIGHT-DAY'}
+      </p>
+      {!compact && (
+        <p className="light-day__lede">
+          {rem.past
+            ? `The first human-made object is now ${VOYAGER_LIGHT_DAY.label} — ${VOYAGER_LIGHT_DAY.distanceMi}. A whisper takes a full day to arrive.`
+            : `Soon the first human-made object will be ${VOYAGER_LIGHT_DAY.label} — ${VOYAGER_LIGHT_DAY.distanceMi}. When it crosses, light itself needs 24 hours to catch up.`}
+        </p>
+      )}
+      <div className="light-day__grid" role="timer" aria-label={rem.past ? 'Time since Voyager 1 light-day' : 'Countdown to Voyager 1 light-day'}>
+        {units.map((u) => (
+          <div key={u.label} className="light-day__cell">
+            <span className="light-day__num display">{u.label === 'DAYS' ? String(u.value) : pad2(u.value)}</span>
+            <span className="light-day__unit mono">{u.label}</span>
+          </div>
+        ))}
+      </div>
+      <p className="light-day__meta mono">
+        {rem.past ? 'ELAPSED SINCE' : 'COUNTDOWN TO'}{' '}
+        18 NOV 2026 · 10:16:07 UTC · {VOYAGER_LIGHT_DAY.au}
+        {' · '}
+        <a href={VOYAGER_LIGHT_DAY.source} target="_blank" rel="noreferrer">NASA SOURCE ↗</a>
+      </p>
+    </aside>
+  )
 }
 
 function scrambleText(target, progress) {
@@ -477,9 +530,9 @@ function Hero({ ready, reduced, onOpen }) {
           )}
         </h1>
         <span className="sr-only">Silent Fleet — Abandoned but not Forgotten</span>
-        <div data-hero-body style={{ marginBottom: '1.5rem', maxWidth: '38ch' }}>
+        <div data-hero-body style={{ marginBottom: '1.5rem', maxWidth: '40ch' }}>
           <p className="hero-body-blur" style={{ color: 'var(--ink-dim)', fontSize: 'clamp(1.05rem, 2.4vw, 1.3rem)', lineHeight: 1.5, margin: 0 }}>
-            Hardware NASA left behind across the Moon, Mars, and deep space — and the science that still belongs to it.
+            They were built to listen, dig, and wander — then left behind. Hear them speak. Remember who stayed so we could learn.
           </p>
         </div>
         <div data-hero-cta style={{ opacity: ready ? undefined : 1, marginTop: '0.35rem' }}>
@@ -526,7 +579,7 @@ function ChallengeObjective({ reduced }) {
       <p className="kicker" data-reveal style={{ marginBottom: '0.85rem' }}>
         <ScrambleLine text="NASA SPACE APPS 2026 · ABANDONED BUT NOT FORGOTTEN" active />
       </p>
-      <h2 className="display" data-reveal style={{ fontSize: 'clamp(2.1rem, 6vw, 4.4rem)', marginBottom: '1.25rem', maxWidth: '14ch' }}>
+      <h2 className="display" data-reveal style={{ fontSize: 'clamp(2.1rem, 6vw, 4.4rem)', marginBottom: '1.25rem', maxWidth: '16ch' }}>
         They stayed behind<br />
         <span className="outline-text">so we could learn.</span>
       </h2>
@@ -534,16 +587,15 @@ function ChallengeObjective({ reduced }) {
         <div className="objective-copy">
           <LineReveal>
             <span style={{ color: 'var(--ink-dim)', fontSize: '1.12rem', lineHeight: 1.7, display: 'block' }}>
-              Since the 1960s, NASA has left hardware across the solar system — landers, rovers,
-              experiment packages, and probes that finished their missions or simply kept going.
-              The NASA Catalogue of Manmade Material on the Moon alone lists hundreds of items still sitting in the dust.
+              Since the 1960s, NASA has left teammates across the solar system — landers that dug for ice,
+              rovers that tasted ancient lakes, probes that still phone home from the dark.
+              The Catalogue of Manmade Material on the Moon alone lists hundreds still sitting in the dust.
             </span>
           </LineReveal>
           <LineReveal delay={0.08}>
             <span style={{ color: 'var(--ink-dim)', fontSize: '1.12rem', lineHeight: 1.7, display: 'block', marginTop: '1.1rem' }}>
-              This challenge asks storytellers to build a personal connection to those forgotten explorers —
-              and to leave inspired by the science they conducted. Accuracy matters: every coordinate
-              ties to NSSDCA, LROC, ALSJ, HiRISE, or PDS.
+              This challenge asks us to feel them as explorers, not scrap — to remember the science they gave us,
+              and to leave changed. Accuracy matters: every coordinate ties to NSSDCA, LROC, ALSJ, HiRISE, or PDS.
             </span>
           </LineReveal>
           <p className="mono objective-link-row">
@@ -671,8 +723,9 @@ function Heartbeats({ onOpen, reduced }) {
           />
         </div>
         <p style={{ color: 'var(--ink-dim)', maxWidth: '46ch', marginTop: '0.85rem', lineHeight: 1.55 }}>
-          Not scrap — teammates. Open a dossier. See the NASA image. Hear their last words.
+          Not scrap — teammates. Let the hardware speak. Open a dossier. Remember their story.
         </p>
+        <LightDayCountdown className="light-day--recover" />
         <div className="heartbeat-row" style={{ marginTop: '2rem' }}>
           {HEARTBEATS.map((a) => (
             <SpotlightCard
@@ -713,11 +766,11 @@ function Heartbeats({ onOpen, reduced }) {
                     {a.body.toUpperCase()} · {a.mission} · {a.status}
                   </div>
                   <div className="tx">“{a.transmission}”</div>
-                  <div style={{ color: 'var(--ink-dim)', fontSize: '0.88rem', lineHeight: 1.45 }}>
-                    {a.science.slice(0, 110)}…
-                  </div>
+                  <p className="heartbeat-voice">
+                    {(a.voice || a.science).slice(0, 140)}{(a.voice || a.science).length > 140 ? '…' : ''}
+                  </p>
                   <span className="mono" style={{ fontSize: '0.62rem', letterSpacing: '0.14em', color: 'var(--ice)', marginTop: '0.65rem', display: 'block' }}>
-                    OPEN NASA DOSSIER →
+                    HEAR THEIR STORY →
                   </span>
                 </button>
               </GlareHover>
@@ -802,7 +855,9 @@ function FleetCard({ item, onOpen }) {
         <p className="mono" style={{ fontSize: '0.65rem', letterSpacing: '0.12em', color: 'var(--ink-mute)' }}>{item.codename}</p>
       </div>
       <div>
-        <p style={{ color: 'var(--ink-dim)', fontSize: '0.92rem', lineHeight: 1.5, marginBottom: '1rem' }}>{item.science.slice(0, 110)}…</p>
+        <p className="fleet-voice">
+          “{(item.voice || item.science).slice(0, 118)}{(item.voice || item.science).length > 118 ? '…' : ''}”
+        </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
           {item.tags.map((t) => (
             <span key={t} className="mono" style={{ fontSize: '0.6rem', letterSpacing: '0.1em', padding: '0.25rem 0.5rem', border: '1px solid var(--line)', borderRadius: 6 }}>{t}</span>
@@ -836,10 +891,11 @@ function Fleet({ onOpen }) {
         <span className="section-num" aria-hidden>03</span>
         <p className="kicker"><ScrambleLine text="NASA LEFTOVERS · DRAG TO SURVEY" active /></p>
         <h2 className="display" style={{ fontSize: 'clamp(2.2rem, 6vw, 4rem)', margin: '0.75rem 0 0.5rem' }}>
-          Fifteen files.<br /><span className="outline-text">One silent fleet.</span>
+          Fifteen voices.<br /><span className="outline-text">One silent fleet.</span>
         </h2>
         <p style={{ color: 'var(--ink-dim)', maxWidth: '48ch', lineHeight: 1.55, marginBottom: '0.5rem' }}>
-          Real NASA photographs of hardware left on the Moon, Mars, and beyond. Each card opens a verified dossier.
+          Each leftover speaks in the first person — what they were built for, what they found, why they still matter.
+          Real NASA photographs. Verified coordinates. Open a dossier and listen.
         </p>
       </div>
       <div
@@ -999,11 +1055,20 @@ function ArtifactModal({ item, onClose }) {
           </div>
         )}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: phase >= 2 ? 1 : 0 }}>
+          {item.voice && (
+            <blockquote className="dossier-voice">
+              <p className="mono dossier-voice__label">THE HARDWARE SPEAKS</p>
+              <p>“{item.voice}”</p>
+            </blockquote>
+          )}
           <p style={{ color: 'var(--ink-dim)', lineHeight: 1.65, marginBottom: '1rem' }}>{item.story}</p>
           <p style={{ color: 'var(--ice)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', letterSpacing: '0.04em', marginBottom: '1rem' }}>
             “{item.transmission}”
           </p>
           <p style={{ color: 'var(--ink-mute)', fontSize: '0.9rem', lineHeight: 1.55 }}>{item.science}</p>
+          {item.id === 'voyager1' && (
+            <LightDayCountdown compact className="light-day--dossier" />
+          )}
           <div className="nasa-links">
             {item.source && <a href={item.source} target="_blank" rel="noreferrer">NASA IMAGE ↗</a>}
             {item.orbital && <a href={item.orbital} target="_blank" rel="noreferrer">ORBITAL CONTEXT ↗</a>}
@@ -1033,9 +1098,10 @@ function Footer() {
         <div>
           <div className="mono" style={{ fontSize: '0.7rem', color: 'var(--ink-mute)', marginBottom: 8 }}>MISSION CLOCK · {utc}</div>
           <p className="mono" style={{ fontSize: '0.85rem', letterSpacing: '0.08em' }}>
-            <ScrambleLine text="THEY ARE STILL OUT THERE." active={inView} />
+            <ScrambleLine text="THEY ARE STILL OUT THERE. SOME STILL SPEAK." active={inView} />
             <span className="status-dot live" style={{ marginLeft: 10, verticalAlign: 'middle' }} />
           </p>
+          <LightDayCountdown compact className="light-day--footer" />
           <p style={{ color: 'var(--ink-mute)', fontSize: '0.75rem', marginTop: 12, maxWidth: 520, lineHeight: 1.5 }}>
             Built for NASA Space Apps 2026 — “Abandoned but not Forgotten.”
             Facts cross-checked against NSSDCA, LROC, ALSJ, HiRISE & PDS.
