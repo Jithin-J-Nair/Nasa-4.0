@@ -6,13 +6,64 @@
  * Phase 3: five hero SHOTS name the body feelings; ACTS still sample the continuum.
  */
 
-/** Five owned seconds you can name — intent for camera damp + chrome. */
+/**
+ * Grade bible — three looks a still frame can be identified by.
+ * Acts/shots pick a lookId; sampler blends grade toward these presets.
+ */
+export const LOOKS = {
+  lunar_steel: {
+    lift: [0.01, 0.018, 0.048],
+    gain: [1.02, 1.06, 1.14],
+    exposure: 1.08,
+    grain: 0.03,
+  },
+  meridiani_iron: {
+    lift: [0.1, 0.032, 0.008],
+    gain: [1.28, 0.88, 0.62],
+    exposure: 1.06,
+    grain: 0.055,
+  },
+  void: {
+    lift: [0.008, 0.012, 0.04],
+    gain: [0.86, 0.92, 1.12],
+    exposure: 0.7,
+    grain: 0.05,
+  },
+  last_light: {
+    lift: [0.16, 0.04, 0.005],
+    gain: [1.55, 0.42, 0.18],
+    exposure: 0.14,
+    grain: 0.42,
+  },
+}
+
+/** Five owned seconds — damp owns how the body feels the camera. */
 export const SHOTS = [
-  { id: 'arrival', intent: 'hold', progress: 0.05, label: 'ARRIVAL', body: 'Moon centered — equal limbs' },
-  { id: 'near_side', intent: 'push', progress: 0.155, label: 'NEAR SIDE', body: 'Atlas intimacy — surveyed sites' },
-  { id: 'leave', intent: 'hold', progress: 0.30, label: 'JOURNEY', body: 'Lunar leave into corridor' },
-  { id: 'meridiani', intent: 'recover', progress: 0.56, label: 'MERIDIANI', body: 'Right-limb settle — Opportunity' },
-  { id: 'last_light', intent: 'fail', progress: 0.70, label: 'LAST LIGHT', body: 'Storm eats exposure + chrome + score' },
+  {
+    id: 'arrival', intent: 'hold', progress: 0.05, label: 'ARRIVAL',
+    body: 'Moon centered — equal limbs', lookId: 'lunar_steel',
+    damp: 0.055, fovDamp: 0.06,
+  },
+  {
+    id: 'near_side', intent: 'push', progress: 0.155, label: 'NEAR SIDE',
+    body: 'Atlas intimacy — surveyed sites', lookId: 'lunar_steel',
+    damp: 0.042, fovDamp: 0.05,
+  },
+  {
+    id: 'leave', intent: 'hold', progress: 0.30, label: 'JOURNEY',
+    body: 'Lunar leave into corridor', lookId: 'lunar_steel',
+    damp: 0.034, fovDamp: 0.04,
+  },
+  {
+    id: 'meridiani', intent: 'recover', progress: 0.56, label: 'MERIDIANI',
+    body: 'Right-limb settle — Opportunity', lookId: 'meridiani_iron',
+    damp: 0.048, fovDamp: 0.055,
+  },
+  {
+    id: 'last_light', intent: 'fail', progress: 0.70, label: 'LAST LIGHT',
+    body: 'Storm eats exposure + chrome + score', lookId: 'last_light',
+    damp: 0.14, fovDamp: 0.12,
+  },
 ]
 
 export function shotForProgress(p) {
@@ -140,6 +191,7 @@ export const ACTS = [
     fog: [24, 100],
     focus: 'moon',
     cue: 'arrive',
+    lookId: 'lunar_steel',
   },
   {
     id: 'intimacy',
@@ -155,6 +207,7 @@ export const ACTS = [
     focus: 'moon',
     cue: 'near',
     hotspot: 'a11-lm',
+    lookId: 'lunar_steel',
   },
   {
     // Soft lunar settle before Journey — no smash zoom
@@ -169,6 +222,7 @@ export const ACTS = [
     fog: [16, 78],
     focus: 'moon',
     cue: 'dive',
+    lookId: 'lunar_steel',
   },
   {
     // Continuous Atlas→Mars dolly — warp is stellar, not lens zoom
@@ -183,6 +237,7 @@ export const ACTS = [
     fog: [18, 110],
     focus: 'transit',
     cue: 'journey',
+    lookId: 'lunar_steel',
   },
   {
     id: 'mars',
@@ -197,6 +252,7 @@ export const ACTS = [
     focus: 'mars',
     cue: 'mars',
     hotspot: 'opportunity',
+    lookId: 'meridiani_iron',
   },
   {
     // Illegal moment — Opportunity's last light (signature beat)
@@ -230,6 +286,7 @@ export const ACTS = [
     focus: 'pioneer',
     cue: 'carrier',
     hotspot: 'pioneer10',
+    lookId: 'void',
   },
   {
     id: 'silence',
@@ -244,6 +301,7 @@ export const ACTS = [
     focus: 'pioneer',
     cue: 'carrier_lost',
     hotspot: 'voyager1',
+    lookId: 'void',
   },
 ]
 
@@ -376,6 +434,19 @@ export function sampleActs(progress) {
   }
 
   const shot = shotForProgress(p)
+  // Shot look wins over act look — bible presets own the image identity
+  const lookId = shot.lookId || act.lookId || 'lunar_steel'
+  const bible = LOOKS[lookId]
+  if (bible) {
+    const pull = act.id === 'dust_storm' ? 0.92 : (act.id === 'transit' ? 0.45 : 0.72)
+    grade = {
+      lift: grade.lift.map((v, k) => lerp(v, bible.lift[k], pull)),
+      gain: grade.gain.map((v, k) => lerp(v, bible.gain[k], pull)),
+      exposure: lerp(grade.exposure, bible.exposure, pull),
+      grain: lerp(grade.grain, bible.grain, pull),
+    }
+  }
+
   // Chrome kill 0→1 during last light — HUD must die with the image
   let chromeKill = 0
   if (act.id === 'dust_storm') {
@@ -407,8 +478,10 @@ export function sampleActs(progress) {
     shot,
     shotId: shot.id,
     intent: shot.intent,
+    damp: shot.damp ?? 0.06,
+    fovDamp: shot.fovDamp ?? 0.07,
     uiMode: act.uiMode || (chromeKill > 0.55 ? 'death' : 'live'),
-    lookId: act.lookId || act.id,
+    lookId,
     chromeKill,
   }
 }

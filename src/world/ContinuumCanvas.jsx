@@ -765,6 +765,72 @@ function SiteBeacon({
   )
 }
 
+/** Low-poly Opportunity mass — visit-able silhouette on Meridiani, not a pin. */
+function OpportunityHardware({ stormRef, darkRef }) {
+  const root = useRef()
+  const pos = useMemo(() => {
+    const s = SITE_FOCUS.opportunity
+    return latLonToLocal(s.aimLat, s.aimLon, 1.014)
+  }, [])
+  const quat = useMemo(() => {
+    const up = new THREE.Vector3(pos[0], pos[1], pos[2]).normalize()
+    const east = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), up)
+    if (east.lengthSq() < 1e-6) east.set(1, 0, 0)
+    east.normalize()
+    const north = new THREE.Vector3().crossVectors(up, east).normalize()
+    const m = new THREE.Matrix4().makeBasis(east, up, north)
+    return new THREE.Quaternion().setFromRotationMatrix(m)
+  }, [pos])
+
+  useFrame((s) => {
+    if (!root.current) return
+    const storm = stormRef?.current ?? 0
+    const dark = darkRef?.current ?? 0
+    // Hold silhouette through last light; sink into dust as chrome dies
+    const hide = Math.max(storm * 0.55, dark * 0.85)
+    root.current.visible = hide < 0.92
+    const pulse = 0.92 + Math.sin(s.clock.elapsedTime * 1.4) * 0.04 * (1 - storm)
+    root.current.scale.setScalar(pulse * (1 - hide * 0.35))
+  })
+
+  // Cinematic exaggeration — real MER would be invisible at globe scale
+  const S = 5.2
+  const panel = '#c4a882'
+  const metal = '#8a9098'
+  const solar = '#1a2840'
+  return (
+    <group ref={root} position={pos} quaternion={quat}>
+      <mesh position={[0, 0.012 * S, 0]}>
+        <boxGeometry args={[0.038 * S, 0.012 * S, 0.028 * S]} />
+        <meshStandardMaterial color={panel} metalness={0.55} roughness={0.48} />
+      </mesh>
+      <mesh position={[0.006 * S, 0.034 * S, -0.004 * S]}>
+        <cylinderGeometry args={[0.0022 * S, 0.0028 * S, 0.028 * S, 6]} />
+        <meshStandardMaterial color={metal} metalness={0.7} roughness={0.35} />
+      </mesh>
+      <mesh position={[0.006 * S, 0.05 * S, -0.004 * S]}>
+        <boxGeometry args={[0.012 * S, 0.008 * S, 0.01 * S]} />
+        <meshStandardMaterial color="#5a6270" metalness={0.65} roughness={0.4} emissive="#ff8a4a" emissiveIntensity={0.22} />
+      </mesh>
+      <mesh position={[-0.032 * S, 0.016 * S, 0]} rotation={[0, 0, 0.08]}>
+        <boxGeometry args={[0.028 * S, 0.0018 * S, 0.022 * S]} />
+        <meshStandardMaterial color={solar} metalness={0.3} roughness={0.55} />
+      </mesh>
+      <mesh position={[0.032 * S, 0.016 * S, 0]} rotation={[0, 0, -0.08]}>
+        <boxGeometry args={[0.028 * S, 0.0018 * S, 0.022 * S]} />
+        <meshStandardMaterial color={solar} metalness={0.3} roughness={0.55} />
+      </mesh>
+      {[[-0.014, -0.006, 0.012], [0, -0.006, 0.014], [0.014, -0.006, 0.012],
+        [-0.014, -0.006, -0.012], [0, -0.006, -0.014], [0.014, -0.006, -0.012]].map((p, i) => (
+        <mesh key={i} position={[p[0] * S, p[1] * S, p[2] * S]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.0055 * S, 0.0055 * S, 0.004 * S, 8]} />
+          <meshStandardMaterial color="#3a3e46" metalness={0.4} roughness={0.7} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
 function BodySphere({
   body = 0,
   rim = '#9ecfff',
@@ -888,6 +954,9 @@ function BodySphere({
             extensions={{ derivatives: true }}
           />
         </mesh>
+        {isMars && (
+          <OpportunityHardware stormRef={stormRef} darkRef={darkRef} />
+        )}
         {!mobile && sites.map((site) => (
           <SiteBeacon
             key={site.id}
@@ -1228,28 +1297,17 @@ function FilmDirector({
       )
     }
 
-    // Shot-intent damp — silk leave · settle recover · punch fail (last light)
-    const intent = sample.intent || 'hold'
-    let journeyDamp
-    if (intent === 'fail' || (sample.smash && ab < 0.25)) {
-      journeyDamp = reduced ? 0.28 : 0.14
-    } else if (intent === 'push' || transit) {
-      journeyDamp = reduced ? 0.12 : 0.038
-    } else if (intent === 'recover' || marsStageLock) {
-      journeyDamp = reduced ? 0.14 : 0.048
-    } else {
-      journeyDamp = reduced ? 0.16 : 0.065
-    }
-    const damp = journeyDamp
+    // Shot-owned damp from SHOTS bible — reduced motion stays snappy
+    const shotDamp = Number.isFinite(sample.damp) ? sample.damp : 0.06
+    const shotFovDamp = Number.isFinite(sample.fovDamp) ? sample.fovDamp : 0.07
+    const damp = reduced ? Math.min(0.28, shotDamp * 2.4) : shotDamp
     camera.position.x = lerp(camera.position.x, desired.x, damp)
     camera.position.y = lerp(camera.position.y, desired.y, damp)
     camera.position.z = lerp(camera.position.z, desired.z, damp)
 
     if ('fov' in camera) {
       const targetFov = marsStageLock ? 33 : sample.fov
-      const fovDamp = intent === 'fail'
-        ? (reduced ? 0.22 : 0.12)
-        : (transit || intent === 'push' ? 0.045 : 0.075)
+      const fovDamp = reduced ? Math.min(0.28, shotFovDamp * 2.2) : shotFovDamp
       camera.fov = lerp(camera.fov, targetFov, fovDamp)
       camera.updateProjectionMatrix()
     }

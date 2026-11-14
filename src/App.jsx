@@ -285,13 +285,21 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
   )
 }
 
-function Nav({ progress, onNavAtlas, onNavJourney }) {
+function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
   const scaleX = useSpring(progress, { stiffness: 90, damping: 24 })
   return (
     <nav className="nav" aria-label="Primary">
       <a href="#top" className="nav-brand" aria-label="Silent Fleet home">SILENT FLEET</a>
       <div className="nav-links">
-        <a href="#objective">OBJECTIVE</a>
+        <a
+          href="#objective"
+          onClick={(e) => {
+            e.preventDefault()
+            scrollToHash('#objective', { duration: 1.05 })
+          }}
+        >
+          OBJECTIVE
+        </a>
         <a
           href="#atlas"
           onClick={(e) => {
@@ -310,8 +318,24 @@ function Nav({ progress, onNavAtlas, onNavJourney }) {
         >
           JOURNEY
         </a>
-        <a href="#recover">RECOVER</a>
-        <a href="#fleet">FLEET</a>
+        <a
+          href="#recover"
+          onClick={(e) => {
+            e.preventDefault()
+            onNavCoda?.(e, 'recover')
+          }}
+        >
+          RECOVER
+        </a>
+        <a
+          href="#fleet"
+          onClick={(e) => {
+            e.preventDefault()
+            onNavCoda?.(e, 'fleet')
+          }}
+        >
+          FLEET
+        </a>
       </div>
       <motion.div className="nav-progress" style={{ scaleX, width: '100%' }} />
     </nav>
@@ -356,8 +380,11 @@ function FilmScrubber() {
   }, [])
   const jump = (v) => {
     createFilmRail()
-    scrollToFilmProgress(v, { immediate: true })
-    setP(v)
+    scheduleScrollRefresh(0)
+    requestAnimationFrame(() => {
+      scrollToFilmProgress(v, { immediate: true })
+      setP(v)
+    })
   }
   return (
     <div className="film-scrubber" role="group" aria-label="Film scrubber">
@@ -1255,7 +1282,11 @@ export default function App() {
     setFocusSiteId('a11-lm')
     setCardSiteId('a11-lm')
     createFilmRail()
-    scrollToFilmMarker('atlas', { duration: 1.1 })
+    scheduleScrollRefresh(0)
+    // One frame so ScrollTrigger measures the rail before scrub
+    requestAnimationFrame(() => {
+      scrollToFilmMarker('atlas', { duration: 1.1 })
+    })
     history.replaceState(null, '', '#atlas')
   }, [])
 
@@ -1270,20 +1301,41 @@ export default function App() {
     history.replaceState(null, '', '#journey')
     createFilmRail()
     scheduleScrollRefresh(0)
-    killJourneyRef.current = playMoonToMarsJourney({
-      reduced,
-      onStart: () => {
-        journeyPlayingRef.current = true
-        setAtlasLock(false)
-      },
-      onComplete: () => {
-        journeyPlayingRef.current = false
-        setFocusSiteId('opportunity')
-        setCardSiteId('opportunity')
-        killJourneyRef.current = null
-      },
+    requestAnimationFrame(() => {
+      killJourneyRef.current = playMoonToMarsJourney({
+        reduced,
+        onStart: () => {
+          journeyPlayingRef.current = true
+          setAtlasLock(false)
+        },
+        onComplete: () => {
+          journeyPlayingRef.current = false
+          setFocusSiteId('opportunity')
+          setCardSiteId('opportunity')
+          killJourneyRef.current = null
+        },
+      })
     })
   }, [reduced])
+
+  /** Recover / Fleet — soft continuum coda (not a hard brochure jump mid-film). */
+  const onNavCoda = useCallback((e, which = 'recover') => {
+    e?.preventDefault?.()
+    killJourneyRef.current?.()
+    killJourneyRef.current = null
+    journeyPlayingRef.current = false
+    setAtlasLock(false)
+    setMarsLock(false)
+    setCardSiteId(null)
+    // Park film at silence tip so Meridiani HUD cannot ghost through coda
+    createFilmRail()
+    scheduleScrollRefresh(0)
+    requestAnimationFrame(() => {
+      scrollToFilmMarker('silence', { immediate: true })
+      scrollToHash(which === 'fleet' ? '#fleet' : '#recover', { duration: 1.15, offset: -72 })
+    })
+    history.replaceState(null, '', which === 'fleet' ? '#fleet' : '#recover')
+  }, [])
 
   const onFocusSite = useCallback((id) => {
     if (id) setFocusSiteId(id)
@@ -1443,7 +1495,12 @@ export default function App() {
             className={`sf-chrome ${chromeKill > 0.08 ? 'is-dying' : ''}`}
             style={{ opacity: 1 - chromeKill * 0.92, pointerEvents: chromeKill > 0.72 ? 'none' : undefined }}
           >
-            <Nav progress={filmMv} onNavAtlas={onNavAtlas} onNavJourney={onNavJourney} />
+            <Nav
+              progress={filmMv}
+              onNavAtlas={onNavAtlas}
+              onNavJourney={onNavJourney}
+              onNavCoda={onNavCoda}
+            />
 
             <button
               type="button"

@@ -42,6 +42,67 @@ export const FILM_MARKERS = {
   coda: 1,
 }
 
+/**
+ * Authored rail weights — intimacy + last light hold more scroll meters.
+ * Each segment: film tip endpoint + relative weight along the continuum rail.
+ * Linear ScrollTrigger progress maps through these into film tip space.
+ */
+export const RAIL_SEGMENTS = [
+  { tip: 0.09, weight: 1.0 },   // arrival
+  { tip: 0.18, weight: 1.55 },  // intimacy — linger on surveyed sites
+  { tip: 0.28, weight: 1.05 },  // near pass
+  { tip: 0.52, weight: 0.95 },  // journey corridor
+  { tip: 0.64, weight: 1.25 },  // meridiani settle
+  { tip: 0.76, weight: 1.7 },   // last light — illegal hold
+  { tip: 0.88, weight: 0.9 },   // carrier
+  { tip: 1.0, weight: 0.85 },   // silence / coda
+]
+
+function railSegmentMeta() {
+  let total = 0
+  const segs = RAIL_SEGMENTS.map((s) => {
+    total += s.weight
+    return { ...s, cum: total }
+  })
+  return { segs, total }
+}
+
+/** Linear rail progress (0→1 from ScrollTrigger) → weighted film tip. */
+export function mapRailProgress(linear) {
+  const t = Math.max(0, Math.min(1, Number(linear) || 0))
+  const { segs, total } = railSegmentMeta()
+  const target = t * total
+  let prevTip = 0
+  let prevCum = 0
+  for (const s of segs) {
+    if (target <= s.cum) {
+      const local = s.weight <= 0 ? 1 : (target - prevCum) / s.weight
+      return prevTip + (s.tip - prevTip) * Math.max(0, Math.min(1, local))
+    }
+    prevTip = s.tip
+    prevCum = s.cum
+  }
+  return 1
+}
+
+/** Film tip → linear rail progress (inverse of mapRailProgress) for scrollTo. */
+export function unmapRailProgress(filmTip) {
+  const tip = Math.max(0, Math.min(1, Number(filmTip) || 0))
+  const { segs, total } = railSegmentMeta()
+  let prevTip = 0
+  let prevCum = 0
+  for (const s of segs) {
+    if (tip <= s.tip + 1e-9) {
+      const span = s.tip - prevTip
+      const local = span <= 1e-9 ? 1 : (tip - prevTip) / span
+      return (prevCum + s.weight * Math.max(0, Math.min(1, local))) / total
+    }
+    prevTip = s.tip
+    prevCum = s.cum
+  }
+  return 1
+}
+
 export function getFilmProgress() {
   return filmProgressRef.current
 }
@@ -170,7 +231,7 @@ export function createFilmRail() {
     scrub: prefersReducedMotion() ? false : 0.35,
     invalidateOnRefresh: true,
     onUpdate: (self) => {
-      filmProgressRef.current = self.progress
+      filmProgressRef.current = mapRailProgress(self.progress)
     },
     onLeaveBack: () => {
       filmProgressRef.current = 0
@@ -180,9 +241,11 @@ export function createFilmRail() {
     },
   })
 
-  // Sync once after layout
+  // Sync once after layout — map through authored weights
   requestAnimationFrame(() => {
-    if (filmRailTrigger) filmProgressRef.current = filmRailTrigger.progress
+    if (filmRailTrigger) {
+      filmProgressRef.current = mapRailProgress(filmRailTrigger.progress)
+    }
   })
 
   return filmRailTrigger
@@ -199,26 +262,29 @@ export function destroyFilmRail() {
   }
 }
 
-/** Pixel scroll Y for a film progress tip on the continuum rail. */
+/** Pixel scroll Y for a film tip — inverts authored rail weights. */
 export function filmProgressToScrollY(p) {
-  const t = Math.max(0, Math.min(1, p))
+  const linear = unmapRailProgress(p)
   if (!filmRailTrigger) {
     const rail = document.getElementById('continuum-rail')
     if (!rail) return window.scrollY
     const top = rail.getBoundingClientRect().top + window.scrollY
     const travel = Math.max(1, rail.offsetHeight - window.innerHeight)
-    return top + travel * t
+    return top + travel * linear
   }
-  return filmRailTrigger.start + (filmRailTrigger.end - filmRailTrigger.start) * t
+  return filmRailTrigger.start + (filmRailTrigger.end - filmRailTrigger.start) * linear
 }
 
 /** Scroll the owned rail to a film tip — the ONLY way nav moves the film. */
 export function scrollToFilmProgress(p, { duration, immediate = false } = {}) {
-  const y = filmProgressToScrollY(p)
+  // Ensure rail exists before measuring (nav can fire before boot effect settles)
+  if (!filmRailTrigger) createFilmRail()
+  const tip = Math.max(0, Math.min(1, Number(p) || 0))
+  const y = filmProgressToScrollY(tip)
   if (immediate || prefersReducedMotion()) {
     if (lenis) lenis.scrollTo(y, { immediate: true })
     else window.scrollTo(0, y)
-    setFilmProgress(p)
+    setFilmProgress(tip)
     return
   }
   const dur = Number.isFinite(duration) ? duration : 1.35
@@ -261,8 +327,9 @@ export function playMoonToMarsJourney({
     playMoonToMarsJourney._tl = null
   }
 
-  // Ensure the owned rail exists before scrubbing (HMR / late layout)
+  // Ensure the owned rail exists + layout is measured before scrubbing
   if (!filmRailTrigger) createFilmRail()
+  ScrollTrigger.refresh()
 
   const fromP = gsap.utils.clamp(
     FILM_MARKERS.atlas,
@@ -278,7 +345,7 @@ export function playMoonToMarsJourney({
     return () => window.clearTimeout(done)
   }
 
-  // Ensure we sit on the rail at atlas before the long scrub
+  // Sit on atlas tip before the long scrub (weights inverted for scroll Y)
   scrollToFilmProgress(fromP, { immediate: true })
 
   const state = { p: fromP }
@@ -287,7 +354,6 @@ export function playMoonToMarsJourney({
     onComplete: () => {
       playMoonToMarsJourney._tl = null
       filmScrollTween = null
-      // Settle exactly on Meridiani tip
       scrollToFilmProgress(toP, { duration: 0.9 })
       gsap.delayedCall(0.35, () => onComplete?.())
     },
@@ -301,7 +367,7 @@ export function playMoonToMarsJourney({
       const y = filmProgressToScrollY(state.p)
       if (lenis) lenis.scrollTo(y, { immediate: true })
       else window.scrollTo(0, y)
-      // ST may lag one frame on immediate scroll — stamp tip explicitly
+      // Stamp film tip explicitly — ST lag must not fight Journey
       filmProgressRef.current = state.p
     },
   }, 0)

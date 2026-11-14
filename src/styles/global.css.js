@@ -252,8 +252,14 @@ img, svg { display: block; max-width: 100%; }
   background: transparent;
 }
 .story-seam--into-recover {
-  height: clamp(2rem, 5vh, 3.5rem);
-  background: transparent;
+  height: clamp(3.5rem, 9vh, 6rem);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(8, 10, 18, 0.35) 42%,
+    rgba(4, 5, 12, 0.72) 100%
+  );
+  pointer-events: none;
 }
 .sf-veil {
   position: fixed;
@@ -1722,10 +1728,12 @@ html.lenis, html.lenis body { height: auto; }
   z-index: 90;
   isolation: isolate;
   padding: clamp(3rem, 8vw, 5rem) clamp(1.25rem, 4vw, 4rem);
-  /* Same horizontal rhythm as Objective / Fleet for one-page continuity */
   scroll-margin-top: var(--nav-h);
-  /* Solid stage so Meridiani HUD cannot ghost through */
-  background: linear-gradient(180deg, rgba(2, 2, 6, 0.55) 0%, rgba(2, 2, 6, 0.92) 18%, #020206 40%);
+  /* Soft continuum coda — deep space bleed, not a hard brochure slab */
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -8%, rgba(142, 200, 255, 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 82% 70%, rgba(255, 122, 69, 0.05) 0%, transparent 50%),
+    linear-gradient(180deg, rgba(3, 4, 10, 0.42) 0%, rgba(2, 2, 7, 0.88) 22%, #020206 55%);
 }
 .story-plate .fleet-section {
   position: relative;
@@ -1734,7 +1742,9 @@ html.lenis, html.lenis body { height: auto; }
   padding-top: clamp(2.5rem, 7vw, 4.5rem);
   padding-bottom: clamp(3rem, 8vw, 5rem);
   scroll-margin-top: var(--nav-h);
-  background: #020206;
+  background:
+    radial-gradient(ellipse 70% 45% at 20% 0%, rgba(142, 200, 255, 0.04) 0%, transparent 55%),
+    linear-gradient(180deg, #020206 0%, #03040a 40%, #020206 100%);
 }
 .story-plate .fleet-section .section-num,
 .story-plate .challenge-objective .section-num {
