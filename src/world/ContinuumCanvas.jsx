@@ -11,6 +11,7 @@ import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@re
 import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
 import * as THREE from 'three'
+import gsap from 'gsap'
 import { sampleActs, lerp, clamp, smoothstep, easeInOutCubic } from './film'
 import { latLonToLocal, SITE_FOCUS } from './geo'
 import { filmProgressRef } from '../motion/engine'
@@ -1569,6 +1570,7 @@ export default function ContinuumCanvas({
   // Keep rendering during boot so textures upload + FilmDirector places the Moon
   // behind the preloader. Demand mode for reduced-motion + when the tab is hidden.
   void active
+  const rootRef = useRef(null)
   const [pageVisible, setPageVisible] = useState(
     () => (typeof document === 'undefined' ? true : document.visibilityState !== 'hidden'),
   )
@@ -1577,6 +1579,52 @@ export default function ContinuumCanvas({
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [])
+
+  // When #journey scrolls past the viewport, ride the fixed Continuum up with it
+  // so Voyager/Silence leave with the film section instead of lingering under Fleet/Footer.
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root || typeof window === 'undefined') return undefined
+    let lastExit = 1
+    const apply = () => {
+      const journey = document.getElementById('journey')
+      if (!journey) {
+        if (lastExit !== 0) {
+          lastExit = 0
+          root.style.transform = ''
+          root.style.opacity = ''
+          root.classList.remove('is-scroll-exit')
+        }
+        return
+      }
+      const bottom = journey.getBoundingClientRect().bottom
+      const vh = window.innerHeight || 1
+      // Locked while journey still covers the viewport bottom; then translate up 1:1 with Lenis
+      const exit = Math.min(0, bottom - vh)
+      if (Math.abs(exit - lastExit) < 0.25 && (exit === 0 || lastExit !== 1)) return
+      lastExit = exit
+      if (exit >= -0.5) {
+        root.style.transform = ''
+        root.style.opacity = ''
+        root.classList.remove('is-scroll-exit')
+        return
+      }
+      root.classList.add('is-scroll-exit')
+      root.style.transform = `translate3d(0, ${exit}px, 0)`
+      root.style.opacity = String(Math.max(0, 1 + exit / (vh * 0.92)))
+    }
+    apply()
+    gsap.ticker.add(apply)
+    window.addEventListener('resize', apply, { passive: true })
+    return () => {
+      gsap.ticker.remove(apply)
+      window.removeEventListener('resize', apply)
+      root.style.transform = ''
+      root.style.opacity = ''
+      root.classList.remove('is-scroll-exit')
+    }
+  }, [])
+
   const frameloop = reduced || !pageVisible ? 'demand' : 'always'
   const [planetDragging, setPlanetDragging] = useState(false)
   const onPlanetDraggingChange = useCallback((on) => {
@@ -1588,6 +1636,7 @@ export default function ContinuumCanvas({
 
   return (
     <div
+      ref={rootRef}
       className={[
         'continuum-canvas',
         anyHotspots ? 'is-hotspots' : '',

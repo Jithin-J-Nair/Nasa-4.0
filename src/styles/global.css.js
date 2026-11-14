@@ -70,6 +70,11 @@ img, svg { display: block; max-width: 100%; }
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
+  will-change: transform, opacity;
+}
+/* Past #journey — Continuum (Voyager/Silence) scrolls off with the film section */
+.continuum-canvas.is-scroll-exit {
+  pointer-events: none !important;
 }
 .continuum-canvas.is-hotspots {
   /* Above chapter scroll layer so Html hotspot cards paint; title HUD is z=95 */
