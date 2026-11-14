@@ -348,28 +348,6 @@ void main(){
 }
 `
 
-/* Carrier signal beam — physics of dying ping */
-const BEAM_VERT = `
-varying float vY;
-void main(){
-  vY = uv.y;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-`
-const BEAM_FRAG = `
-uniform float uCarrier;
-uniform float uTime;
-varying float vY;
-void main(){
-  float pulse = 0.55 + 0.45 * sin(uTime * 4.0 - vY * 18.0);
-  float life = 1.0 - uCarrier;
-  float a = life * pulse * smoothstep(0.0, 0.1, vY) * smoothstep(1.0, 0.7, vY) * 0.55;
-  if (a < 0.01) discard;
-  vec3 col = mix(vec3(0.55, 0.75, 1.0), vec3(0.2, 0.25, 0.35), uCarrier);
-  gl_FragColor = vec4(col, a);
-}
-`
-
 const DUST_VERT = `
 attribute float aSeed;
 attribute float aSize;
@@ -528,41 +506,6 @@ function DustSheets({ stormRef, darkRef, sunDirRef }) {
           <primitive object={m} attach="material" />
         </mesh>
       ))}
-    </group>
-  )
-}
-
-function SignalBeam({ carrierRef, activeRef, groupRef }) {
-  const mat = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: BEAM_VERT,
-    fragmentShader: BEAM_FRAG,
-    uniforms: {
-      uCarrier: { value: 0 },
-      uTime: { value: 0 },
-    },
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-  }), [])
-
-  useFrame((s) => {
-    mat.uniforms.uTime.value = s.clock.elapsedTime
-    const c = carrierRef?.current ?? 0
-    mat.uniforms.uCarrier.value = c
-    if (groupRef?.current) {
-      const show = !!activeRef?.current && c < 0.98
-      groupRef.current.visible = show
-      if (show) groupRef.current.scale.set(1, lerp(2.8, 0.4, c), 1)
-    }
-  })
-
-  return (
-    <group ref={groupRef} position={[0, 0.08, -9]} visible={false}>
-      <mesh position={[0, 0, 1.8]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.02, 0.55, 4.5, 16, 1, true]} />
-        <primitive object={mat} attach="material" />
-      </mesh>
     </group>
   )
 }
@@ -921,6 +864,9 @@ useGLTF.preload(VOYAGER_GLB)
 
 function VoyagerCraft({ groupRef, carrierRef }) {
   const { scene } = useGLTF(VOYAGER_GLB)
+  const keyRef = useRef()
+  const fillRef = useRef()
+  const rimRef = useRef()
   const model = useMemo(() => {
     const root = scene.clone(true)
     root.traverse((obj) => {
@@ -931,18 +877,21 @@ function VoyagerCraft({ groupRef, carrierRef }) {
           const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
           mats.forEach((m) => {
             if (!m) return
-            m.envMapIntensity = 1.15
+            // Readability in the dark silence grade — keep NASA materials, lift response
+            if ('metalness' in m) m.metalness = Math.min(0.92, (m.metalness ?? 0.4) + 0.15)
+            if ('roughness' in m) m.roughness = Math.max(0.22, Math.min(0.62, (m.roughness ?? 0.45) * 0.85))
+            if ('envMapIntensity' in m) m.envMapIntensity = 1.45
             m.needsUpdate = true
           })
         }
       }
     })
-    // Normalize NASA asset to a ~2.6-unit craft for the silence camera
+    // Larger craft — hero of the silence beat
     const box = new THREE.Box3().setFromObject(root)
     const size = new THREE.Vector3()
     box.getSize(size)
     const max = Math.max(size.x, size.y, size.z, 0.001)
-    root.scale.setScalar(2.6 / max)
+    root.scale.setScalar(3.85 / max)
     box.setFromObject(root)
     const center = new THREE.Vector3()
     box.getCenter(center)
@@ -953,36 +902,44 @@ function VoyagerCraft({ groupRef, carrierRef }) {
   }, [scene])
 
   const inner = useRef()
-  const rings = useRef([])
   useFrame((s) => {
     const die = carrierRef?.current ?? 0
     if (inner.current) {
       inner.current.rotation.y = s.clock.elapsedTime * 0.045 * (1 - die * 0.85)
     }
-    rings.current.forEach((mesh, i) => {
-      if (!mesh) return
-      const t = ((s.clock.elapsedTime * 0.22 + i * 0.9) % 3.4) / 3.4
-      const sc = 0.55 + t * 3.6
-      mesh.scale.set(sc, sc, sc)
-      mesh.material.opacity = (1 - t) * 0.32 * (1 - die)
-    })
+    // Local studio lights stay readable even when the scene grade goes dark
+    const lit = 1 - die * 0.35
+    if (keyRef.current) keyRef.current.intensity = 2.8 * lit
+    if (fillRef.current) fillRef.current.intensity = 1.15 * lit
+    if (rimRef.current) rimRef.current.intensity = 1.6 * lit
   })
 
   return (
     <group ref={groupRef} visible={false}>
+      {/* Craft-local key / fill / rim — not the carrier beam */}
+      <directionalLight
+        ref={keyRef}
+        position={[2.4, 3.2, 4.5]}
+        intensity={2.8}
+        color="#fff4e8"
+      />
+      <directionalLight
+        ref={fillRef}
+        position={[-3.2, 0.6, 1.5]}
+        intensity={1.15}
+        color="#9eb6ff"
+      />
+      <pointLight
+        ref={rimRef}
+        position={[-0.4, -0.2, -2.8]}
+        intensity={1.6}
+        color="#ffd2a8"
+        distance={14}
+        decay={2}
+      />
+      <ambientLight intensity={0.32} color="#c8d4ea" />
       <group ref={inner}>
         <primitive object={model} />
-        {[0, 1, 2].map((i) => (
-          <mesh
-            key={i}
-            ref={(el) => { rings.current[i] = el }}
-            rotation={[Math.PI / 2, 0, 0]}
-            position={[0, -0.55, 0]}
-          >
-            <torusGeometry args={[0.55, 0.006, 6, 64]} />
-            <meshBasicMaterial color="#8ec8ff" transparent opacity={0.28} blending={THREE.AdditiveBlending} depthWrite={false} />
-          </mesh>
-        ))}
       </group>
     </group>
   )
@@ -1012,7 +969,6 @@ function FilmDirector({
   moonRef,
   marsRef,
   pioneerRef,
-  beamActiveRef,
   sunRef,
   fillRef,
   fogRef,
@@ -1317,17 +1273,17 @@ function FilmDirector({
       const show = !atlasClear && f === 'pioneer'
       pioneerRef.current.visible = show
       // Frame NASA Voyager for the silence camera (look ~ -9.2)
-      pioneerRef.current.position.set(0.35, 0.05, -9.05)
-      pioneerRef.current.scale.setScalar(show ? lerp(1.05, 1.55, sample.eased) : 0.01)
+      pioneerRef.current.position.set(0.55, 0.02, -8.55)
+      pioneerRef.current.scale.setScalar(show ? lerp(1.35, 1.85, sample.eased) : 0.01)
     }
-    if (beamActiveRef) beamActiveRef.current = !atlasClear && f === 'pioneer'
-
-    // Lighting lockstep with events
+    // Lighting lockstep with events — keep a readable sun on Voyager (pioneer)
     if (sunRef.current) {
-      sunRef.current.position.set(marsish ? 4.0 : 6.0, marsish ? 3.2 : 2.5, 3)
-      const base = sample.grade.exposure * (f === 'storm' ? 0.35 : 1.4)
-      sunRef.current.intensity = base * (1 - sample.dark * 0.92) * (1 - sample.event.carrier * 0.55)
-      sunRef.current.color.set(marsish ? '#ffb890' : '#fff6ea')
+      sunRef.current.position.set(marsish ? 4.0 : f === 'pioneer' ? 3.2 : 6.0, marsish ? 3.2 : f === 'pioneer' ? 3.6 : 2.5, f === 'pioneer' ? 4.5 : 3)
+      const base = sample.grade.exposure * (f === 'storm' ? 0.35 : f === 'pioneer' ? 1.85 : 1.4)
+      const darkMul = f === 'pioneer' ? (1 - sample.dark * 0.35) : (1 - sample.dark * 0.92)
+      const carrierMul = f === 'pioneer' ? (1 - sample.event.carrier * 0.12) : (1 - sample.event.carrier * 0.55)
+      sunRef.current.intensity = base * darkMul * carrierMul
+      sunRef.current.color.set(marsish ? '#ffb890' : f === 'pioneer' ? '#fff8f0' : '#fff6ea')
     }
     if (fillRef.current) {
       fillRef.current.intensity = 0.14 * (1 - sample.dark * 0.85) * (1 - sample.event.storm * 0.7)
@@ -1415,8 +1371,6 @@ function ContinuumScene({
   const moonRef = useRef()
   const marsRef = useRef()
   const pioneerRef = useRef()
-  const beamRef = useRef()
-  const beamActiveRef = useRef(false)
   const sunRef = useRef()
   const fillRef = useRef()
   const fogRef = useRef()
@@ -1465,7 +1419,6 @@ function ContinuumScene({
         moonRef={moonRef}
         marsRef={marsRef}
         pioneerRef={pioneerRef}
-        beamActiveRef={beamActiveRef}
         sunRef={sunRef}
         fillRef={fillRef}
         fogRef={fogRef}
@@ -1549,7 +1502,6 @@ function ContinuumScene({
       <Suspense fallback={null}>
         <VoyagerCraft groupRef={pioneerRef} carrierRef={carrierRef} />
       </Suspense>
-      <SignalBeam carrierRef={carrierRef} activeRef={beamActiveRef} groupRef={beamRef} />
       <ContinuumPost mobile={mobile} reduced={reduced} stormRef={stormRef} diveRef={diveRef} darkRef={darkRef} />
     </>
   )
