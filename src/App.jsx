@@ -6,15 +6,17 @@
  * Sources: NASA Catalogue of Manmade Material on the Moon, NSSDCA, LROC, ALSJ, HiRISE, PDS
  * AI-assisted code generation disclosed per Space Apps guidelines.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, Suspense, createContext, useContext, Component } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense, createContext, useContext, Component, lazy } from 'react'
 import { createPortal } from 'react-dom'
 import {
   motion, AnimatePresence, useScroll, useSpring, useTransform, useMotionValue,
   useInView, useVelocity, animate, useReducedMotion,
 } from 'framer-motion'
 import Lenis from 'lenis'
-import ContinuumCanvas from './world/ContinuumCanvas'
 import { createSoundscape } from './audio/Soundscape'
+import { ACTS, activeCaption } from './world/film'
+
+const ContinuumCanvas = lazy(() => import('./world/ContinuumCanvas'))
 
 import '@fontsource/syne/700.css'
 import '@fontsource/syne/800.css'
@@ -540,6 +542,66 @@ img, svg { display: block; max-width: 100%; }
 @media (max-width: 900px) {
   .act-rail { display: none; }
 }
+.world-caption {
+  position: fixed;
+  left: clamp(1.25rem, 5vw, 4.5rem);
+  bottom: clamp(5.5rem, 14vh, 8rem);
+  z-index: 40;
+  max-width: min(520px, 86vw);
+  pointer-events: none;
+}
+.world-caption .kicker { margin-bottom: 0.65rem; color: var(--ice); }
+.world-caption h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  font-size: clamp(1.6rem, 4.2vw, 2.8rem);
+  margin-bottom: 0.65rem;
+}
+.world-caption p {
+  color: var(--ink-dim);
+  font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+  line-height: 1.55;
+  max-width: 42ch;
+}
+.journey-spacer {
+  height: 320vh;
+  pointer-events: none;
+}
+.chapter-thin {
+  padding-top: clamp(3rem, 8vw, 5rem);
+  padding-bottom: clamp(3rem, 8vw, 5rem);
+}
+.dossier-rail {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 1rem 0 1.5rem;
+  scrollbar-width: none;
+}
+.dossier-rail::-webkit-scrollbar { display: none; }
+.dossier-chip {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  min-width: min(78vw, 280px);
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(10,10,18,0.42);
+  backdrop-filter: blur(16px);
+  text-align: left;
+}
+.dossier-chip .tx {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0.35rem 0 0.5rem;
+}
+
 .sf-app::before {
   content: "";
   pointer-events: none;
@@ -1663,18 +1725,86 @@ function Nav({ progress }) {
       <a href="#top" className="nav-brand" aria-label="Silent Fleet home">SILENT FLEET</a>
       <nav className="nav-links" aria-label="Primary">
         {[
-          ['#prologue','PROLOGUE'],
-          ['#connect','CONNECT'],
-          ['#fleet','FLEET'],
+          ['#prologue','FILM'],
+          ['#connect','DOSSIERS'],
           ['#moon','MOON'],
-          ['#voices','VOICES'],
-          ['#deep','DEEP SPACE'],
+          ['#deep','DEEP'],
+          ['#archive','ARCHIVE'],
         ].map(([href, label]) => (
           <a key={href} href={href}>{label}</a>
         ))}
       </nav>
       <motion.div className="nav-progress" style={{ scaleX, width: '100%' }} />
     </header>
+  )
+}
+
+function WorldCaption({ progress }) {
+  const [cap, setCap] = useState(null)
+  useEffect(() => {
+    const unsub = progress.on('change', (v) => {
+      const next = activeCaption(v)
+      setCap((prev) => (prev?.at === next?.at ? prev : next))
+    })
+    setCap(activeCaption(progress.get()))
+    return () => unsub()
+  }, [progress])
+  return (
+    <AnimatePresence mode="wait">
+      {cap && (
+        <motion.div
+          key={cap.at}
+          className="world-caption"
+          initial={{ opacity: 0, y: 18, filter: 'blur(8px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, y: -10, filter: 'blur(6px)' }}
+          transition={{ duration: 0.55, ease: EASE }}
+        >
+          <p className="kicker">{cap.kicker}</p>
+          <h2>{cap.title}</h2>
+          <p>{cap.body}</p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+function FilmJourney() {
+  // Scroll real estate owned by the continuum film — DOM stays quiet
+  return (
+    <section id="prologue" className="journey-spacer" aria-label="Film continuum journey">
+      <span className="section-rail" style={{ position:'sticky', top:'30vh' }}>FILM · CONTINUUM</span>
+    </section>
+  )
+}
+
+function DossierStrip({ onOpen }) {
+  const featured = [
+    ARTIFACTS.find((a) => a.id === 'opportunity'),
+    ARTIFACTS.find((a) => a.id === 'a11-lm'),
+    ARTIFACTS.find((a) => a.id === 'a17-lrv'),
+    ARTIFACTS.find((a) => a.id === 'spirit'),
+    ARTIFACTS.find((a) => a.id === 'voyager1'),
+    ARTIFACTS.find((a) => a.id === 'pioneer10'),
+  ].filter(Boolean)
+  return (
+    <section className="section chapter-thin" id="connect">
+      <p className="kicker" style={{ marginBottom: '0.75rem' }}>DIEGETIC INDEX · OPEN A HEARTBEAT</p>
+      <h2 className="display" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', marginBottom: '1rem' }}>
+        Know them by name
+      </h2>
+      <div className="dossier-rail">
+        {featured.map((a) => (
+          <button key={a.id} type="button" className="dossier-chip" onClick={() => onOpen(a)}>
+            <div className="mono" style={{ fontSize: '0.6rem', letterSpacing: '0.14em', color: 'var(--ink-mute)' }}>
+              {a.mission} · {a.status}
+            </div>
+            <div className="tx">“{a.transmission}”</div>
+            <div style={{ color: 'var(--ink-dim)', fontSize: '0.88rem', lineHeight: 1.45 }}>{a.science.slice(0, 96)}…</div>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -1726,20 +1856,20 @@ function Hero({ ready }) {
         </p>
         <div style={{ display:'flex', flexWrap:'wrap', gap:'0.75rem' }}>
           <MagneticButton
-            href="#connect"
-            onMouseEnter={() => setLabel('MEET THEM')}
+            href="#prologue"
+            onMouseEnter={() => setLabel('ENTER')}
             onMouseLeave={() => setLabel('')}
           >
-            MEET THE EXPLORERS
+            ENTER THE CONTINUUM
           </MagneticButton>
           <MagneticButton
-            href="#fleet"
+            href="#connect"
             className="ghost"
             style={{ background: 'transparent', color: 'var(--ink)', border: '1px solid var(--line-bright)' }}
-            onMouseEnter={() => setLabel('ARCHIVE')}
+            onMouseEnter={() => setLabel('DOSSIERS')}
             onMouseLeave={() => setLabel('')}
           >
-            OPEN THE ARCHIVE
+            OPEN DOSSIERS
           </MagneticButton>
         </div>
       </div>
@@ -2595,14 +2725,16 @@ export default function App() {
   const [ready, setReady] = useState(false)
   const [selected, setSelected] = useState(null)
   const [audioOn, setAudioOn] = useState(false)
-  const [act, setAct] = useState(0)
+  const [actLabel, setActLabel] = useState('ARRIVAL')
+  const [actIndex, setActIndex] = useState(0)
   const mainRef = useRef(null)
   const soundRef = useRef(null)
+  const sampleRef = useRef(null)
   const mouse = useMouse()
   const mobile = useMediaQuery('(max-width: 768px)')
   const reduced = usePrefersReduced()
   const { scrollYProgress } = useScroll()
-  const smoothProgress = useSpring(scrollYProgress, { stiffness: 90, damping: 26 })
+  const smoothProgress = useSpring(scrollYProgress, { stiffness: 80, damping: 24, mass: 0.85 })
 
   useEffect(() => {
     const style = document.createElement('style')
@@ -2617,23 +2749,23 @@ export default function App() {
     return () => soundRef.current?.dispose()
   }, [])
 
-  useEffect(() => {
-    const unsub = smoothProgress.on('change', (v) => {
-      soundRef.current?.setProgress(v)
-      const next = v > 0.72 ? 2 : v > 0.38 ? 1 : 0
-      setAct((prev) => (prev === next ? prev : next))
-    })
-    return () => unsub()
-  }, [smoothProgress])
+  const onFilmSample = useCallback((sample) => {
+    sampleRef.current = sample
+    soundRef.current?.setFilm(sample)
+    if (sample?.label) setActLabel((prev) => (prev === sample.label ? prev : sample.label))
+    if (typeof sample?.index === 'number') {
+      setActIndex((prev) => (prev === sample.index ? prev : sample.index))
+    }
+  }, [])
 
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reducedMotion || booting) return undefined
     const lenis = new Lenis({
-      duration: 1.4,
+      duration: 1.45,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
-      touchMultiplier: 1.35,
+      touchMultiplier: 1.3,
     })
     let raf
     const loop = (time) => {
@@ -2672,17 +2804,19 @@ export default function App() {
       <div className="sf-app" ref={mainRef}>
         <ErrorBoundary fallback={<div className="canvas-fallback" style={{ position:'fixed', inset:0 }} />}>
           {!booting && (
-            <ContinuumCanvas
-              progress={smoothProgress}
-              mouse={mouse}
-              mobile={mobile}
-              reduced={reduced}
-              active={!booting}
-            />
+            <Suspense fallback={<div className="canvas-fallback" style={{ position:'fixed', inset:0 }} />}>
+              <ContinuumCanvas
+                progress={smoothProgress}
+                mouse={mouse}
+                mobile={mobile}
+                reduced={reduced}
+                active={!booting}
+                onSample={onFilmSample}
+              />
+            </Suspense>
           )}
         </ErrorBoundary>
         <div className="sf-veil" aria-hidden />
-        <div className="sf-grid-bg" aria-hidden />
 
         <a href="#prologue" className="mono" style={{
           position:'absolute', left:-9999, top:'auto', width:1, height:1, overflow:'hidden',
@@ -2695,11 +2829,12 @@ export default function App() {
         </AnimatePresence>
 
         <Nav progress={smoothProgress} />
+        {!booting && <WorldCaption progress={smoothProgress} />}
 
         <div className="act-rail" aria-hidden>
-          <span className={act === 0 ? 'on' : ''}>MOON</span>
-          <span className={act === 1 ? 'on' : ''}>MARS</span>
-          <span className={act === 2 ? 'on' : ''}>DEEP</span>
+          {ACTS.map((a, i) => (
+            <span key={a.id} className={actIndex === i ? 'on' : ''}>{a.label}</span>
+          ))}
         </div>
 
         <button
@@ -2709,7 +2844,7 @@ export default function App() {
           aria-pressed={audioOn}
           aria-label={audioOn ? 'Mute soundscape' : 'Enable soundscape'}
         >
-          {audioOn ? 'AUDIO · ON' : 'AUDIO · OFF'}
+          {audioOn ? `AUDIO · ${actLabel}` : 'AUDIO · OFF'}
         </button>
 
         <div className="sf-chapters">
@@ -2717,18 +2852,10 @@ export default function App() {
             <Hero ready={ready && !booting} />
           </ErrorBoundary>
 
-          <ErrorBoundary fallback={<section className="section" id="prologue"><h2>Prologue</h2></section>}>
-            <Prologue />
-          </ErrorBoundary>
+          <FilmJourney />
 
           <ErrorBoundary>
-            <Connection onOpen={openDossier} />
-          </ErrorBoundary>
-
-          <Marquee />
-
-          <ErrorBoundary>
-            <Fleet onOpen={openDossier} />
+            <DossierStrip onOpen={openDossier} />
           </ErrorBoundary>
 
           <ErrorBoundary>
@@ -2740,17 +2867,7 @@ export default function App() {
           </ErrorBoundary>
 
           <ErrorBoundary>
-            <Timeline />
-          </ErrorBoundary>
-
-          <Marquee />
-
-          <ErrorBoundary>
             <Voices />
-          </ErrorBoundary>
-
-          <ErrorBoundary>
-            <Stats />
           </ErrorBoundary>
 
           <ErrorBoundary>
@@ -2769,7 +2886,7 @@ export default function App() {
         <div className="mono" style={{
           position:'fixed', bottom:12, right:12, zIndex:40,
           fontSize:'0.55rem', letterSpacing:'0.12em', color:'var(--ink-mute)',
-          opacity:0.6, pointerEvents:'none',
+          opacity:0.55, pointerEvents:'none',
         }}>
           AI-ASSISTED · NASA SPACE APPS 2026
         </div>
