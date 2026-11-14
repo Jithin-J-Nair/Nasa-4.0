@@ -1876,6 +1876,7 @@ html.lenis, html.lenis body { height: auto; }
   inset: 0;
   z-index: 2;
   pointer-events: none;
+  background: #000;
 }
 .fleet-folio__stage .fleet-books-canvas,
 .fleet-folio__stage canvas {
@@ -1886,6 +1887,7 @@ html.lenis, html.lenis body { height: auto; }
   inset: 0;
   width: 100%;
   height: 100%;
+  background: #000;
 }
 .fleet-books-canvas canvas {
   display: block;
