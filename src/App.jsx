@@ -13,7 +13,11 @@ import {
   useInView, useVelocity, animate, useReducedMotion,
 } from 'framer-motion'
 import { Canvas, useFrame, useThree, invalidate } from '@react-three/fiber'
-import { Float } from '@react-three/drei'
+import { Float, Sparkles } from '@react-three/drei'
+import { EffectComposer, Bloom, Vignette, ChromaticAberration, Noise } from '@react-three/postprocessing'
+import { BlendFunction } from 'postprocessing'
+import { Vector2 } from 'three'
+import Lenis from 'lenis'
 import * as THREE from 'three'
 
 import '@fontsource/syne/700.css'
@@ -32,9 +36,9 @@ import '@fontsource/unbounded/700.css'
    Verified against NSSDCA / LROC / NASA Catalogue (2012/2024)
    ═══════════════════════════════════════════════════════════ */
 
-const EASE = [0.16, 1, 0.3, 1]
-const SPRING = { stiffness: 180, damping: 28, mass: 0.8 }
-const SPRING_SOFT = { stiffness: 120, damping: 26 }
+const EASE = [0.22, 1, 0.36, 1]
+const SPRING = { stiffness: 140, damping: 26, mass: 0.9 }
+const SPRING_SOFT = { stiffness: 90, damping: 24, mass: 1 }
 const SPRING_SNAP = { stiffness: 260, damping: 34 }
 
 const ARTIFACTS = [
@@ -49,6 +53,11 @@ const ARTIFACTS = [
     transmission: 'TRANQUILITY BASE HERE. THE EAGLE HAS LANDED.',
     tags: ['LANDER', 'LRRR', 'FIRST'],
     color: '#c4cdd8',
+    image: 'https://images-assets.nasa.gov/image/as11-40-5903/as11-40-5903~medium.jpg',
+    imageAlt: 'Apollo 11 Lunar Module Eagle on the Moon',
+    credit: 'NASA / Apollo 11',
+    orbital: 'https://lroc.im-ldi.com/featured_sites/apollo-11/site_images',
+    source: 'https://images.nasa.gov/details/as11-40-5903',
   },
   {
     id: 'a12-alsep', body: 'moon', status: 'SILENT', year: 1969, mission: 'Apollo 12',
@@ -61,6 +70,11 @@ const ARTIFACTS = [
     transmission: 'ALSEP A12 · LAST CARRIER · 30 SEP 1977',
     tags: ['ALSEP', 'SEISMOLOGY'],
     color: '#c4cdd8',
+    image: 'https://images-assets.nasa.gov/image/as12-47-6897/as12-47-6897~medium.jpg',
+    imageAlt: 'Apollo 12 astronaut at Surveyor 3 with Intrepid behind',
+    credit: 'NASA / Apollo 12',
+    orbital: 'https://lroc.im-ldi.com/images',
+    source: 'https://images.nasa.gov/details/as12-47-6897',
   },
   {
     id: 'surveyor3', body: 'moon', status: 'SILENT', year: 1967, mission: 'Surveyor 3',
@@ -73,6 +87,11 @@ const ARTIFACTS = [
     transmission: 'SURVEYOR 3 · CONTACT CONFIRMED · 1967-04-20',
     tags: ['ROBOTIC', 'SAMPLE'],
     color: '#a8b4c0',
+    image: 'https://images-assets.nasa.gov/image/as12-47-6897/as12-47-6897~medium.jpg',
+    imageAlt: 'Surveyor 3 visited by Apollo 12',
+    credit: 'NASA / Apollo 12',
+    orbital: 'https://lroc.im-ldi.com/images',
+    source: 'https://images.nasa.gov/details/as12-47-6897',
   },
   {
     id: 'a14-alsep', body: 'moon', status: 'SILENT', year: 1971, mission: 'Apollo 14',
@@ -85,6 +104,11 @@ const ARTIFACTS = [
     transmission: 'FRA MAURO · ACTIVE SEISMIC · MORTAR FIRED',
     tags: ['ALSEP', 'GEOLOGY'],
     color: '#c4cdd8',
+    image: 'https://images-assets.nasa.gov/image/PIA14011/PIA14011~medium.jpg',
+    imageAlt: 'LROC view of an Apollo landing site',
+    credit: 'NASA / GSFC / ASU · LROC',
+    orbital: 'https://lroc.im-ldi.com/images',
+    source: 'https://images.nasa.gov/details/PIA14011',
   },
   {
     id: 'a15-lrv', body: 'moon', status: 'SILENT', year: 1971, mission: 'Apollo 15',
@@ -97,6 +121,11 @@ const ARTIFACTS = [
     transmission: 'ROVER 1 · HADLEY · FINAL PARK',
     tags: ['ROVER', 'LRV'],
     color: '#d0d8e0',
+    image: 'https://images-assets.nasa.gov/image/as15-86-11603/as15-86-11603~medium.jpg',
+    imageAlt: 'Apollo 15 Lunar Roving Vehicle at Hadley',
+    credit: 'NASA / Apollo 15',
+    orbital: 'https://lroc.im-ldi.com/images',
+    source: 'https://images.nasa.gov/details/as15-86-11603',
   },
   {
     id: 'a16-lrv', body: 'moon', status: 'SILENT', year: 1972, mission: 'Apollo 16',
@@ -109,6 +138,11 @@ const ARTIFACTS = [
     transmission: 'DESCARTES · HIGHLAND SURVEY COMPLETE',
     tags: ['ROVER', 'HIGHLANDS'],
     color: '#d0d8e0',
+    image: 'https://images-assets.nasa.gov/image/as16-113-18339/as16-113-18339~medium.jpg',
+    imageAlt: 'Apollo 16 astronaut and LRV in Descartes highlands',
+    credit: 'NASA / Apollo 16',
+    orbital: 'https://lroc.im-ldi.com/images',
+    source: 'https://images.nasa.gov/details/as16-113-18339',
   },
   {
     id: 'a17-lrv', body: 'moon', status: 'SILENT', year: 1972, mission: 'Apollo 17',
@@ -121,6 +155,11 @@ const ARTIFACTS = [
     transmission: 'TAURUS-LITTROW · WE LEAVE AS WE CAME · IN PEACE',
     tags: ['ROVER', 'LAST CREWED', 'ALSEP'],
     color: '#e8eef5',
+    image: 'https://images-assets.nasa.gov/image/as17-134-20425/as17-134-20425~medium.jpg',
+    imageAlt: 'Apollo 17 LRV at Taurus-Littrow',
+    credit: 'NASA / Apollo 17',
+    orbital: 'https://lroc.im-ldi.com/images/1278',
+    source: 'https://images.nasa.gov/details/as17-134-20425',
   },
   {
     id: 'a11-lrrr', body: 'moon', status: 'ACTIVE', year: 1969, mission: 'Apollo 11/14/15',
@@ -133,6 +172,11 @@ const ARTIFACTS = [
     transmission: 'LRRR · PULSE RETURN · Δt ≈ 2.5 s',
     tags: ['ACTIVE', 'LRRR', 'PHYSICS'],
     color: '#8ec8ff',
+    image: 'https://images-assets.nasa.gov/image/as11-40-5874/as11-40-5874~medium.jpg',
+    imageAlt: 'Apollo 11 laser ranging retroreflector on the lunar surface',
+    credit: 'NASA / Apollo 11',
+    orbital: 'https://lroc.im-ldi.com/featured_sites/apollo-11/site_images',
+    source: 'https://images.nasa.gov/details/as11-40-5874',
   },
   {
     id: 'spirit', body: 'mars', status: 'SILENT', year: 2004, mission: 'MER-A Spirit',
@@ -145,6 +189,11 @@ const ARTIFACTS = [
     transmission: 'SPIRIT · SOL 2210 · NO SIGNAL',
     tags: ['ROVER', 'MER'],
     color: '#ff7a45',
+    image: 'https://images-assets.nasa.gov/image/PIA17046/PIA17046~medium.jpg',
+    imageAlt: 'Spirit rover self-portrait / deck view on Mars',
+    credit: 'NASA / JPL-Caltech',
+    orbital: 'https://hirise.lpl.arizona.edu/',
+    source: 'https://images.nasa.gov/details/PIA17046',
   },
   {
     id: 'opportunity', body: 'mars', status: 'SILENT', year: 2004, mission: 'MER-B Opportunity',
@@ -157,6 +206,11 @@ const ARTIFACTS = [
     transmission: 'MY BATTERY IS LOW AND IT\'S GETTING DARK',
     tags: ['ROVER', 'RECORD'],
     color: '#ff7a45',
+    image: 'https://images-assets.nasa.gov/image/PIA17759/PIA17759~medium.jpg',
+    imageAlt: 'Opportunity rover on Meridiani Planum',
+    credit: 'NASA / JPL-Caltech',
+    orbital: 'https://hirise.lpl.arizona.edu/ESP_050177_1780',
+    source: 'https://images.nasa.gov/details/PIA17759',
   },
   {
     id: 'phoenix', body: 'mars', status: 'SILENT', year: 2008, mission: 'Phoenix',
@@ -169,6 +223,11 @@ const ARTIFACTS = [
     transmission: 'PHOENIX · ICE CONFIRMED · 2008-06-19',
     tags: ['LANDER', 'ICE'],
     color: '#e07040',
+    image: 'https://images-assets.nasa.gov/image/PIA16239/PIA16239~medium.jpg',
+    imageAlt: 'Phoenix lander on the Martian polar plains',
+    credit: 'NASA / JPL-Caltech / UA',
+    orbital: 'https://hirise.lpl.arizona.edu/',
+    source: 'https://images.nasa.gov/details/PIA16239',
   },
   {
     id: 'insight', body: 'mars', status: 'SILENT', year: 2018, mission: 'InSight',
@@ -181,6 +240,11 @@ const ARTIFACTS = [
     transmission: 'INSIGHT · SEIS · FINAL TELEMETRY · 2022-12-15',
     tags: ['LANDER', 'SEISMOLOGY'],
     color: '#ff7a45',
+    image: 'https://images-assets.nasa.gov/image/PIA24418/PIA24418~medium.jpg',
+    imageAlt: 'InSight lander on Elysium Planitia',
+    credit: 'NASA / JPL-Caltech',
+    orbital: 'https://hirise.lpl.arizona.edu/',
+    source: 'https://images.nasa.gov/details/PIA24418',
   },
   {
     id: 'sojourner', body: 'mars', status: 'SILENT', year: 1997, mission: 'Mars Pathfinder',
@@ -193,6 +257,11 @@ const ARTIFACTS = [
     transmission: 'SOJOURNER · FIRST TRACKS · 1997-07-05',
     tags: ['ROVER', 'FIRST'],
     color: '#d4683a',
+    image: 'https://images-assets.nasa.gov/image/PIA00407/PIA00407~medium.jpg',
+    imageAlt: 'Sojourner rover and Pathfinder lander on Mars',
+    credit: 'NASA / JPL',
+    orbital: 'https://hirise.lpl.arizona.edu/',
+    source: 'https://images.nasa.gov/details/PIA00407',
   },
   {
     id: 'pioneer10', body: 'deep', status: 'COASTING', year: 1972, mission: 'Pioneer 10',
@@ -205,6 +274,11 @@ const ARTIFACTS = [
     transmission: 'PIONEER 10 · CARRIER LOST · STILL OUTBOUND',
     tags: ['PROBE', 'JUPITER', 'PLAQUE'],
     color: '#ffb347',
+    image: 'https://images-assets.nasa.gov/image/PIA00340/PIA00340~medium.jpg',
+    imageAlt: 'Pioneer 10 spacecraft artist concept / archive',
+    credit: 'NASA / Ames',
+    orbital: 'https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1972-012A',
+    source: 'https://images.nasa.gov/details/PIA00340',
   },
   {
     id: 'voyager1', body: 'deep', status: 'ACTIVE', year: 1977, mission: 'Voyager 1',
@@ -217,6 +291,11 @@ const ARTIFACTS = [
     transmission: 'VOYAGER 1 · INTERSTELLAR · SIGNAL NOMINAL',
     tags: ['PROBE', 'ACTIVE', 'RECORD'],
     color: '#8ec8ff',
+    image: 'https://images-assets.nasa.gov/image/PIA01492/PIA01492~medium.jpg',
+    imageAlt: 'Voyager spacecraft',
+    credit: 'NASA / JPL',
+    orbital: 'https://voyager.jpl.nasa.gov/',
+    source: 'https://images.nasa.gov/details/PIA01492',
   },
 ]
 
@@ -316,6 +395,18 @@ const MARQUEE_ITEMS = [
   'TAURUS-LITTROW', 'GUSEV CRATER', 'MERIDIANI PLANUM', 'ELYSIUM PLANITIA',
   'VASTITAS BOREALIS', 'ARES VALLIS', 'HELIOPAUSE', 'INTERSTELLAR MEDIUM',
   'GOLDEN RECORD', 'LASER RETURN', 'SILENT CARRIER',
+]
+
+
+const NASA_RESOURCES = [
+  { label: 'Challenge details', href: 'https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details' },
+  { label: 'Challenge resources', href: 'https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=resources' },
+  { label: 'Lunar material catalogue', href: 'https://www.nasa.gov/wp-content/uploads/2024/02/final-catalogue-of-manmade-material-on-the-moon.pdf' },
+  { label: 'LROC Featured Sites', href: 'https://lroc.im-ldi.com/images' },
+  { label: 'NSSDCA Master Catalog', href: 'https://nssdc.gsfc.nasa.gov/nmc/' },
+  { label: 'Apollo Lunar Surface Journal', href: 'https://www.nasa.gov/history/alsj-and-afj/' },
+  { label: 'HiRISE / MRO', href: 'https://hirise.lpl.arizona.edu/' },
+  { label: 'Apollo ALSEP · PDS', href: 'https://pds-geosciences.wustl.edu/missions/apollo/' },
 ]
 
 const FILTERS = [
@@ -775,11 +866,11 @@ img, svg { display: block; max-width: 100%; }
 }
 .fleet-track::-webkit-scrollbar { display: none; }
 .fleet-card {
-  flex: 0 0 min(78vw, 340px);
+  flex: 0 0 min(78vw, 360px);
   scroll-snap-align: center;
-  padding: 1.4rem;
+  padding: 1.1rem;
   border-radius: 18px;
-  min-height: 420px;
+  min-height: 520px;
   display: flex; flex-direction: column;
   justify-content: space-between;
   transform-style: preserve-3d;
@@ -1063,6 +1154,65 @@ body.is-coarse .fleet-card { cursor: pointer; }
   .moon-disc { animation: none; }
   .holo-foil::after, .glass-0::before, .glass-1::before, .glass-2::before, .glass-3::before, .glass-4::before { animation: none; }
 }
+
+.nasa-media {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  aspect-ratio: 16/10;
+  background: #0a0a12;
+  margin-bottom: 1rem;
+}
+.nasa-media img {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: saturate(1.05) contrast(1.05);
+  transition: transform 1.1s var(--ease), filter 0.6s;
+}
+.nasa-media:hover img, .archive-card:hover .nasa-media img, .fleet-card:hover .nasa-media img {
+  transform: scale(1.06);
+  filter: saturate(1.12) contrast(1.08);
+}
+.nasa-media .credit {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 0.55rem 0.7rem;
+  background: linear-gradient(transparent, rgba(0,0,0,0.75));
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: rgba(232,238,245,0.75);
+}
+.nasa-links {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+  margin-top: 1rem;
+}
+.nasa-links a {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-bright);
+  background: rgba(255,255,255,0.03);
+  transition: background 0.3s, border-color 0.3s, color 0.3s;
+}
+.nasa-links a:hover, .nasa-links a:focus-visible {
+  background: rgba(142,200,255,0.1);
+  border-color: var(--ice);
+  color: var(--ice);
+}
+.resources-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+.section {
+  transition: opacity 0.6s var(--ease);
+}
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+
 @media (max-width: 640px) {
   .timeline-item { grid-template-columns: 64px 1fr; }
   .fleet-card { flex-basis: min(86vw, 300px); min-height: 380px; }
@@ -1387,87 +1537,135 @@ float snoise(vec3 v){
 }
 float fbm(vec3 p){
   float f=0.0; float a=0.5;
-  for(int i=0;i<4;i++){f+=a*snoise(p);p*=2.03;a*=0.5;}
+  for(int i=0;i<6;i++){f+=a*snoise(p);p=p*2.11+vec3(1.7,9.2,3.1);a*=0.5;}
+  return f;
+}
+float fbm4(vec3 p){
+  float f=0.0; float a=0.5;
+  for(int i=0;i<4;i++){f+=a*snoise(p);p*=2.05;a*=0.5;}
   return f;
 }
 float crater(vec3 p, vec3 c, float r){
   float d=length(p-c);
-  float bowl=smoothstep(r,r*0.2,d)*(-0.08*r);
-  float rim=smoothstep(r*1.15,r,d)*smoothstep(r*0.75,r,d)*0.045*r;
-  return bowl+rim;
+  float bowl=-0.14*r*smoothstep(r, r*0.15, d);
+  float rim=0.06*r*smoothstep(r*1.2,r*0.94,d)*smoothstep(r*0.55,r*0.94,d);
+  float lip=0.015*r*smoothstep(r*1.05,r*0.88,d)*smoothstep(r*0.7,r*0.94,d);
+  return bowl+rim+lip;
+}
+float terrain(vec3 n, float body){
+  // Low FBM for micro-relief; analytical craters carry the silhouette
+  float d = fbm(n*1.8)*0.035 + fbm(n*4.5)*0.014 + fbm(n*11.0)*0.006;
+  d += crater(n, normalize(vec3(0.82,0.38,0.28)), 0.36);
+  d += crater(n, normalize(vec3(-0.62,0.52,0.42)), 0.22);
+  d += crater(n, normalize(vec3(0.18,-0.74,0.48)), 0.28);
+  d += crater(n, normalize(vec3(-0.28,-0.18,0.94)), 0.15);
+  d += crater(n, normalize(vec3(0.52,0.78,-0.22)), 0.24);
+  d += crater(n, normalize(vec3(-0.92,0.12,-0.18)), 0.3);
+  d += crater(n, normalize(vec3(0.08,0.22,-0.96)), 0.18);
+  d += crater(n, normalize(vec3(0.72,-0.48,-0.42)), 0.14);
+  d += crater(n, normalize(vec3(-0.42,0.86,0.12)), 0.12);
+  d += crater(n, normalize(vec3(0.32,0.08,0.92)), 0.1);
+  d += crater(n, normalize(vec3(-0.68,-0.62,0.22)), 0.17);
+  d += crater(n, normalize(vec3(0.02,-0.92,-0.28)), 0.25);
+  d += crater(n, normalize(vec3(0.9,-0.1,0.35)), 0.08);
+  d += crater(n, normalize(vec3(-0.15,0.55,-0.8)), 0.13);
+  if(body > 0.5){
+    d += fbm4(n*vec3(1.2,3.5,1.2)+vec3(2.0))*0.028;
+  }
+  return d;
 }
 `
 
-const MOON_VERT = `
+const PLANET_VERT = `
 uniform float uTime;
+uniform float uBody;
+uniform float uDispAmp;
 varying vec3 vPos;
-varying vec3 vNormal;
+varying vec3 vN;
 varying vec3 vWorld;
 varying float vDisp;
+varying vec3 vObj;
 ${NOISE_GLSL}
-float displace(vec3 p){
-  float d = fbm(p*2.2)*0.07;
-  // ~12 analytical craters
-  d += crater(p, normalize(vec3(0.8,0.4,0.3)), 0.35);
-  d += crater(p, normalize(vec3(-0.6,0.5,0.4)), 0.22);
-  d += crater(p, normalize(vec3(0.2,-0.7,0.5)), 0.28);
-  d += crater(p, normalize(vec3(-0.3,-0.2,0.9)), 0.18);
-  d += crater(p, normalize(vec3(0.5,0.8,-0.2)), 0.25);
-  d += crater(p, normalize(vec3(-0.9,0.1,-0.2)), 0.3);
-  d += crater(p, normalize(vec3(0.1,0.2,-0.95)), 0.2);
-  d += crater(p, normalize(vec3(0.7,-0.5,-0.4)), 0.16);
-  d += crater(p, normalize(vec3(-0.4,0.85,0.1)), 0.14);
-  d += crater(p, normalize(vec3(0.3,0.1,0.9)), 0.12);
-  d += crater(p, normalize(vec3(-0.7,-0.6,0.2)), 0.19);
-  d += crater(p, normalize(vec3(0.0,-0.9,-0.3)), 0.24);
-  return d;
-}
 void main(){
-  vec3 p = position;
-  float disp = displace(normalize(p));
-  vDisp = disp;
-  vec3 newPos = p + normal * disp;
+  vec3 nrm = normalize(position);
+  float disp = clamp(terrain(nrm, uBody) * uDispAmp, -0.22, 0.18);
+  vec3 newPos = nrm * (1.0 + disp);
+  // finite-difference normals for cratered silhouette
+  float e = 0.0025;
+  vec3 t1 = normalize(cross(nrm, abs(nrm.y)<0.99 ? vec3(0.,1.,0.) : vec3(1.,0.,0.)));
+  vec3 t2 = normalize(cross(nrm, t1));
+  float d1 = clamp(terrain(normalize(nrm + t1*e), uBody) * uDispAmp, -0.22, 0.18);
+  float d2 = clamp(terrain(normalize(nrm + t2*e), uBody) * uDispAmp, -0.22, 0.18);
+  vec3 p0 = nrm * (1.0 + disp);
+  vec3 p1 = normalize(nrm + t1*e) * (1.0 + d1);
+  vec3 p2 = normalize(nrm + t2*e) * (1.0 + d2);
+  vec3 N = normalize(cross(p1 - p0, p2 - p0));
+  if (dot(N, nrm) < 0.0) N = -N;
   vPos = newPos;
-  vNormal = normalize(normalMatrix * normal);
+  vObj = nrm;
+  vDisp = disp;
+  vN = normalize(normalMatrix * N);
   vec4 world = modelMatrix * vec4(newPos,1.0);
   vWorld = world.xyz;
   gl_Position = projectionMatrix * viewMatrix * world;
 }
 `
 
-const MOON_FRAG = `
+const PLANET_FRAG = `
 uniform float uTime;
+uniform float uBody;
 uniform vec3 uColorCool;
 uniform vec3 uColorWarm;
 uniform vec3 uRim;
 uniform float uGlitter;
 uniform float uScan;
 varying vec3 vPos;
-varying vec3 vNormal;
+varying vec3 vN;
 varying vec3 vWorld;
 varying float vDisp;
+varying vec3 vObj;
 ${NOISE_GLSL}
 void main(){
-  vec3 N = normalize(vNormal);
-  vec3 L = normalize(vec3(0.6,0.35,0.7));
+  vec3 N = normalize(vN);
+  vec3 L = normalize(vec3(0.72, 0.42, 0.55));
+  vec3 L2 = normalize(vec3(-0.55, -0.15, -0.4));
   vec3 V = normalize(cameraPosition - vWorld);
-  float ndl = dot(N,L);
-  float wrap = ndl*0.5+0.5;
-  vec3 albedo = mix(uColorCool, uColorWarm, wrap);
-  float n = fbm(vPos*3.5)*0.5+0.5;
-  albedo *= 0.75 + n*0.35;
-  // triplanar-ish speckles
-  float spark = step(0.97, fract(snoise(vPos*40.0)*0.5+0.5+uTime*0.05));
-  albedo += spark * uGlitter * vec3(1.0);
-  float fres = pow(1.0 - max(dot(N,V),0.0), 2.8);
-  albedo += uRim * fres * 0.55;
-  // spectral scan band every ~9s
-  float band = abs(fract(vPos.y*0.5 + uTime/9.0) - 0.5);
-  float scan = smoothstep(0.08, 0.0, band) * uScan;
-  vec3 irid = vec3(0.4,0.7,1.0)*0.5 + vec3(1.0,0.4,0.6)*0.3;
-  albedo += irid * scan;
-  float shade = mix(0.15, 1.0, wrap);
-  gl_FragColor = vec4(albedo * shade, 1.0);
+  float ndl = max(dot(N,L), 0.0);
+  float wrap = ndl*0.55 + 0.45;
+  // mare / highland domains
+  float domain = fbm(vObj*2.4)*0.5+0.5;
+  float mare = smoothstep(0.42, 0.58, domain);
+  vec3 highland = mix(uColorCool*1.05, uColorWarm*1.15, 0.6);
+  vec3 lowland = mix(uColorCool*0.35, uColorWarm*0.55, 0.35);
+  if(uBody > 0.5){
+    highland = mix(vec3(0.55,0.28,0.16), vec3(0.95,0.55,0.32), 0.55);
+    lowland = mix(vec3(0.28,0.12,0.08), vec3(0.7,0.32,0.16), 0.4);
+  }
+  vec3 albedo = mix(highland, lowland, mare);
+  float micro = fbm(vObj*12.0)*0.5+0.5;
+  albedo *= 0.72 + micro*0.38;
+  albedo *= 0.85 + clamp(vDisp*8.0, -0.15, 0.25);
+  // glitter / frost
+  float spark = step(0.985, fract(snoise(vObj*55.0)*0.5+0.5 + uTime*0.03));
+  albedo += spark * uGlitter * vec3(1.0,0.98,0.95);
+  // lighting
+  float bump = fbm(vObj*22.0);
+  N = normalize(N + bump * 0.08);
+  float hemi = N.y*0.5+0.5;
+  vec3 ambient = mix(uColorCool*0.05, uRim*0.16, hemi);
+  vec3 diffuse = albedo * (ndl * 1.25 + max(dot(N,L2),0.0)*0.22);
+  float term = smoothstep(-0.2, 0.28, ndl);
+  diffuse *= mix(0.22, 1.0, term);
+  float fres = pow(1.0 - max(dot(N,V),0.0), 2.6);
+  vec3 rim = uRim * fres * (0.7 + 0.4*term);
+  // spectral scan
+  float band = abs(fract(vObj.y*0.55 + uTime/9.0) - 0.5);
+  float scan = smoothstep(0.07, 0.0, band) * uScan;
+  vec3 irid = mix(vec3(0.35,0.65,1.0), vec3(1.0,0.45,0.55), 0.45);
+  vec3 col = ambient + diffuse + rim + irid*scan;
+  col = max(col, albedo * 0.08);
+  col = pow(max(col, 0.0), vec3(0.92));
+  gl_FragColor = vec4(col, 1.0);
 }
 `
 
@@ -1482,12 +1680,12 @@ varying vec3 vColor;
 void main(){
   vColor = aColor;
   vec3 p = position;
-  p.x += sin(uTime*0.02 + aSeed)*0.15;
-  p.y += cos(uTime*0.015 + aSeed*2.0)*0.1;
+  p.x += sin(uTime*0.015 + aSeed)*0.2;
+  p.y += cos(uTime*0.012 + aSeed*2.1)*0.14;
   vec4 mv = modelViewMatrix * vec4(p,1.0);
-  float twinkle = 0.55 + 0.45*sin(uTime*(0.8+aSeed*2.0)+aSeed*20.0);
+  float twinkle = 0.5 + 0.5*sin(uTime*(0.7+aSeed*2.2)+aSeed*18.0);
   vAlpha = twinkle;
-  gl_PointSize = aSize * uPixelRatio * (180.0 / -mv.z) * twinkle;
+  gl_PointSize = aSize * uPixelRatio * (210.0 / -mv.z) * (0.65 + 0.35*twinkle);
   gl_Position = projectionMatrix * mv;
 }
 `
@@ -1497,7 +1695,9 @@ varying vec3 vColor;
 void main(){
   vec2 uv = gl_PointCoord - 0.5;
   float d = length(uv);
-  float a = smoothstep(0.5, 0.0, d) * vAlpha;
+  float core = smoothstep(0.5, 0.0, d);
+  float spike = max(0.0, 1.0 - abs(uv.x)*8.0)*max(0.0, 1.0 - abs(uv.y)*8.0)*0.35;
+  float a = (core + spike) * vAlpha;
   if(a < 0.01) discard;
   gl_FragColor = vec4(vColor, a);
 }
@@ -1505,16 +1705,15 @@ void main(){
 
 const NEBULA_FRAG = `
 uniform float uTime;
-uniform vec2 uRes;
 varying vec2 vUv;
 ${NOISE_GLSL}
 void main(){
   vec2 uv = vUv;
-  vec3 p = vec3(uv*2.0, uTime*0.02);
-  float n = fbm(p + vec3(fbm(p*1.5)));
-  vec3 col = mix(vec3(0.12,0.05,0.18), vec3(0.35,0.12,0.08), n);
-  col = mix(col, vec3(0.15,0.1,0.35), fbm(p.zyx*1.2));
-  float a = smoothstep(0.2, 0.8, n) * 0.055;
+  vec3 p = vec3(uv*1.8, uTime*0.015);
+  float n = fbm4(p + vec3(fbm4(p*1.4+0.5)));
+  vec3 col = mix(vec3(0.08,0.04,0.16), vec3(0.32,0.1,0.07), n);
+  col = mix(col, vec3(0.12,0.14,0.32), fbm4(p.zyx*1.1));
+  float a = smoothstep(0.15, 0.85, n) * 0.07;
   gl_FragColor = vec4(col, a);
 }
 `
@@ -1526,8 +1725,7 @@ void main(){
 }
 `
 
-function Starfield({ count = 14000, mouse }) {
-  const mat = useRef()
+function Starfield({ count = 16000, mouse }) {
   const geo = useMemo(() => {
     const g = new THREE.BufferGeometry()
     const pos = new Float32Array(count * 3)
@@ -1535,18 +1733,18 @@ function Starfield({ count = 14000, mouse }) {
     const seed = new Float32Array(count)
     const col = new Float32Array(count * 3)
     for (let i = 0; i < count; i++) {
-      const r = 40 + Math.random() * 80
+      const r = 45 + Math.random() * 90
       const theta = Math.random() * Math.PI * 2
       const phi = Math.acos(2 * Math.random() - 1)
       pos[i*3] = r * Math.sin(phi) * Math.cos(theta)
       pos[i*3+1] = r * Math.sin(phi) * Math.sin(theta)
       pos[i*3+2] = r * Math.cos(phi)
-      size[i] = 0.4 + Math.random() * 1.8
+      size[i] = 0.35 + Math.random() * 2.1
       seed[i] = Math.random()
-      const amber = Math.random() > 0.82
-      col[i*3] = amber ? 1.0 : 0.75 + Math.random()*0.25
-      col[i*3+1] = amber ? 0.85 : 0.85 + Math.random()*0.15
-      col[i*3+2] = amber ? 0.55 : 1.0
+      const amber = Math.random() > 0.84
+      col[i*3] = amber ? 1.0 : 0.78 + Math.random()*0.22
+      col[i*3+1] = amber ? 0.86 : 0.88 + Math.random()*0.12
+      col[i*3+2] = amber ? 0.58 : 1.0
     }
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
     g.setAttribute('aSize', new THREE.BufferAttribute(size, 1))
@@ -1559,7 +1757,7 @@ function Starfield({ count = 14000, mouse }) {
     fragmentShader: STAR_FRAG,
     uniforms: {
       uTime: { value: 0 },
-      uPixelRatio: { value: Math.min(window.devicePixelRatio, 1.8) },
+      uPixelRatio: { value: Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.8) },
     },
     transparent: true,
     depthWrite: false,
@@ -1567,76 +1765,115 @@ function Starfield({ count = 14000, mouse }) {
   }), [])
   useFrame((state) => {
     material.uniforms.uTime.value = state.clock.elapsedTime
-    if (mouse?.current) {
-      state.camera.position.x = lerp(state.camera.position.x, mouse.current.nx * 0.35, 0.04)
-      state.camera.position.y = lerp(state.camera.position.y, -mouse.current.ny * 0.25, 0.04)
-    }
   })
-  return <points geometry={geo} material={material} ref={mat} />
+  return <points geometry={geo} material={material} frustumCulled={false} />
 }
 
 function NebulaPlane() {
   const mat = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: NEBULA_VERT,
     fragmentShader: NEBULA_FRAG,
-    uniforms: { uTime: { value: 0 }, uRes: { value: new THREE.Vector2(1,1) } },
+    uniforms: { uTime: { value: 0 } },
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   }), [])
   useFrame((s) => { mat.uniforms.uTime.value = s.clock.elapsedTime })
   return (
-    <mesh position={[0, 0, -30]} scale={[60, 40, 1]} material={mat}>
-      <planeGeometry args={[1, 1]} />
+    <mesh position={[0, 0, -36]} scale={[70, 46, 1]} material={mat}>
+      <planeGeometry args={[1, 1, 1, 1]} />
     </mesh>
   )
 }
 
-function BodySphere({ colorCool, colorWarm, rim, glitter = 0.35, scan = 0.35, scale = 1.6, position = [0,0,0], subdivisions = 64, mobile = false }) {
+function BodySphere({
+  body = 0,
+  colorCool, colorWarm, rim,
+  glitter = 0.35, scan = 0.35,
+  scale = 1.6, position = [0,0,0],
+  detail = 6, mobile = false, spin = 0.035,
+}) {
   const mesh = useRef()
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
+    uBody: { value: body },
+    uDispAmp: { value: body > 0.5 ? 1.05 : 0.95 },
     uColorCool: { value: new THREE.Color(colorCool) },
     uColorWarm: { value: new THREE.Color(colorWarm) },
     uRim: { value: new THREE.Color(rim) },
     uGlitter: { value: glitter },
     uScan: { value: scan },
-  }), [colorCool, colorWarm, rim, glitter, scan])
+  }), [body, colorCool, colorWarm, rim, glitter, scan])
   useFrame((s) => {
     uniforms.uTime.value = s.clock.elapsedTime
-    if (mesh.current) mesh.current.rotation.y = s.clock.elapsedTime * 0.04
+    if (mesh.current) {
+      mesh.current.rotation.y = s.clock.elapsedTime * spin
+      mesh.current.rotation.z = Math.sin(s.clock.elapsedTime * 0.08) * 0.04
+    }
   })
+  const segs = mobile ? 96 : 160
   return (
     <mesh ref={mesh} position={position} scale={scale}>
-      <icosahedronGeometry args={[1, mobile ? 32 : subdivisions]} />
-      <shaderMaterial vertexShader={MOON_VERT} fragmentShader={MOON_FRAG} uniforms={uniforms} />
+      <sphereGeometry args={[1, segs, segs]} />
+      <shaderMaterial
+        vertexShader={PLANET_VERT}
+        fragmentShader={PLANET_FRAG}
+        uniforms={uniforms}
+      />
     </mesh>
   )
 }
 
-function GhostShell({ scale = 1.28 }) {
+function Atmosphere({ scale = 1.72, color = '#8ec8ff' }) {
+  return (
+    <mesh scale={scale}>
+      <icosahedronGeometry args={[1, 4]} />
+      <meshBasicMaterial
+        color={color}
+        transparent
+        opacity={0.07}
+        side={THREE.BackSide}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </mesh>
+  )
+}
+
+function GhostShell({ scale = 1.32 }) {
   const ref = useRef()
   useFrame((s) => {
     if (!ref.current) return
-    ref.current.rotation.x = s.clock.elapsedTime * 0.07
-    ref.current.rotation.z = s.clock.elapsedTime * 0.05
+    ref.current.rotation.x = s.clock.elapsedTime * 0.06
+    ref.current.rotation.y = -s.clock.elapsedTime * 0.04
+    ref.current.rotation.z = s.clock.elapsedTime * 0.03
   })
   return (
     <mesh ref={ref} scale={scale}>
-      <icosahedronGeometry args={[1.6, 2]} />
-      <meshBasicMaterial color="#8ec8ff" wireframe transparent opacity={0.07} />
+      <icosahedronGeometry args={[1.55, 2]} />
+      <meshBasicMaterial color="#9fd0ff" wireframe transparent opacity={0.055} />
     </mesh>
   )
 }
 
 function OrbitalTorus() {
   const ref = useRef()
-  useFrame((s) => { if (ref.current) ref.current.rotation.x = Math.PI/2.6 + Math.sin(s.clock.elapsedTime*0.2)*0.05 })
+  useFrame((s) => {
+    if (!ref.current) return
+    ref.current.rotation.z = s.clock.elapsedTime * 0.08
+    ref.current.rotation.x = Math.PI / 2.55 + Math.sin(s.clock.elapsedTime * 0.18) * 0.06
+  })
   return (
-    <mesh ref={ref} rotation={[Math.PI/2.6, 0, 0]}>
-      <torusGeometry args={[2.6, 0.008, 8, 128]} />
-      <meshBasicMaterial color="#8ec8ff" transparent opacity={0.35} blending={THREE.AdditiveBlending} depthWrite={false} />
-    </mesh>
+    <group>
+      <mesh ref={ref}>
+        <torusGeometry args={[2.75, 0.006, 12, 180]} />
+        <meshBasicMaterial color="#8ec8ff" transparent opacity={0.4} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+      <mesh rotation={[Math.PI/2.2, 0.4, 0.2]}>
+        <torusGeometry args={[3.05, 0.003, 8, 128]} />
+        <meshBasicMaterial color="#ff7a45" transparent opacity={0.18} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+    </group>
   )
 }
 
@@ -1644,77 +1881,64 @@ function MarsBob({ mobile }) {
   const g = useRef()
   useFrame((s) => {
     if (!g.current) return
-    g.current.position.y = 0.9 + Math.sin(s.clock.elapsedTime * 0.6) * 0.15
-    g.current.position.x = 2.4 + Math.sin(s.clock.elapsedTime * 0.3) * 0.1
+    const t = s.clock.elapsedTime
+    g.current.position.y = 0.55 + Math.sin(t * 0.55) * 0.12
+    g.current.position.x = 2.55 + Math.sin(t * 0.28) * 0.08
+    g.current.position.z = -0.85 + Math.cos(t * 0.22) * 0.1
   })
   return (
-    <group ref={g} position={[2.4, 0.9, -1.2]}>
+    <group ref={g} position={[2.55, 0.55, -0.85]}>
       <BodySphere
-        colorCool="#3a1810" colorWarm="#ff7a45" rim="#ff9a6a"
-        glitter={0.2} scan={0.25} scale={0.45} subdivisions={48} mobile={mobile}
+        body={1}
+        colorCool="#2a120c" colorWarm="#ff7a45" rim="#ff9a6a"
+        glitter={0.18} scan={0.28} scale={0.42} detail={5} mobile={mobile} spin={0.06}
       />
+      <Atmosphere scale={1.18} color="#ff7a45" />
     </group>
   )
 }
 
-function DebrisField({ mouse, count = 48 }) {
+function DebrisField({ mouse, count = 52 }) {
   const mesh = useRef()
-  const { positions, rotations, speeds, rust } = useMemo(() => {
-    const positions = []
-    const rotations = []
-    const speeds = []
-    const rust = []
-    for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2
-      const inc = 0.3 + (i % 5) * 0.08
-      const r = 3.2 + (i % 7) * 0.25
-      positions.push(new THREE.Vector3(Math.cos(a)*r, Math.sin(a*0.7)*inc, Math.sin(a)*r*0.6))
-      rotations.push(new THREE.Euler(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI))
-      speeds.push(0.15 + Math.random()*0.35)
-      rust.push(Math.random() < 0.35)
-    }
-    return { positions, rotations, speeds, rust }
-  }, [count])
-
+  const speeds = useMemo(() => Array.from({ length: count }, () => 0.12 + Math.random() * 0.32), [count])
+  const rust = useMemo(() => Array.from({ length: count }, () => Math.random() < 0.35), [count])
   const geos = useMemo(() => [
-    new THREE.TetrahedronGeometry(0.08),
-    new THREE.BoxGeometry(0.1, 0.06, 0.08),
-    new THREE.OctahedronGeometry(0.07),
+    new THREE.TetrahedronGeometry(0.07 + Math.random()*0.04),
+    new THREE.BoxGeometry(0.09, 0.05, 0.07),
+    new THREE.OctahedronGeometry(0.06),
   ], [])
-
   useFrame((s, dt) => {
     if (!mesh.current) return
     const t = s.clock.elapsedTime
     mesh.current.children.forEach((ch, i) => {
-      const a = t * speeds[i] + i
-      const r = 3.2 + (i % 7) * 0.25
+      const a = t * speeds[i] + i * 0.35
+      const r = 3.35 + (i % 7) * 0.22
       let x = Math.cos(a) * r
-      let y = Math.sin(a * 0.7) * (0.3 + (i % 5) * 0.08)
-      let z = Math.sin(a) * r * 0.6
+      let y = Math.sin(a * 0.72) * (0.28 + (i % 5) * 0.09)
+      let z = Math.sin(a) * r * 0.62
       if (mouse?.current) {
-        const dx = x - mouse.current.nx * 3
-        const dy = y + mouse.current.ny * 2
+        const dx = x - mouse.current.nx * 3.2
+        const dy = y + mouse.current.ny * 2.2
         const dist = Math.sqrt(dx*dx + dy*dy) + 0.001
-        const force = clamp(0.8 / (dist * dist), 0, 0.6)
+        const force = clamp(0.7 / (dist * dist), 0, 0.55)
         x += (dx / dist) * force
         y += (dy / dist) * force
       }
       ch.position.set(x, y, z)
-      ch.rotation.x += dt * speeds[i]
-      ch.rotation.y += dt * speeds[i] * 0.7
+      ch.rotation.x += dt * speeds[i] * 1.2
+      ch.rotation.y += dt * speeds[i] * 0.8
     })
   })
-
   return (
     <group ref={mesh}>
-      {positions.map((_, i) => (
-        <mesh key={i} geometry={geos[i % 3]} castShadow={false}>
+      {Array.from({ length: count }).map((_, i) => (
+        <mesh key={i} geometry={geos[i % 3]}>
           <meshStandardMaterial
-            color={rust[i] ? '#8a4030' : '#8a94a3'}
-            metalness={0.7}
-            roughness={0.45}
-            emissive={rust[i] ? '#3a1510' : '#10141a'}
-            emissiveIntensity={0.3}
+            color={rust[i] ? '#8a4030' : '#9aa3b0'}
+            metalness={0.78}
+            roughness={0.38}
+            emissive={rust[i] ? '#3a1510' : '#12161c'}
+            emissiveIntensity={0.28}
           />
         </mesh>
       ))}
@@ -1722,65 +1946,90 @@ function DebrisField({ mouse, count = 48 }) {
   )
 }
 
-function PostFX({ mobile, reduced }) {
-  // Lightweight fullscreen grain + vignette via CSS overlay handled outside;
-  // in-canvas: simple additive flash plane for rare glitch cue
-  const flash = useRef()
-  useFrame((s) => {
-    if (mobile || reduced || !flash.current) return
-    const t = s.clock.elapsedTime
-    const cycle = t % 12
-    const on = cycle > 11.75
-    flash.current.material.opacity = on ? 0.08 + Math.random() * 0.06 : 0
-  })
-  if (mobile || reduced) return null
-  return (
-    <mesh ref={flash} position={[0, 0, 2.5]} renderOrder={999}>
-      <planeGeometry args={[8, 5]} />
-      <meshBasicMaterial color="#8ec8ff" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} />
-    </mesh>
-  )
-}
-
 function HeroCameraRig({ scrollProgress, mouse, reduced }) {
   const { camera } = useThree()
-  useFrame(() => {
+  const target = useMemo(() => new THREE.Vector3(0, 0.05, 0), [])
+  const look = useMemo(() => new THREE.Vector3(), [])
+  useFrame((state) => {
     const p = scrollProgress?.get?.() ?? 0
-    const z = lerp(7.4, 6.2, p)
-    const fov = lerp(48, 42, p)
-    camera.position.z = lerp(camera.position.z, z, 0.04)
+    const t = state.clock.elapsedTime
+    // cinematic orbit + dolly — Active Theory style ease
+    const baseZ = lerp(5.85, 4.7, p)
+    const baseY = lerp(0.28, 0.48, p)
+    const baseX = lerp(0.35, -0.15, p)
+    const breathe = Math.sin(t * 0.22) * 0.08
+    let mx = 0, my = 0
+    if (!reduced && mouse?.current) {
+      mx = mouse.current.nx
+      my = mouse.current.ny
+    }
+    const desired = {
+      x: baseX + mx * 0.55 + Math.sin(t * 0.12) * 0.12,
+      y: baseY - my * 0.32 + breathe,
+      z: baseZ + Math.abs(mx) * 0.15,
+    }
+    camera.position.x = lerp(camera.position.x, desired.x, 0.045)
+    camera.position.y = lerp(camera.position.y, desired.y, 0.045)
+    camera.position.z = lerp(camera.position.z, desired.z, 0.045)
+    const fov = lerp(40, 34, p)
     if ('fov' in camera) {
       camera.fov = lerp(camera.fov, fov, 0.04)
       camera.updateProjectionMatrix()
     }
-    if (!reduced && mouse?.current) {
-      camera.rotation.x = lerp(camera.rotation.x, -mouse.current.ny * 0.04, 0.04)
-      camera.rotation.y = lerp(camera.rotation.y, -mouse.current.nx * 0.05, 0.04)
-    }
+    look.set(
+      target.x + mx * 0.15,
+      target.y - my * 0.08,
+      target.z,
+    )
+    camera.lookAt(look)
   })
   return null
+}
+
+function HeroPost({ mobile, reduced }) {
+  if (mobile || reduced) return null
+  return (
+    <EffectComposer multisampling={0} enableNormalPass={false}>
+      <Bloom intensity={0.28} luminanceThreshold={0.82} luminanceSmoothing={0.2} mipmapBlur />
+      <ChromaticAberration
+        blendFunction={BlendFunction.NORMAL}
+        offset={new Vector2(0.00035, 0.0005)}
+      />
+      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.12} />
+      <Vignette eskil={false} offset={0.28} darkness={0.55} />
+    </EffectComposer>
+  )
 }
 
 function HeroSceneContent({ scrollProgress, mouse, mobile, reduced }) {
   useFrame(() => invalidate())
   return (
     <>
-      <color attach="background" args={['#050508']} />
-      <ambientLight intensity={0.15} />
-      <directionalLight position={[4, 2, 3]} intensity={1.1} color="#fff2e0" />
-      <directionalLight position={[-3, -1, -2]} intensity={0.35} color="#6a8cff" />
+      <color attach="background" args={['#04040a']} />
+      <fog attach="fog" args={['#04040a', 12, 55]} />
+      <ambientLight intensity={0.14} />
+      <directionalLight position={[5.5, 3.2, 4]} intensity={1.55} color="#fff2e4" />
+      <directionalLight position={[-4, -0.6, -2.5]} intensity={0.4} color="#6e8fff" />
+      <pointLight position={[2.8, 1.2, 1.5]} intensity={0.45} color="#ff7a45" distance={14} />
       <HeroCameraRig scrollProgress={scrollProgress} mouse={mouse} reduced={reduced} />
-      <Starfield count={mobile ? 6000 : 15000} mouse={mouse} />
+      <Starfield count={mobile ? 7000 : 16000} mouse={mouse} />
       <NebulaPlane />
-      <BodySphere
-        colorCool="#1a1e28" colorWarm="#c4cdd8" rim="#8ec8ff"
-        glitter={0.4} scan={0.4} scale={1.55} subdivisions={mobile ? 32 : 64} mobile={mobile}
-      />
-      <GhostShell />
-      <OrbitalTorus />
+      <group position={[0, -0.05, 0]}>
+        <BodySphere
+          body={0}
+          colorCool="#1c222c" colorWarm="#c5ceda" rim="#9ecfff"
+          glitter={0.38} scan={0.38} scale={1.55} detail={6} mobile={mobile} spin={0.028}
+        />
+        <Atmosphere scale={1.78} color="#8ec8ff" />
+        <GhostShell />
+        <OrbitalTorus />
+      </group>
       <MarsBob mobile={mobile} />
-      {!mobile && <DebrisField mouse={mouse} count={44} />}
-      <PostFX mobile={mobile} reduced={reduced} />
+      {!mobile && <DebrisField mouse={mouse} count={48} />}
+      {!mobile && (
+        <Sparkles count={60} scale={[9, 5, 9]} size={1.6} speed={0.2} opacity={0.4} color="#8ec8ff" />
+      )}
+      <HeroPost mobile={mobile} reduced={reduced} />
     </>
   )
 }
@@ -1799,11 +2048,14 @@ function HeroCanvas({ scrollProgress }) {
       <ErrorBoundary variant="">
         {mounted ? (
           <Canvas
-            dpr={[1, 1.8]}
-            camera={{ position: [0, 0, 7.4], fov: 48, near: 0.1, far: 200 }}
-            gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+            dpr={[1, 1.75]}
+            camera={{ position: [0.35, 0.28, 5.85], fov: 40, near: 0.1, far: 200 }}
+            gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
             frameloop={inView && !reduced ? 'always' : 'never'}
-            onCreated={({ gl }) => { gl.setClearColor('#050508') }}
+            onCreated={({ gl }) => {
+              gl.setClearColor('#04040a')
+              gl.toneMapping = THREE.ACESFilmicToneMapping
+            }}
           >
             <Suspense fallback={null}>
               <HeroSceneContent scrollProgress={scrollProgress} mouse={mouse} mobile={mobile} reduced={reduced} />
@@ -1813,10 +2065,9 @@ function HeroCanvas({ scrollProgress }) {
           <div className="canvas-fallback" />
         )}
       </ErrorBoundary>
-      <div className="scanlines" style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0.25 }} />
       <div style={{
         position:'absolute', inset:0, pointerEvents:'none',
-        background: 'radial-gradient(ellipse at center, transparent 40%, rgba(5,5,8,0.75) 100%)',
+        background: 'radial-gradient(ellipse at 45% 45%, transparent 28%, rgba(4,4,10,0.55) 70%, rgba(4,4,10,0.92) 100%)',
       }} />
     </div>
   )
@@ -1925,18 +2176,27 @@ function DeepSpaceCanvas() {
       <ErrorBoundary variant="mars">
         {mounted ? (
           <Canvas
-            dpr={[1, 1.6]}
-            camera={{ position: [0, 0.4, 5.5], fov: 42 }}
-            gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+            dpr={[1, 1.7]}
+            camera={{ position: [0.6, 0.55, 5.1], fov: 38 }}
+            gl={{ antialias: true, alpha: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping }}
             frameloop={inView && !reduced ? 'always' : 'never'}
           >
-            <ambientLight intensity={0.25} />
-            <directionalLight position={[3, 4, 2]} intensity={1.2} color="#fff0e0" />
-            <pointLight position={[-2, 1, 2]} intensity={0.4} color="#ff7a45" />
-            <Starfield count={mobile ? 4000 : 10000} mouse={mouse} />
-            <Float speed={0.6} rotationIntensity={0.1} floatIntensity={0.2}>
+            <color attach="background" args={['#04040a']} />
+            <fog attach="fog" args={['#04040a', 8, 40]} />
+            <ambientLight intensity={0.18} />
+            <directionalLight position={[4, 5, 3]} intensity={1.55} color="#fff2e8" />
+            <pointLight position={[-2.2, 1.4, 2.2]} intensity={0.65} color="#ff7a45" distance={14} />
+            <pointLight position={[1.5, -1, 2]} intensity={0.3} color="#8ec8ff" distance={10} />
+            <Starfield count={mobile ? 5000 : 12000} mouse={mouse} />
+            <Float speed={0.45} rotationIntensity={0.08} floatIntensity={0.18}>
               <PioneerProbe mouse={mouse} />
             </Float>
+            {!mobile && !reduced && (
+              <EffectComposer multisampling={0}>
+                <Bloom intensity={0.4} luminanceThreshold={0.7} mipmapBlur />
+                <Vignette offset={0.25} darkness={0.6} />
+              </EffectComposer>
+            )}
           </Canvas>
         ) : <div className="canvas-fallback mars" />}
       </ErrorBoundary>
@@ -2215,11 +2475,17 @@ function FleetCard({ item, onOpen, velocity }) {
     >
       <div className="glare" />
       <div>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
+        {item.image && (
+          <div className="nasa-media" style={{ marginBottom: '0.9rem', aspectRatio: '16/11' }}>
+            <img src={item.image} alt={item.imageAlt || item.name} loading="lazy" decoding="async" />
+            <span className="credit">{item.credit}</span>
+          </div>
+        )}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.75rem' }}>
           <span className="data-chip" style={{ '--chip': bodyColor }}>{item.mission}</span>
           <span className={`status-dot ${item.status === 'ACTIVE' ? 'live' : item.status === 'COASTING' ? 'coast' : ''}`} title={item.status} />
         </div>
-        <h3 className="display" style={{ fontSize:'1.55rem', marginBottom:'0.4rem' }}>{item.name}</h3>
+        <h3 className="display" style={{ fontSize:'1.4rem', marginBottom:'0.35rem' }}>{item.name}</h3>
         <p className="mono" style={{ fontSize:'0.65rem', letterSpacing:'0.12em', color:'var(--ink-mute)' }}>{item.codename}</p>
       </div>
       <div>
@@ -2338,6 +2604,12 @@ function Archive({ onOpen }) {
               aria-label={`Open ${a.name}`}
               style={{ textAlign:'left', width:'100%' }}
             >
+              {a.image && (
+                <div className="nasa-media" style={{ marginBottom: 0, aspectRatio: '16/9' }}>
+                  <img src={a.image} alt={a.imageAlt || a.name} loading="lazy" decoding="async" />
+                  <span className="credit">{a.credit}</span>
+                </div>
+              )}
               <div style={{ display:'flex', justifyContent:'space-between' }}>
                 <span className="mono" style={{ fontSize:'0.65rem', color:'var(--ink-mute)' }}>{a.year} · {a.body.toUpperCase()}</span>
                 <span className={`status-dot ${a.status === 'ACTIVE' ? 'live' : a.status === 'COASTING' ? 'coast' : ''}`} />
@@ -2425,6 +2697,12 @@ function ArtifactModal({ item, onClose }) {
           <span className={`status-dot ${item.status==='ACTIVE'?'live':item.status==='COASTING'?'coast':''}`} />
           <span className="mono" style={{ fontSize:'0.7rem', letterSpacing:'0.14em' }}>{item.status} · {item.codename}</span>
         </motion.div>
+        {item.image && phase >= 1 && (
+          <motion.div className="nasa-media" initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} style={{ marginBottom: '1.25rem' }}>
+            <img src={item.image} alt={item.imageAlt || item.name} />
+            <span className="credit">{item.credit} · NASA archive</span>
+          </motion.div>
+        )}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:'0.6rem', marginBottom:'1.5rem' }}>
           {cells.map(([k,v], i) => (
             <motion.div
@@ -2454,7 +2732,12 @@ function ArtifactModal({ item, onClose }) {
             <Typewriter text={item.transmission} active speed={22} className="mono" style={{ fontSize:'0.9rem' }} />
           </div>
         )}
-        <p className="mono" style={{ fontSize:'0.6rem', color:'var(--ink-mute)', marginTop:'1.5rem' }}>
+        <div className="nasa-links">
+          {item.source && <a href={item.source} target="_blank" rel="noreferrer">NASA IMAGE ↗</a>}
+          {item.orbital && <a href={item.orbital} target="_blank" rel="noreferrer">ORBITAL VIEW ↗</a>}
+          <a href="https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=resources" target="_blank" rel="noreferrer">CHALLENGE RESOURCES ↗</a>
+        </div>
+        <p className="mono" style={{ fontSize:'0.6rem', color:'var(--ink-mute)', marginTop:'1.25rem' }}>
           Sources: NSSDCA · LROC · NASA Catalogue of Manmade Material on the Moon · ALSJ · HiRISE · PDS
         </p>
       </motion.div>
@@ -2804,19 +3087,12 @@ function Footer() {
   return (
     <footer className="footer" ref={ref}>
       <div className="footer-mark holo-foil">SILENT FLEET</div>
-      <div className="footer-links">
-        <a className="glass-2" href="https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/" target="_blank" rel="noreferrer">
-          NASA SPACE APPS CHALLENGE ↗
-        </a>
-        <a className="glass-2" href="https://nssdc.gsfc.nasa.gov/nmc/" target="_blank" rel="noreferrer">
-          NSSDCA MASTER CATALOG ↗
-        </a>
-        <a className="glass-2" href="https://lroc.im-ldi.com/images" target="_blank" rel="noreferrer">
-          LROC IMAGE ARCHIVE ↗
-        </a>
-        <a className="glass-2" href="https://www.nasa.gov/wp-content/uploads/2024/02/final-catalogue-of-manmade-material-on-the-moon.pdf" target="_blank" rel="noreferrer">
-          LUNAR MATERIAL CATALOGUE ↗
-        </a>
+      <div className="footer-links resources-strip">
+        {NASA_RESOURCES.map((r) => (
+          <a key={r.href} className="glass-2" href={r.href} target="_blank" rel="noreferrer">
+            {r.label.toUpperCase()} ↗
+          </a>
+        ))}
       </div>
       <div style={{ display:'flex', flexWrap:'wrap', justifyContent:'space-between', gap:'1rem', alignItems:'end' }}>
         <div>
@@ -2914,6 +3190,29 @@ export default function App() {
     document.head.appendChild(style)
     return () => style.remove()
   }, [])
+
+  useEffect(() => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduced || booting) return undefined
+    const lenis = new Lenis({
+      duration: 1.35,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+      touchMultiplier: 1.4,
+    })
+    let raf
+    const loop = (time) => {
+      lenis.raf(time)
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    document.documentElement.classList.add('lenis', 'lenis-smooth')
+    return () => {
+      cancelAnimationFrame(raf)
+      lenis.destroy()
+      document.documentElement.classList.remove('lenis', 'lenis-smooth')
+    }
+  }, [booting])
 
   const onBootDone = useCallback(() => {
     setBooting(false)
