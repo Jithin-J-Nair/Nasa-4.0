@@ -499,7 +499,7 @@ function EjectaBurst({ diveRef }) {
   return <points ref={ref} geometry={geo} material={mat} position={[0.08, -0.05, 0.2]} visible={false} />
 }
 
-function SignalBeam({ carrierRef, groupRef }) {
+function SignalBeam({ carrierRef, activeRef, groupRef }) {
   const mat = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: BEAM_VERT,
     fragmentShader: BEAM_FRAG,
@@ -515,16 +515,17 @@ function SignalBeam({ carrierRef, groupRef }) {
 
   useFrame((s) => {
     mat.uniforms.uTime.value = s.clock.elapsedTime
-    mat.uniforms.uCarrier.value = carrierRef?.current ?? 0
+    const c = carrierRef?.current ?? 0
+    mat.uniforms.uCarrier.value = c
     if (groupRef?.current) {
-      const c = carrierRef?.current ?? 0
-      groupRef.current.visible = c < 0.98
-      groupRef.current.scale.set(1, lerp(2.8, 0.4, c), 1)
+      const show = !!activeRef?.current && c < 0.98
+      groupRef.current.visible = show
+      if (show) groupRef.current.scale.set(1, lerp(2.8, 0.4, c), 1)
     }
   })
 
   return (
-    <group ref={groupRef} position={[0, 0.08, -9]}>
+    <group ref={groupRef} position={[0, 0.08, -9]} visible={false}>
       <mesh position={[0, 0, 1.8]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.02, 0.55, 4.5, 16, 1, true]} />
         <primitive object={mat} attach="material" />
@@ -725,6 +726,7 @@ function FilmDirector({
   marsRef,
   pioneerRef,
   craterRef,
+  beamActiveRef,
   sunRef,
   fillRef,
   fogRef,
@@ -833,6 +835,7 @@ function FilmDirector({
       pioneerRef.current.position.set(0, 0.08, -9)
       pioneerRef.current.scale.setScalar(show ? lerp(0.85, 1.35, sample.eased) : 0.01)
     }
+    if (beamActiveRef) beamActiveRef.current = f === 'pioneer'
 
     // Lighting lockstep with events
     const marsish = f === 'mars' || f === 'storm'
@@ -888,6 +891,7 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
   const pioneerRef = useRef()
   const craterRef = useRef()
   const beamRef = useRef()
+  const beamActiveRef = useRef(false)
   const sunRef = useRef()
   const fillRef = useRef()
   const fogRef = useRef()
@@ -916,6 +920,7 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
         marsRef={marsRef}
         pioneerRef={pioneerRef}
         craterRef={craterRef}
+        beamActiveRef={beamActiveRef}
         sunRef={sunRef}
         fillRef={fillRef}
         fogRef={fogRef}
@@ -963,7 +968,7 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
 
       <CraterBowl diveRef={diveRef} darkRef={darkRef} sunDirRef={sunDirRef} groupRef={craterRef} />
       <PioneerProbe groupRef={pioneerRef} carrierRef={carrierRef} />
-      <SignalBeam carrierRef={carrierRef} groupRef={beamRef} />
+      <SignalBeam carrierRef={carrierRef} activeRef={beamActiveRef} groupRef={beamRef} />
       <ContinuumPost mobile={mobile} reduced={reduced} stormRef={stormRef} diveRef={diveRef} darkRef={darkRef} />
     </>
   )
