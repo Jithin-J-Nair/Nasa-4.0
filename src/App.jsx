@@ -301,9 +301,21 @@ function Nav({ progress }) {
   )
 }
 
+function FilmMoonApproach() {
+  return (
+    <section
+      id="journey-moon"
+      className="journey-spacer journey-moon"
+      aria-label="Moon approach continuum"
+    >
+      <span className="section-rail" style={{ position: 'sticky', top: '30vh' }}>FILM · LUNA</span>
+    </section>
+  )
+}
+
 function FilmJourney() {
   return (
-    <section id="journey" className="journey-spacer" aria-label="Film continuum journey">
+    <section id="journey" className="journey-spacer journey-deep" aria-label="Film continuum journey">
       <span className="section-rail" style={{ position: 'sticky', top: '30vh' }}>FILM · CONTINUUM</span>
     </section>
   )
@@ -541,14 +553,38 @@ function Heartbeats({ onOpen, reduced }) {
   )
 }
 
-function LocationAtlas({ onOpen }) {
+function LocationAtlas({ onOpen, onActiveChange, onFocusSite, onCardSite, cardSiteId }) {
   const { setLabel } = useCursor()
+  const sectionRef = useRef(null)
   const [body, setBody] = useState('moon')
   const [hover, setHover] = useState(null)
   const sites = body === 'moon' ? MOON_SITES : MARS_SITES
 
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        const on = !!entry?.isIntersecting && entry.intersectionRatio > 0.28
+        onActiveChange?.(on)
+      },
+      { threshold: [0.28, 0.45, 0.6], rootMargin: '-8% 0px -12% 0px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [onActiveChange])
+
+  useEffect(() => {
+    onFocusSite?.(hover?.id || cardSiteId || (body === 'moon' ? 'a11-lm' : 'opportunity'))
+  }, [hover, cardSiteId, body, onFocusSite])
+
   return (
-    <section className={`section location-atlas body-${body}`} id="atlas" aria-label="Hardware locations">
+    <section
+      ref={sectionRef}
+      className={`section location-atlas body-${body}`}
+      id="atlas"
+      aria-label="Hardware locations"
+    >
       <span className="section-rail">02B · ATLAS</span>
       <span className="section-num" aria-hidden>LOC</span>
       <p className="kicker"><ScrambleLine text="IMAGE PLACEMENT · RESPECT THE COORDINATES" active /></p>
@@ -557,7 +593,7 @@ function LocationAtlas({ onOpen }) {
       </h2>
       <p style={{ color: 'var(--ink-dim)', maxWidth: '48ch', lineHeight: 1.55, marginBottom: '1.5rem' }}>
         Every NASA photograph is anchored to Mean Earth / Polar Axis (Moon) or planetocentric east longitude (Mars).
-        Open a site from the list — coordinates stay with the dossier, not a decorative globe.
+        Hover a hotspot on the Moon — or pick a site from the list — for the NASA image and coordinates.
       </p>
 
       <div className="atlas-tabs" role="tablist" aria-label="Body">
@@ -579,16 +615,28 @@ function LocationAtlas({ onOpen }) {
         <div className="atlas-panel">
           <ul className="atlas-site-list" aria-label={`${body} sites`}>
             {sites.map((site) => {
-              const active = hover?.id === site.id
+              const active = hover?.id === site.id || cardSiteId === site.id
               return (
                 <li key={site.id}>
                   <button
                     type="button"
                     className={`atlas-site ${site.status === 'ACTIVE' ? 'live' : ''} ${active ? 'active' : ''}`}
                     aria-label={`${site.name} at ${site.coords}`}
-                    onMouseEnter={() => { setHover(site); setLabel('SITE') }}
-                    onMouseLeave={() => { setHover((h) => (h?.id === site.id ? null : h)); setLabel('') }}
-                    onFocus={() => { setHover(site); setLabel('SITE') }}
+                    onMouseEnter={() => {
+                      setHover(site)
+                      setLabel('SITE')
+                      onCardSite?.(site.id)
+                    }}
+                    onMouseLeave={() => {
+                      setHover((h) => (h?.id === site.id ? null : h))
+                      setLabel('')
+                      onCardSite?.(null)
+                    }}
+                    onFocus={() => {
+                      setHover(site)
+                      setLabel('SITE')
+                      onCardSite?.(site.id)
+                    }}
                     onClick={() => onOpen(site)}
                   >
                     <span className="atlas-site-dot" aria-hidden />
@@ -603,36 +651,11 @@ function LocationAtlas({ onOpen }) {
           </ul>
 
           <div className="atlas-telemetry glass-2">
-            {hover ? (
-              <>
-                {hover.image && (
-                  <div className={`nasa-media body-${hover.body}`} style={{ aspectRatio: '16/10', marginBottom: '0.85rem' }}>
-                    <img src={hover.image} alt={hover.imageAlt || hover.name} loading="lazy" decoding="async" />
-                    <span className="credit">{hover.credit}</span>
-                  </div>
-                )}
-                <div className="kicker" style={{ marginBottom: 8 }}>{hover.mission} · {hover.status}</div>
-                <h3 className="display" style={{ fontSize: '1.55rem', marginBottom: 6 }}>{hover.name}</h3>
-                <p className="mono" style={{ fontSize: '0.72rem', color: 'var(--ink-dim)', marginBottom: 10 }}>{hover.coords}</p>
-                <p style={{ color: 'var(--ink-dim)', lineHeight: 1.55, fontSize: '0.95rem' }}>{hover.science}</p>
-                <div style={{ marginTop: '1.1rem' }}>
-                  <MagneticButton onClick={() => onOpen(hover)}>OPEN DOSSIER</MagneticButton>
-                </div>
-              </>
-            ) : (
-              <p style={{ color: 'var(--ink-dim)', lineHeight: 1.6 }}>
-                Select a site from the list. Coordinates stay tied to the real landing sites —
-                Eagle on Tranquility, Opportunity on Meridiani — not a random card.
-              </p>
-            )}
+            <p style={{ color: 'var(--ink-dim)', lineHeight: 1.6 }}>
+              The Continuum Moon holds position here. Hover a glowing site on its surface for the NASA plate —
+              Eagle on Tranquility, Opportunity on Meridiani — not a shuffled card.
+            </p>
           </div>
-        </div>
-
-        <div
-          className={`atlas-orb ${body === 'moon' ? 'moon-orb' : 'mars-orb'}`}
-          aria-hidden
-        >
-          <div className={`atlas-orb-surface ${body === 'moon' ? 'moon-surface' : 'mars-surface'}`} />
         </div>
       </div>
     </section>
@@ -1016,6 +1039,9 @@ export default function App() {
   const [selected, setSelected] = useState(null)
   const [audioOn, setAudioOn] = useState(false)
   const [actLabel, setActLabel] = useState('ARRIVAL')
+  const [atlasLock, setAtlasLock] = useState(false)
+  const [focusSiteId, setFocusSiteId] = useState('a11-lm')
+  const [cardSiteId, setCardSiteId] = useState(null)
   const mainRef = useRef(null)
   const soundRef = useRef(null)
   const moonReadyResolve = useRef(null)
@@ -1056,6 +1082,24 @@ export default function App() {
 
   const onMoonReady = useCallback(() => {
     moonReadyResolve.current?.()
+  }, [])
+
+  const onAtlasActive = useCallback((on) => {
+    setAtlasLock(on)
+    if (!on) setCardSiteId(null)
+  }, [])
+
+  const onFocusSite = useCallback((id) => {
+    if (id) setFocusSiteId(id)
+  }, [])
+
+  const onHotspotHover = useCallback((site) => {
+    setCardSiteId(site.id)
+    setFocusSiteId(site.id)
+  }, [])
+
+  const onHotspotLeave = useCallback((site) => {
+    setCardSiteId((id) => (id === site.id ? null : id))
   }, [])
 
   useEffect(() => {
@@ -1110,6 +1154,13 @@ export default function App() {
                 active={!booting}
                 onSample={onFilmSample}
                 onMoonReady={onMoonReady}
+                atlasLock={atlasLock}
+                focusSiteId={focusSiteId}
+                hotspotsInteractive={atlasLock && !mobile}
+                cardSiteId={cardSiteId}
+                onHotspotHover={onHotspotHover}
+                onHotspotLeave={onHotspotLeave}
+                onHotspotOpen={openDossier}
               />
             </Suspense>
           </ErrorBoundary>
@@ -1163,8 +1214,16 @@ export default function App() {
               <ChallengeObjective reduced={reduced} />
             </ErrorBoundary>
 
+            <FilmMoonApproach />
+
             <ErrorBoundary>
-              <LocationAtlas onOpen={openDossier} />
+              <LocationAtlas
+                onOpen={openDossier}
+                onActiveChange={onAtlasActive}
+                onFocusSite={onFocusSite}
+                onCardSite={setCardSiteId}
+                cardSiteId={cardSiteId}
+              />
             </ErrorBoundary>
 
             <FilmJourney />

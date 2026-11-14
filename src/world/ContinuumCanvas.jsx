@@ -6,13 +6,13 @@
  */
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useTexture } from '@react-three/drei'
+import { Html, useTexture } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
 import * as THREE from 'three'
 import { sampleActs, lerp, clamp } from './film'
-import { latLonToLocal, SITE_FOCUS } from './geo'
+import { ATLAS_LOCK_PROGRESS, latLonToLocal, SITE_FOCUS } from './geo'
 import { ARTIFACTS } from '../data/artifacts'
 
 const MOON_SITES = ARTIFACTS.filter((a) => a.body === 'moon' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
@@ -566,22 +566,70 @@ function SignalBeam({ carrierRef, activeRef, groupRef }) {
   )
 }
 
-function SiteBeacon({ site, hotspotRef, color = '#8ec8ff' }) {
+function SiteBeacon({
+  site,
+  hotspotRef,
+  color = '#8ec8ff',
+  interactive = false,
+  cardOpen = false,
+  onHover,
+  onLeave,
+  onOpen,
+}) {
   const ref = useRef()
   const pos = useMemo(() => latLonToLocal(site.lat, site.lon, 1.012), [site.lat, site.lon])
   useFrame((s) => {
     if (!ref.current) return
-    const active = hotspotRef?.current === site.id
-    const pulse = active ? 0.55 + Math.sin(s.clock.elapsedTime * 4.2) * 0.35 : 0.18
-    ref.current.scale.setScalar(active ? 1.4 + pulse * 0.3 : 0.72)
+    const active = hotspotRef?.current === site.id || cardOpen
+    const pulse = active ? 0.55 + Math.sin(s.clock.elapsedTime * 4.2) * 0.35 : interactive ? 0.32 : 0.18
+    ref.current.scale.setScalar(active ? 1.55 + pulse * 0.35 : interactive ? 1.05 : 0.72)
     ref.current.material.opacity = pulse
     ref.current.visible = true
   })
   return (
-    <mesh ref={ref} position={pos} renderOrder={2}>
-      <sphereGeometry args={[0.018, 12, 12]} />
-      <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
-    </mesh>
+    <group position={pos}>
+      <mesh ref={ref} renderOrder={2}>
+        <sphereGeometry args={[0.018, 12, 12]} />
+        <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
+      </mesh>
+      {interactive && (
+        <Html
+          center
+          distanceFactor={5.5}
+          zIndexRange={[40, 0]}
+          style={{ pointerEvents: 'auto' }}
+          occlude={false}
+        >
+          <div className="moon-hotspot">
+            <button
+              type="button"
+              className={`moon-hotspot-hit ${cardOpen ? 'on' : ''}`}
+              aria-label={`${site.name} at ${site.coords}`}
+              onMouseEnter={() => onHover?.(site)}
+              onFocus={() => onHover?.(site)}
+              onMouseLeave={() => onLeave?.(site)}
+              onBlur={() => onLeave?.(site)}
+              onClick={() => onOpen?.(site)}
+            />
+            {cardOpen && (
+              <article className="moon-hotspot-card" role="dialog" aria-label={site.name}>
+                {site.image && (
+                  <div className={`nasa-media body-${site.body}`}>
+                    <img src={site.image} alt={site.imageAlt || site.name} loading="lazy" decoding="async" />
+                    <span className="credit">{site.credit}</span>
+                  </div>
+                )}
+                <p className="kicker">{site.mission} · {site.status}</p>
+                <h3>{site.name}</h3>
+                <p className="mono coords">{site.coords}</p>
+                <p className="blurb">{site.science}</p>
+                <span className="mono open">OPEN DOSSIER →</span>
+              </article>
+            )}
+          </div>
+        </Html>
+      )}
+    </group>
   )
 }
 
@@ -600,6 +648,11 @@ function BodySphere({
   sites = [],
   hotspotRef,
   aimLonRef,
+  hotspotsInteractive = false,
+  cardSiteId = null,
+  onHotspotHover,
+  onHotspotLeave,
+  onHotspotOpen,
 }) {
   const mesh = useRef()
   const isMars = body > 0.5
@@ -698,6 +751,11 @@ function BodySphere({
             site={site}
             hotspotRef={hotspotRef}
             color={beaconColor}
+            interactive={hotspotsInteractive}
+            cardOpen={cardSiteId === site.id}
+            onHover={onHotspotHover}
+            onLeave={onHotspotLeave}
+            onOpen={onHotspotOpen}
           />
         ))}
       </group>
@@ -825,6 +883,8 @@ function FilmDirector({
   moonAimRef,
   marsAimRef,
   onSample,
+  atlasLock = false,
+  focusSiteId = null,
 }) {
   const { camera, gl, scene } = useThree()
   const look = useMemo(() => new THREE.Vector3(), [])
@@ -833,7 +893,9 @@ function FilmDirector({
   const lastDpr = useRef(1)
 
   useFrame((state, dt) => {
-    const p = typeof progress?.get === 'function' ? progress.get() : 0
+    const raw = typeof progress?.get === 'function' ? progress.get() : 0
+    // Hold moon intimacy pose while Atlas is on screen — default hero-scale framing
+    const p = atlasLock ? ATLAS_LOCK_PROGRESS : raw
     const sample = sampleActs(p)
     onSample?.(sample)
 
@@ -844,11 +906,11 @@ function FilmDirector({
     darkRef.current = sample.dark
     gradeRef.current = sample.grade
 
-    const hot = sample.hotspot || null
+    const hot = focusSiteId || sample.hotspot || null
     if (hotspotRef) hotspotRef.current = hot
     const focus = hot ? SITE_FOCUS[hot] : null
     if (moonAimRef) {
-      moonAimRef.current = focus?.body === 'moon' ? focus.aimLon : null
+      moonAimRef.current = focus?.body === 'moon' ? focus.aimLon : (atlasLock ? 23.47 : null)
     }
     if (marsAimRef) {
       marsAimRef.current = focus?.body === 'mars' ? focus.aimLon : null
@@ -893,9 +955,13 @@ function FilmDirector({
 
     const f = sample.focus
     if (moonRef.current) {
-      const show = f === 'moon' || f === 'dive'
+      const show = f === 'moon' || f === 'dive' || atlasLock
       moonRef.current.visible = show || sample.event.dive > 0.05
-      if (f === 'dive') {
+      if (atlasLock) {
+        // Keep Image-1 / hero scale while Atlas holds — stage-right for list + tooltips
+        moonRef.current.scale.setScalar(2.12)
+        moonRef.current.position.set(1.28, -0.1, 0)
+      } else if (f === 'dive') {
         const s = lerp(2.0, 5.8, sample.event.dive)
         moonRef.current.scale.setScalar(s)
         moonRef.current.position.set(0.85, -0.1, -0.2)
@@ -987,7 +1053,21 @@ function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
   )
 }
 
-function ContinuumScene({ progress, mouse, mobile, reduced, onSample, onMoonReady }) {
+function ContinuumScene({
+  progress,
+  mouse,
+  mobile,
+  reduced,
+  onSample,
+  onMoonReady,
+  atlasLock = false,
+  focusSiteId = null,
+  hotspotsInteractive = false,
+  cardSiteId = null,
+  onHotspotHover,
+  onHotspotLeave,
+  onHotspotOpen,
+}) {
   const moonRef = useRef()
   const marsRef = useRef()
   const pioneerRef = useRef()
@@ -1044,6 +1124,8 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample, onMoonRead
         moonAimRef={moonAimRef}
         marsAimRef={marsAimRef}
         onSample={onSample}
+        atlasLock={atlasLock}
+        focusSiteId={focusSiteId}
       />
 
       <Starfield count={mobile ? 2800 : 5600} warpRef={warpRef} darkRef={darkRef} />
@@ -1066,6 +1148,11 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample, onMoonRead
           sites={MOON_SITES}
           hotspotRef={hotspotRef}
           aimLonRef={moonAimRef}
+          hotspotsInteractive={hotspotsInteractive}
+          cardSiteId={cardSiteId}
+          onHotspotHover={onHotspotHover}
+          onHotspotLeave={onHotspotLeave}
+          onHotspotOpen={onHotspotOpen}
         />
         <MoonReadySignal onReady={onMoonReady} />
       </Suspense>
@@ -1111,6 +1198,13 @@ export default function ContinuumCanvas({
   active = true,
   onSample,
   onMoonReady,
+  atlasLock = false,
+  focusSiteId = null,
+  hotspotsInteractive = false,
+  cardSiteId = null,
+  onHotspotHover,
+  onHotspotLeave,
+  onHotspotOpen,
 }) {
   // Keep rendering during boot so textures upload + FilmDirector places the Moon
   // behind the preloader. Demand mode only for reduced-motion (was the refresh bug).
@@ -1118,7 +1212,7 @@ export default function ContinuumCanvas({
   const frameloop = reduced ? 'demand' : 'always'
 
   return (
-    <div className="continuum-canvas" aria-hidden>
+    <div className={`continuum-canvas ${hotspotsInteractive ? 'is-hotspots' : ''}`} aria-hidden={!hotspotsInteractive}>
       <Canvas
         dpr={mobile ? [1, 1.3] : [1, 1.65]}
         camera={{ position: [-0.85, 0.22, 5.6], fov: 40, near: 0.04, far: 220 }}
@@ -1142,6 +1236,13 @@ export default function ContinuumCanvas({
           reduced={reduced}
           onSample={onSample}
           onMoonReady={onMoonReady}
+          atlasLock={atlasLock}
+          focusSiteId={focusSiteId}
+          hotspotsInteractive={hotspotsInteractive}
+          cardSiteId={cardSiteId}
+          onHotspotHover={onHotspotHover}
+          onHotspotLeave={onHotspotLeave}
+          onHotspotOpen={onHotspotOpen}
         />
       </Canvas>
     </div>

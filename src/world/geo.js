@@ -43,7 +43,21 @@ export function equirectXY(lat, lon, { pad = 4 } = {}) {
 
 export const SITE_FOCUS = {
   'a11-lm': { body: 'moon', aimLon: 23.47, aimLat: 0.67 },
+  'a12-alsep': { body: 'moon', aimLon: -23.42, aimLat: -3.01 },
+  surveyor3: { body: 'moon', aimLon: -23.42, aimLat: -3.02 },
+  'a14-alsep': { body: 'moon', aimLon: -17.48, aimLat: -3.64 },
+  'a15-lrv': { body: 'moon', aimLon: 3.64, aimLat: 26.13 },
+  'a16-lrv': { body: 'moon', aimLon: 15.50, aimLat: -8.97 },
+  'a17-lrv': { body: 'moon', aimLon: 30.78, aimLat: 20.19 },
+  'a11-lrrr': { body: 'moon', aimLon: 23.47, aimLat: 0.67 },
   opportunity: { body: 'mars', aimLon: -5.5, aimLat: -2.28 },
+  spirit: { body: 'mars', aimLon: 175.47, aimLat: -14.57 },
+  phoenix: { body: 'mars', aimLon: -125.75, aimLat: 68.22 },
+  insight: { body: 'mars', aimLon: 135.62, aimLat: 4.50 },
+  sojourner: { body: 'mars', aimLon: -33.22, aimLat: 19.13 },
   pioneer10: { body: 'deep' },
   voyager1: { body: 'deep' },
 }
+
+/** Film progress held while Atlas is in view — late hero / early intimacy (Image‑1 scale). */
+export const ATLAS_LOCK_PROGRESS = 0.09
