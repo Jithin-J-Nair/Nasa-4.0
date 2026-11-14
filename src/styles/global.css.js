@@ -187,28 +187,26 @@ img, svg { display: block; max-width: 100%; }
   /* No isolation/background — keeps the fixed continuum moon unbroken */
 }
 .atlas-heading--bridge {
-  position: sticky;
-  top: calc(var(--nav-h) + 2.75rem);
+  position: relative;
   z-index: 95;
-  align-self: flex-start;
-  width: min(420px, 78vw);
-  max-width: min(420px, 78vw);
-  /* Pull up into Objective so the title is already on-screen while finishing the challenge copy */
-  margin: clamp(-1.25rem, -4vh, 0.25rem) 0 clamp(-8rem, -16vh, -4rem);
-  /* Keep clear of the left edge / film scrubber — was flush to the corner */
-  margin-left: clamp(2.75rem, 9vw, 7rem);
-  padding: 0.35rem 1rem 0 0;
+  align-self: stretch;
+  width: min(920px, 100%);
+  max-width: 100%;
+  margin: 0 0 clamp(1.25rem, 3vh, 2rem);
+  padding: 0;
   pointer-events: none;
   transform: translate3d(0, 0, 0);
   transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1), filter 0.85s ease;
   will-change: opacity;
 }
-.atlas-heading--bridge.is-peek {
-  opacity: 0.78;
-  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.45));
+.atlas-heading--bridge.is-waiting {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 .atlas-heading--bridge.is-atlas {
   opacity: 1;
+  visibility: visible;
   filter: drop-shadow(0 12px 36px rgba(0, 0, 0, 0.55));
 }
 /* Objective copy softens as Atlas takes over — keep the Eagle figure + CTAs readable longer */
@@ -233,9 +231,8 @@ img, svg { display: block; max-width: 100%; }
 }
 @media (max-width: 720px) {
   .atlas-heading--bridge {
-    margin-left: clamp(1.5rem, 6vw, 2.25rem);
-    width: min(100%, 88vw);
-    max-width: min(100%, 88vw);
+    width: 100%;
+    max-width: 100%;
   }
 }
 .story-seam--into-film {
@@ -1172,15 +1169,13 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   margin-bottom: 0;
   background: transparent;
 }
-.objective-hero-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-  gap: clamp(1.25rem, 3.5vw, 2.75rem);
-  align-items: end;
-  margin: 0.35rem 0 1.35rem;
+.objective-media-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.35rem 0 1.15rem;
 }
 .objective-copy {
-  max-width: 54ch;
+  max-width: 62ch;
 }
 .objective-cta-row {
   margin-top: 1.75rem;
@@ -1205,29 +1200,34 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .objective-link-row a { color: var(--ice); }
 .objective-link-row a:hover { color: var(--ink); }
 .objective-figure { margin: 0; }
-.objective-figure__media {
+.objective-figure__media.nasa-media {
   aspect-ratio: 4 / 5;
   margin-bottom: 0;
-  max-height: min(58vh, 520px);
+  max-height: min(52vh, 480px);
+  width: 100%;
+  border-radius: 0;
 }
 .objective-headline {
-  font-size: clamp(2.1rem, 6vw, 4.4rem);
+  font-size: clamp(2.2rem, 5.8vw, 4.5rem);
   margin: 0;
-  max-width: 14ch;
+  max-width: none;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
 }
 .objective-focus-wrap {
-  margin: 0;
-  max-width: min(22ch, 100%);
-  align-self: center;
+  margin: 0 0 1.35rem;
+  max-width: none;
+  width: 100%;
 }
 .objective-focus-wrap .focus-container {
   justify-content: flex-start;
-  gap: 0.22em 0.38em;
-  max-width: min(20ch, 100%);
+  gap: 0.18em 0.42em;
+  max-width: none;
+  width: 100%;
 }
 .objective-focus-wrap .focus-word {
   font-family: var(--font-display);
-  font-size: clamp(1.85rem, 4.6vw, 3.6rem);
+  font-size: clamp(2rem, 5.4vw, 4.2rem);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -1245,7 +1245,11 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   border-radius: 0;
   background: rgba(142, 200, 255, 0.12);
 }
-.objective-figure-fade { width: 100%; }
+.objective-figure-fade {
+  width: min(42vw, 440px);
+  max-width: 100%;
+  flex-shrink: 0;
+}
 .sf-film-grain {
   pointer-events: none;
 }
@@ -1279,9 +1283,12 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   border-radius: 0;
 }
 @media (max-width: 860px) {
-  .objective-hero-row { grid-template-columns: 1fr; align-items: start; }
-  .objective-figure { max-width: 420px; }
-  .objective-figure__media { max-height: min(42vh, 380px); }
+  .objective-media-row { justify-content: flex-end; }
+  .objective-figure-fade { width: min(78vw, 380px); }
+  .objective-figure__media { max-height: min(42vh, 360px); }
+  .objective-focus-wrap .focus-word {
+    font-size: clamp(1.75rem, 7.5vw, 2.75rem);
+  }
 }
 .nasa-media.body-moon img { object-position: 50% 42%; }
 .nasa-media.body-mars img { object-position: 50% 55%; }
@@ -1294,16 +1301,15 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   min-height: 118vh;
   min-height: 118dvh;
   height: auto;
-  /* Extra top pad so sticky “Where they still sit” has clear air over the moon */
-  padding: calc(var(--nav-h) + 7.5rem) clamp(1.25rem, 5vw, 5rem) clamp(2rem, 6vh, 4rem);
+  /* Title lives here with the Moon — keep clear of Objective’s Eagle still */
+  padding: calc(var(--nav-h) + 2.5rem) clamp(1.25rem, 5vw, 5rem) clamp(2rem, 6vh, 4rem);
   box-sizing: border-box;
   background: transparent;
   /* overflow visible — clipping here cut a hard line across the fixed moon */
   overflow: visible;
   pointer-events: none;
   scroll-margin-top: calc(var(--nav-h) + 1rem);
-  /* Pull up under the sticky bridge — one continuous plate */
-  margin-top: clamp(-6rem, -12vh, -3rem);
+  margin-top: 0;
 }
 .atlas-overlay {
   max-width: min(460px, 92vw);
@@ -1424,16 +1430,24 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   pointer-events: none;
 }
 .atlas-title {
-  font-size: clamp(2.1rem, 5vw, 3.5rem);
-  margin: 0.45rem 0 0.55rem;
+  font-size: clamp(2.4rem, 6.5vw, 4.6rem);
+  margin: 0.45rem 0 0.65rem;
+  max-width: none;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
   text-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+.location-atlas .atlas-heading--bridge {
+  /* Wide below the Moon (second image) — not under Objective’s Eagle still */
+  margin-top: clamp(36vh, 44vh, 52vh);
+  padding-bottom: 0.5rem;
 }
 .atlas-lede {
   color: var(--ink-dim);
-  max-width: 40ch;
-  line-height: 1.5;
+  max-width: 54ch;
+  line-height: 1.55;
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1rem;
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 .atlas-drag-cue {
@@ -1588,10 +1602,16 @@ body.is-coarse .hero-leftover { cursor: pointer; }
     margin: -22px 0 0 -22px;
   }
   .moon-hotspot-card {
-    width: min(78vw, 260px);
-    max-height: min(42vh, 320px);
+    width: min(88vw, 320px);
+    max-height: min(48vh, 360px);
     overflow: auto;
     -webkit-overflow-scrolling: touch;
+  }
+  .moon-hotspot-card--split {
+    grid-template-columns: 1fr minmax(96px, 38%);
+  }
+  .moon-hotspot-card__media {
+    max-height: 132px;
   }
 }
 .moon-hotspot-card {
@@ -1599,14 +1619,14 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   left: 50%;
   top: 14px;
   transform: translateX(-50%);
-  width: min(240px, 68vw);
-  max-height: min(70vh, 420px);
+  width: min(360px, 78vw);
+  max-height: min(70vh, 440px);
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  padding: 0.55rem 0.6rem 0.7rem;
+  padding: 0.65rem 0.7rem 0.8rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(7, 7, 12, 0.94);
@@ -1618,6 +1638,26 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   color: var(--ink);
   z-index: 5;
 }
+/* Image right; copy wide below */
+.moon-hotspot-card--split {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.moon-hotspot-card--split .moon-hotspot-card__media {
+  order: 1;
+  align-self: flex-end;
+  width: min(42%, 148px);
+  margin: 0 0 0 auto !important;
+  aspect-ratio: 4 / 5 !important;
+  border-radius: 8px;
+  max-height: 168px;
+}
+.moon-hotspot-card--split .moon-hotspot-card__copy {
+  order: 2;
+  min-width: 0;
+  width: 100%;
+}
 /* Portaled to document.body — JS places left/top; hide until placed to kill 0,0 flash */
 .moon-hotspot-card--viewport {
   position: fixed;
@@ -1625,8 +1665,8 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   top: 42%;
   transform: translate(-50%, -8%);
   z-index: 140;
-  width: min(240px, calc(100vw - 32px));
-  max-height: min(70vh, 420px);
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(70vh, 440px);
   margin: 0;
   opacity: 0;
   visibility: hidden;
@@ -1672,7 +1712,7 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   font-size: 0.78rem;
   line-height: 1.45;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -2697,8 +2737,8 @@ html.lenis, html.lenis body { height: auto; }
   }
   .location-atlas {
     min-height: 100svh;
-    padding-top: calc(var(--nav-h) + 4.5rem);
-    margin-top: -2.5rem;
+    padding-top: calc(var(--nav-h) + 2rem);
+    margin-top: 0;
   }
   .atlas-overlay--hud {
     position: relative;

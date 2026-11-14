@@ -705,27 +705,7 @@ function ChallengeObjective({ reduced }) {
           scrambleColor="#8ec8ff"
         />
       </p>
-      <div className="objective-hero-row" data-reveal>
-        <div className="objective-focus-wrap">
-          {reduced || coarse ? (
-            <h2 className="display objective-headline">
-              They stayed behind<br />
-              <span className="outline-text">so we could learn.</span>
-            </h2>
-          ) : (
-            <TrueFocus
-              sentence="They stayed behind so we could learn."
-              borderColor="#8ec8ff"
-              glowColor="rgba(142, 200, 255, 0.35)"
-              blurAmount={4}
-              animationDuration={0.55}
-              pauseBetweenAnimations={1.15}
-              cornerSize={14}
-              borderWidth={2}
-              unfocusedOpacity={0.42}
-            />
-          )}
-        </div>
+      <div className="objective-media-row" data-reveal>
         <div className="objective-figure-fade">
           <SpotlightCard
             className="objective-spotlight"
@@ -755,6 +735,26 @@ function ChallengeObjective({ reduced }) {
             </figure>
           </SpotlightCard>
         </div>
+      </div>
+      <div className="objective-focus-wrap" data-reveal>
+        {reduced || coarse ? (
+          <h2 className="display objective-headline">
+            They stayed behind{' '}
+            <span className="outline-text">so we could learn.</span>
+          </h2>
+        ) : (
+          <TrueFocus
+            sentence="They stayed behind so we could learn."
+            borderColor="#8ec8ff"
+            glowColor="rgba(142, 200, 255, 0.35)"
+            blurAmount={4}
+            animationDuration={0.55}
+            pauseBetweenAnimations={1.15}
+            cornerSize={14}
+            borderWidth={2}
+            unfocusedOpacity={0.42}
+          />
+        )}
       </div>
       <div className="objective-copy" data-reveal>
         <LineReveal>
@@ -790,13 +790,14 @@ function ChallengeObjective({ reduced }) {
   )
 }
 
-/** In-flow Atlas title — sticky across Objective→Atlas so the chapter never “tabs” in */
+/** Atlas chapter title — lives with the Moon (second image), not under Objective’s Eagle still */
 function AtlasBridgeHeading({ atlasActive }) {
   return (
     <header
-      className={`atlas-heading atlas-heading--bridge ${atlasActive ? 'is-atlas' : 'is-peek'}`}
+      className={`atlas-heading atlas-heading--bridge ${atlasActive ? 'is-atlas' : 'is-waiting'}`}
       id="atlas-bridge"
       aria-label="Where they still sit"
+      aria-hidden={!atlasActive}
     >
       <p className="kicker">
         {atlasActive ? (
@@ -814,21 +815,21 @@ function AtlasBridgeHeading({ atlasActive }) {
         )}
       </p>
       <h2 className="display atlas-title">
-        Where they<br /><span className="outline-text">still sit</span>
+        Where they <span className="outline-text">still sit</span>
       </h2>
-        <p className="atlas-lede">
-          Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
-          Hover a hotspot on the Moon for the NASA image and exact location.
+      <p className="atlas-lede">
+        Sites are pinned to Mean Earth / Polar Axis coordinates (NSSDC / LROC).
+        Hover a hotspot on the Moon for the NASA image and exact location.
+      </p>
+      {atlasActive && (
+        <p className="atlas-drag-cue mono" aria-live="polite">
+          <span className="atlas-drag-cue__orb" aria-hidden />
+          Hover + scroll the wheel or globe to rotate · drag also works
         </p>
-        {atlasActive && (
-          <p className="atlas-drag-cue mono" aria-live="polite">
-            <span className="atlas-drag-cue__orb" aria-hidden />
-            Hover + scroll the wheel or globe to rotate · drag also works
-          </p>
-        )}
-      </header>
-    )
-  }
+      )}
+    </header>
+  )
+}
 
 /** Left-side Mars hotspot wheel — selects a site and aims the globe */
 function MarsHotspotWheel({ active, selectedId, onSelect }) {
@@ -931,8 +932,8 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
     let wasOn = false
     const io = new IntersectionObserver(
       ([entry]) => {
-        // Lock early — title is already bridging in from Objective
-        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.08
+        // Lock when Atlas (Moon) is the active chapter — title stays with this section
+        const on = !!entry?.isIntersecting && entry.intersectionRatio >= 0.18
         onActiveChange?.(on)
         if (on && !wasOn) {
           onFocusSite?.('a11-lm')
@@ -941,8 +942,7 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
         if (!on && wasOn) onCardSite?.(null)
         wasOn = on
       },
-      // Grow root upward so Atlas begins while Objective is still dissolving
-      { threshold: [0, 0.08, 0.2, 0.4, 0.65], rootMargin: '28% 0px -42% 0px' },
+      { threshold: [0, 0.12, 0.18, 0.35, 0.55], rootMargin: '8% 0px -38% 0px' },
     )
     io.observe(el)
     return () => io.disconnect()
@@ -957,6 +957,7 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
     >
       <span className="section-rail">02B · ATLAS</span>
       <span className="section-num" aria-hidden>LOC</span>
+      <AtlasBridgeHeading atlasActive />
       <FadeContent className="atlas-stage-dock" blur duration={0.85} threshold={0.12} once>
         <p className="kicker atlas-stage-dock__kicker">
           <DecryptedText
@@ -1801,8 +1802,6 @@ export default function App() {
                   <ErrorBoundary>
                     <ChallengeObjective reduced={reduced} />
                   </ErrorBoundary>
-
-                  <AtlasBridgeHeading atlasActive={atlasLock} />
 
                   <ErrorBoundary>
                     <LocationAtlas

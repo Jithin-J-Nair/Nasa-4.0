@@ -538,8 +538,8 @@ function placeHotspotCard(card, uiRoot, size, screenXY) {
   const pad = 16
   const vw = size?.width || window.innerWidth
   const vh = size?.height || window.innerHeight
-  const cw = Math.min(card.offsetWidth || 240, vw - pad * 2)
-  const ch = Math.min(card.offsetHeight || 280, vh - pad * 2)
+  const cw = Math.min(card.offsetWidth || 360, vw - pad * 2)
+  const ch = Math.min(card.offsetHeight || 320, vh - pad * 2)
 
   const hit = uiRoot?.querySelector?.('.moon-hotspot-hit')
   const pin = hit?.getBoundingClientRect?.()
@@ -610,7 +610,7 @@ function placeHotspotCard(card, uiRoot, size, screenXY) {
   card.style.bottom = 'auto'
   card.style.transform = 'none'
   card.style.zIndex = '140'
-  card.style.maxWidth = `${Math.min(240, vw - pad * 2)}px`
+  card.style.maxWidth = `${Math.min(360, vw - pad * 2)}px`
   card.style.opacity = '1'
   card.style.visibility = 'visible'
   card.dataset.placed = '1'
@@ -792,23 +792,25 @@ function SiteBeacon({
               {cardOpen && typeof document !== 'undefined' && createPortal(
                 <article
                   ref={cardRef}
-                  className={`moon-hotspot-card moon-hotspot-card--viewport${site.body === 'mars' ? ' moon-hotspot-card--mars' : ''}`}
+                  className={`moon-hotspot-card moon-hotspot-card--viewport moon-hotspot-card--split${site.body === 'mars' ? ' moon-hotspot-card--mars' : ''}`}
                   role="dialog"
                   aria-label={site.name}
                 >
                   {site.image && (
-                    <div className={`nasa-media body-${site.body}`}>
+                    <div className={`nasa-media body-${site.body} moon-hotspot-card__media`}>
                       <img src={site.image} alt={site.imageAlt || site.name} loading="lazy" decoding="async" />
                       <span className="credit">{site.credit}</span>
                     </div>
                   )}
-                  <p className="kicker">{site.mission} · {site.status}</p>
-                  <h3>{site.name}</h3>
-                  <p className="mono coords">{site.coords}</p>
-                  <p className="blurb">{site.science}</p>
-                  <button type="button" className="mono open moon-hotspot-open" onClick={openDossier}>
-                    OPEN DOSSIER →
-                  </button>
+                  <div className="moon-hotspot-card__copy">
+                    <p className="kicker">{site.mission} · {site.status}</p>
+                    <h3>{site.name}</h3>
+                    <p className="mono coords">{site.coords}</p>
+                    <p className="blurb">{site.science}</p>
+                    <button type="button" className="mono open moon-hotspot-open" onClick={openDossier}>
+                      OPEN DOSSIER →
+                    </button>
+                  </div>
                 </article>,
                 document.body,
               )}
