@@ -87,12 +87,13 @@ export function playHeroIntro(root, { reduced, seedDelay = 0 } = {}) {
 
   const tl = gsap.timeline({ defaults: { ease: 'power3.out' }, delay: seedDelay })
   gsap.set([kicker, body, cta, cue].filter(Boolean), { opacity: 0, y: 28 })
-  gsap.set(lines, { opacity: 0, y: 64, rotateX: 18, transformOrigin: '50% 100%' })
+  // Avoid rotateX — perspective + overflow was clipping the trailing T glyphs
+  gsap.set(lines, { opacity: 0, y: 56, filter: 'blur(8px)' })
 
   if (kicker) tl.to(kicker, { opacity: 1, y: 0, duration: 0.7 }, 0.05)
   if (lines.length) {
     tl.to(lines, {
-      opacity: 1, y: 0, rotateX: 0, duration: 1.05, stagger: 0.12,
+      opacity: 1, y: 0, filter: 'blur(0px)', duration: 1.05, stagger: 0.12,
     }, 0.18)
   }
   if (body) tl.to(body, { opacity: 1, y: 0, duration: 0.8 }, 0.55)

@@ -256,13 +256,18 @@ img, svg { display: block; max-width: 100%; }
 }
 .display-xl {
   font-size: clamp(3.8rem, 16vw, 13rem);
-  letter-spacing: -0.055em;
-  line-height: 0.82;
+  letter-spacing: -0.04em;
+  line-height: 0.86;
+  /* Protect trailing glyphs (T in SILENT / FLEET) from clip + negative tracking */
+  padding-inline-end: 0.12em;
+  overflow: visible;
 }
 .display-xxl {
   font-size: clamp(4.2rem, 18vw, 15rem);
-  letter-spacing: -0.06em;
-  line-height: 0.8;
+  letter-spacing: -0.045em;
+  line-height: 0.84;
+  padding-inline-end: 0.12em;
+  overflow: visible;
 }
 .outline-text {
   color: transparent;
@@ -274,6 +279,10 @@ img, svg { display: block; max-width: 100%; }
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  /* background-clip:text eats trailing glyph ink without end pad */
+  padding-inline-end: 0.08em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
   animation: gradDrift 9s ease-in-out infinite alternate;
 }
 @keyframes gradDrift {
@@ -484,14 +493,15 @@ img, svg { display: block; max-width: 100%; }
   flex-direction: column;
   justify-content: flex-end;
   padding: calc(var(--nav-h) + 2rem) clamp(1.25rem, 5vw, 5rem) 6rem;
-  overflow: clip;
+  overflow: visible;
   background: transparent;
   perspective: 1200px;
 }
 .hero-content {
   position: relative;
   z-index: 2;
-  max-width: min(920px, 58vw);
+  max-width: min(1100px, 72vw);
+  overflow: visible;
 }
 @media (max-width: 900px) {
   .hero-content { max-width: 100%; }
@@ -499,11 +509,18 @@ img, svg { display: block; max-width: 100%; }
 .hero-content h1 {
   margin-bottom: 1.35rem !important;
   max-width: none;
+  width: max-content;
+  max-width: 100%;
   transform-style: preserve-3d;
+  overflow: visible;
 }
 .hero-content p { margin-bottom: 1.75rem !important; }
 .hero-line {
   display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow: visible;
+  padding-inline-end: 0.1em;
   will-change: transform, opacity, filter;
 }
 .boot-bar {

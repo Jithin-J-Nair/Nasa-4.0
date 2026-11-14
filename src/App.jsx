@@ -280,7 +280,7 @@ function Hero({ ready, reduced }) {
         <p className="kicker" data-hero-kicker style={{ marginBottom: '1.5rem', opacity: ready ? undefined : 1 }}>
           NASA SPACE APPS 2026 · ABANDONED BUT NOT FORGOTTEN
         </p>
-        <h1 className="display display-xl" style={{ marginBottom: '1.35rem' }}>
+        <h1 className="display display-xl" style={{ marginBottom: '1.35rem' }} aria-label="Silent Fleet">
           <span className="hero-line" data-hero-line>SILENT</span>
           <span className="hero-line grad-text" data-hero-line>FLEET</span>
         </h1>
