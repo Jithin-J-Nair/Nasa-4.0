@@ -110,15 +110,8 @@ img, svg { display: block; max-width: 100%; }
 /* ─── Story plate: Objective → Fleet as one continuous scroll surface ─── */
 .story-plate {
   position: relative;
-  isolation: isolate;
-  /* Shared atmosphere so chapter rails don’t read as hard walls */
-  background:
-    linear-gradient(180deg,
-      transparent 0%,
-      rgba(3, 3, 10, 0.12) 8%,
-      transparent 22%,
-      transparent 78%,
-      rgba(3, 3, 10, 0.18) 100%);
+  /* Transparent over the fixed continuum — no plate wash that seams across the moon */
+  background: transparent;
 }
 .story-plate > .section,
 .story-plate > .heartbeats,
@@ -137,23 +130,12 @@ img, svg { display: block; max-width: 100%; }
   height: clamp(3.5rem, 10vh, 7rem);
   margin: 0;
 }
-.story-seam--into-atlas {
-  height: clamp(3rem, 8vh, 5.5rem);
-  margin-top: clamp(-1.5rem, -4vh, -0.5rem);
-  background: linear-gradient(
-    180deg,
-    rgba(3, 3, 8, 0.28) 0%,
-    rgba(3, 3, 8, 0.08) 50%,
-    transparent 100%
-  );
-}
-
 /* Objective → Atlas: one sticky title so the chapter never pops in as a tab */
 .objective-atlas-band {
   position: relative;
   display: flex;
   flex-direction: column;
-  isolation: isolate;
+  /* No isolation/background — keeps the fixed continuum moon unbroken */
 }
 .atlas-heading--bridge {
   position: sticky;
@@ -186,22 +168,13 @@ img, svg { display: block; max-width: 100%; }
   }
 }
 .story-seam--into-film {
-  height: clamp(4rem, 11vh, 7.5rem);
-  margin-bottom: clamp(-2rem, -5vh, -0.5rem);
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(3, 3, 8, 0.2) 55%,
-    rgba(3, 3, 8, 0.45) 100%
-  );
+  height: clamp(2rem, 5vh, 3.5rem);
+  margin-bottom: clamp(-1rem, -3vh, 0);
+  background: transparent;
 }
 .story-seam--into-recover {
-  height: clamp(3rem, 8vh, 5.5rem);
-  background: linear-gradient(
-    180deg,
-    rgba(3, 3, 8, 0.35) 0%,
-    transparent 100%
-  );
+  height: clamp(2rem, 5vh, 3.5rem);
+  background: transparent;
 }
 .sf-veil {
   position: fixed;
@@ -736,25 +709,10 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .challenge-objective {
   position: relative;
   padding-top: clamp(3.5rem, 10vh, 6rem);
-  /* Leave room for Atlas title to enter while Objective copy is still readable */
+  /* Continuous into Atlas — no bottom veil that draws a section break */
   padding-bottom: clamp(1rem, 3vh, 2rem);
   margin-bottom: 0;
-}
-.challenge-objective::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: clamp(2.5rem, 8vh, 5rem);
-  pointer-events: none;
-  z-index: 1;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(2, 2, 6, 0.12) 55%,
-    rgba(2, 2, 6, 0.28) 100%
-  );
+  background: transparent;
 }
 .objective-grid {
   display: grid;
@@ -805,7 +763,8 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   padding: calc(var(--nav-h) + 7.5rem) clamp(1.25rem, 5vw, 5rem) clamp(2rem, 6vh, 4rem);
   box-sizing: border-box;
   background: transparent;
-  overflow: hidden;
+  /* overflow visible — clipping here cut a hard line across the fixed moon */
+  overflow: visible;
   pointer-events: none;
   scroll-margin-top: calc(var(--nav-h) + 1rem);
   /* Pull up under the sticky bridge — one continuous plate */

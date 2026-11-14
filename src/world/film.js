@@ -62,16 +62,17 @@ export const ACTS = [
     hotspot: 'a11-lm',
   },
   {
+    // Close lunar pass on the globe only — no local mesh floor / crater plane
     id: 'crater_dive',
-    label: 'CRATER DIVE',
+    label: 'NEAR PASS',
     range: [0.22, 0.36],
     ease: easeInQuart,
-    cam: { from: [0, 0.02, 5.35], to: [0.9, -0.12, 0.55], look: [1.05, -0.08, 0], fov: [32, 58] },
-    grade: { lift: [0.05, 0.045, 0.04], gain: [0.72, 0.74, 0.76], exposure: 0.48, grain: 0.18 },
-    event: { dive: 1, storm: 0, carrier: 0, warp: 0.95 },
-    dark: 0.55,
-    fog: [2.2, 9],
-    focus: 'dive',
+    cam: { from: [0, 0.02, 5.35], to: [0, 0.02, 3.55], look: [0, 0, 0], fov: [32, 28] },
+    grade: { lift: [0.02, 0.025, 0.045], gain: [0.95, 0.97, 1.02], exposure: 0.92, grain: 0.06 },
+    event: { dive: 0.55, storm: 0, carrier: 0, warp: 0.35 },
+    dark: 0.18,
+    fog: [14, 70],
+    focus: 'moon',
     smash: 0.335,
     cue: 'dive',
   },
@@ -176,12 +177,12 @@ export function sampleActs(progress) {
     fogFar = lerp(act.fog[1], next.fog[1], edge)
   }
 
-  // Dive: intensity peaks mid-act as you enter the bowl
+  // Near pass: gentle push on the globe — no local mesh bowl
   if (act.id === 'crater_dive') {
     const bowl = Math.sin(local * Math.PI)
-    event.dive = Math.max(event.dive, bowl)
-    event.warp = Math.max(event.warp, bowl * 0.95)
-    dark = Math.max(dark, bowl * 0.7)
+    event.dive = Math.max(event.dive, bowl * 0.55)
+    event.warp = Math.max(event.warp, bowl * 0.35)
+    dark = Math.max(dark, bowl * 0.22)
   }
   // Storm: darkness owns the beat — Opportunity dying in the body
   if (act.id === 'dust_storm') {

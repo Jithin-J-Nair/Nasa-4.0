@@ -1200,8 +1200,6 @@ export default function App() {
 
                 <AtlasBridgeHeading atlasActive={atlasLock} />
 
-                <div className="story-seam story-seam--into-atlas" aria-hidden />
-
                 <ErrorBoundary>
                   <LocationAtlas
                     locked={atlasLock}
