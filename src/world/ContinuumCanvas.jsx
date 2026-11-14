@@ -913,19 +913,19 @@ function FilmDirector({
   const lastDpr = useRef(1)
   const atlasBlend = useRef(0)
   const filmP = useRef(0)
-  const moonPos = useRef(new THREE.Vector3(1.35, -0.12, 0))
-  const moonScale = useRef(2.1)
+  const moonPos = useRef(new THREE.Vector3(0, 0, 0))
+  const moonScale = useRef(1.82)
 
   useFrame((state, dt) => {
     const raw = typeof progress?.get === 'function' ? progress.get() : 0
     const step = Math.min(0.05, Math.max(0.001, dt))
 
-    // Soft Atlas presence — hold the centered intimacy tip (no separate camera beat)
+    // Soft Atlas presence — hold the gentle centered zoom tip
     atlasBlend.current = lerp(atlasBlend.current, atlasLock ? 1 : 0, Math.min(1, 2.6 * step))
     const ab = atlasBlend.current
     if (beaconsVisibleRef) beaconsVisibleRef.current = ab
 
-    // Soft-hold film at near-side zoom while Atlas is on screen — never hard-snap progress
+    // Soft-hold film while Atlas is on screen — never hard-snap progress
     const filmTarget = atlasLock ? ATLAS_HOLD_PROGRESS : raw
     filmP.current = lerp(filmP.current, filmTarget, Math.min(1, (atlasLock ? 2.2 : 4.2) * step))
     const sample = sampleActs(filmP.current)
@@ -938,15 +938,20 @@ function FilmDirector({
     darkRef.current = sample.dark
     gradeRef.current = sample.grade
 
-    // Hero free-spins. Intimacy+Atlas rotate the focused site onto the lens center.
-    const aimPhase = ab > 0.12 || sample.act?.id === 'intimacy' || !!sample.hotspot
+    // Hero: free spin. From Objective→Atlas: ease the site onto the lens center.
     const hot = ab > 0.2
       ? (focusSiteId || sample.hotspot || 'a11-lm')
       : (sample.hotspot || null)
-    if (hotspotRef) hotspotRef.current = ab > 0.35 ? hot : (sample.hotspot || null)
+    if (hotspotRef) hotspotRef.current = ab > 0.4 ? hot : null
     const focus = hot ? SITE_FOCUS[hot] : null
     if (moonAimRef) {
-      moonAimRef.current = aimPhase && focus?.body === 'moon' ? focus.aimLon : null
+      // Engage aim once intimacy starts so rotation arrives ready by Atlas
+      const shouldAim = focus?.body === 'moon' && (
+        ab > 0.08
+        || sample.act?.id === 'intimacy'
+        || !!sample.hotspot
+      )
+      moonAimRef.current = shouldAim ? focus.aimLon : null
     }
     if (marsAimRef) {
       marsAimRef.current = ab > 0.2 && focus?.body === 'mars' ? focus.aimLon : null
@@ -962,14 +967,15 @@ function FilmDirector({
       lastDpr.current = targetDpr
     }
 
-    const mx = inertia.current.x * (0.22 + sample.event.warp * 0.18) * (1 - ab * 0.55)
-    const my = inertia.current.y * (0.14 + sample.event.warp * 0.12) * (1 - ab * 0.55)
+    // Tiny parallax only — never walk the camera off-center
+    const mx = inertia.current.x * (0.08 + sample.event.warp * 0.06) * (1 - ab * 0.7)
+    const my = inertia.current.y * (0.05 + sample.event.warp * 0.04) * (1 - ab * 0.7)
 
-    // One continuous film camera — Atlas only holds progress, never reframes left/right
+    // Single centered camera track — look stays on moon origin
     desired.set(
       sample.cam[0] + mx,
       sample.cam[1] - my,
-      sample.cam[2] + Math.abs(mx) * 0.05,
+      sample.cam[2],
     )
 
     const damp = sample.smash && ab < 0.25 ? 0.55 : (reduced ? 0.16 : 0.065)
@@ -983,8 +989,8 @@ function FilmDirector({
     }
 
     look.set(
-      sample.look[0] + mx * 0.08,
-      sample.look[1] - my * 0.05,
+      sample.look[0] + mx * 0.04,
+      sample.look[1] - my * 0.03,
       sample.look[2],
     )
     camera.lookAt(look)
@@ -999,14 +1005,17 @@ function FilmDirector({
       let ty = 0
       let tz = 0
       if (f === 'dive') {
-        targetScale = lerp(2.0, 5.8, sample.event.dive)
-        tx = 0.85; ty = -0.1; tz = -0.2
+        // Dive is later film — keep moon centered until smash pulls in
+        targetScale = lerp(2.05, 5.8, sample.event.dive)
+        tx = lerp(0, 0.85, sample.event.dive)
+        ty = lerp(0, -0.1, sample.event.dive)
+        tz = lerp(0, -0.2, sample.event.dive)
       } else if (f === 'moon') {
         const arrival = sample.act?.id === 'hero'
-        // Hero: moon right. Intimacy: slide toward center while zooming.
-        targetScale = arrival ? lerp(2.05, 2.2, sample.eased) : lerp(1.95, 2.18, sample.eased)
-        tx = arrival ? 1.35 : lerp(0.55, 0.08, sample.eased)
-        ty = arrival ? -0.12 : lerp(-0.06, -0.04, sample.eased)
+        // Always centered at origin — only scale grows a little on scroll
+        targetScale = arrival ? lerp(1.78, 1.88, sample.eased) : lerp(1.88, 2.05, sample.eased)
+        tx = 0
+        ty = 0
         tz = 0
       }
 
@@ -1263,7 +1272,7 @@ export default function ContinuumCanvas({
     <div className={`continuum-canvas ${hotspotsInteractive ? 'is-hotspots' : ''}`} aria-hidden={!hotspotsInteractive}>
       <Canvas
         dpr={mobile ? [1, 1.3] : [1, 1.65]}
-        camera={{ position: [-0.85, 0.22, 5.6], fov: 40, near: 0.04, far: 220 }}
+        camera={{ position: [0, 0.08, 6.35], fov: 38, near: 0.04, far: 220 }}
         gl={{
           antialias: !mobile,
           alpha: false,
