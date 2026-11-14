@@ -585,13 +585,86 @@ function SiteBeacon({ site, hotspotRef, color = '#8ec8ff' }) {
   )
 }
 
+function configurePlanetTex(tex, { srgb = false } = {}) {
+  tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace
+  tex.anisotropy = 16
+  // Clamp — never tile planetary maps (breaks geographic placement)
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
+  tex.generateMipmaps = true
+  tex.minFilter = THREE.LinearMipmapLinearFilter
+  tex.magFilter = THREE.LinearFilter
+  tex.needsUpdate = true
+  return tex
+}
+
+/** Paint with a fast LOD first, then silently upgrade to the master maps. */
+function useProgressivePlanetMaps({ colorLo, colorHi, heightLo, heightHi, upgrade }) {
+  const [loColor, loHeight] = useTexture([colorLo, heightLo])
+  const [colorMap, setColorMap] = useState(null)
+  const [heightMap, setHeightMap] = useState(null)
+  const hiRef = useRef({ color: null, height: null })
+
+  useEffect(() => {
+    configurePlanetTex(loColor, { srgb: true })
+    configurePlanetTex(loHeight, { srgb: false })
+    setColorMap(loColor)
+    setHeightMap(loHeight)
+  }, [loColor, loHeight])
+
+  useEffect(() => {
+    if (!upgrade) return undefined
+    const loader = new THREE.TextureLoader()
+    let cancelled = false
+    const load = (url) => new Promise((resolve, reject) => {
+      if (!url) { resolve(null); return }
+      loader.load(url, resolve, undefined, reject)
+    })
+
+    Promise.all([
+      colorHi && colorHi !== colorLo ? load(colorHi) : Promise.resolve(null),
+      heightHi && heightHi !== heightLo ? load(heightHi) : Promise.resolve(null),
+    ]).then(([hiColor, hiHeight]) => {
+      if (cancelled) {
+        hiColor?.dispose()
+        hiHeight?.dispose()
+        return
+      }
+      if (hiColor) {
+        configurePlanetTex(hiColor, { srgb: true })
+        hiRef.current.color?.dispose()
+        hiRef.current.color = hiColor
+        setColorMap(hiColor)
+      }
+      if (hiHeight) {
+        configurePlanetTex(hiHeight, { srgb: false })
+        hiRef.current.height?.dispose()
+        hiRef.current.height = hiHeight
+        setHeightMap(hiHeight)
+      }
+    }).catch(() => {
+      /* keep LOD — master fetch failed */
+    })
+
+    return () => {
+      cancelled = true
+      hiRef.current.color?.dispose()
+      hiRef.current.height?.dispose()
+      hiRef.current = { color: null, height: null }
+    }
+  }, [upgrade, colorHi, colorLo, heightHi, heightLo])
+
+  return [colorMap || loColor, heightMap || loHeight]
+}
+
 function BodySphere({
   body = 0,
   rim = '#9ecfff',
   mobile = false,
   spin = 0.014,
-  colorPath,
-  heightPath,
+  colorLo,
+  colorHi,
+  heightLo,
+  heightHi,
   groupRef,
   gradeRef,
   stormRef,
@@ -603,21 +676,13 @@ function BodySphere({
 }) {
   const mesh = useRef()
   const isMars = body > 0.5
-  const [colorMap, heightMap] = useTexture([colorPath, heightPath])
-
-  useEffect(() => {
-    colorMap.colorSpace = THREE.SRGBColorSpace
-    heightMap.colorSpace = THREE.NoColorSpace
-    ;[colorMap, heightMap].forEach((tex) => {
-      tex.anisotropy = 16
-      // Clamp — never tile planetary maps (breaks geographic placement)
-      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
-      tex.generateMipmaps = true
-      tex.minFilter = THREE.LinearMipmapLinearFilter
-      tex.magFilter = THREE.LinearFilter
-      tex.needsUpdate = true
-    })
-  }, [colorMap, heightMap])
+  const [colorMap, heightMap] = useProgressivePlanetMaps({
+    colorLo,
+    colorHi,
+    heightLo,
+    heightHi,
+    upgrade: !mobile,
+  })
 
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
@@ -635,7 +700,12 @@ function BodySphere({
     uAOStrength: { value: isMars ? 0.4 : 0.32 },
     uColorMap: { value: colorMap },
     uHeightMap: { value: heightMap },
-  }), [body, isMars, rim, colorMap, heightMap])
+  }), [body, isMars, rim])
+
+  useEffect(() => {
+    uniforms.uColorMap.value = colorMap
+    uniforms.uHeightMap.value = heightMap
+  }, [uniforms, colorMap, heightMap])
 
   const atmoMat = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: ATMO_VERT,
@@ -1007,11 +1077,15 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
   const hotspotRef = useRef(null)
   const moonAimRef = useRef(null)
   const marsAimRef = useRef(null)
-  // User-supplied 8K equirect masters — desktop 8K / mobile 2K; height derived from albedo
-  const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_8k.jpg'
-  const moonHeight = mobile ? '/textures/moon_height_2k.jpg' : '/textures/moon_height_4k.jpg'
-  const marsColor = mobile ? '/textures/mars_color_2k.jpg' : '/textures/mars_color_8k.jpg'
-  const marsHeight = mobile ? '/textures/mars_bump_2k.jpg' : '/textures/mars_bump_4k.jpg'
+  // Fast 2K first paint; desktop upgrades to 8K color / 4K height in the background
+  const moonColorLo = '/textures/moon_color_2k.jpg'
+  const moonColorHi = '/textures/moon_color_8k.jpg'
+  const moonHeightLo = '/textures/moon_height_2k.jpg'
+  const moonHeightHi = '/textures/moon_height_4k.jpg'
+  const marsColorLo = '/textures/mars_color_2k.jpg'
+  const marsColorHi = '/textures/mars_color_8k.jpg'
+  const marsHeightLo = '/textures/mars_bump_2k.jpg'
+  const marsHeightHi = '/textures/mars_bump_4k.jpg'
 
   return (
     <>
@@ -1056,8 +1130,10 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
           body={0}
           rim="#9ecfff"
           mobile={mobile}
-          colorPath={moonColor}
-          heightPath={moonHeight}
+          colorLo={moonColorLo}
+          colorHi={moonColorHi}
+          heightLo={moonHeightLo}
+          heightHi={moonHeightHi}
           gradeRef={gradeRef}
           stormRef={stormRef}
           darkRef={darkRef}
@@ -1072,8 +1148,10 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
           rim="#ff9a6a"
           mobile={mobile}
           spin={0.02}
-          colorPath={marsColor}
-          heightPath={marsHeight}
+          colorLo={marsColorLo}
+          colorHi={marsColorHi}
+          heightLo={marsHeightLo}
+          heightHi={marsHeightHi}
           gradeRef={gradeRef}
           stormRef={stormRef}
           darkRef={darkRef}
