@@ -25,10 +25,11 @@ import {
 import { ranged, getSessionSeed } from './motion/seed'
 import {
   Magnet, SpotlightCard, ClickSpark, FadeContent,
-  GradientText, GlareHover, BlurText, TrueFocus, OptionWheel,
+  GradientText, GlareHover, BlurText, TrueFocus, OptionWheel, SplitText,
 } from './bits'
 import './bits/SpotlightCard/SpotlightCard.css'
 import './bits/GradientText/GradientText.css'
+import './bits/SplitText/SplitText.css'
 import './bits/GlareHover/GlareHover.css'
 import './bits/TrueFocus/TrueFocus.css'
 import './bits/OptionWheel/OptionWheel.css'
@@ -891,7 +892,31 @@ function Fleet({ onOpen }) {
         <span className="section-num" aria-hidden>03</span>
         <p className="kicker"><ScrambleLine text="NASA LEFTOVERS · DRAG TO SURVEY" active /></p>
         <h2 className="display" style={{ fontSize: 'clamp(2.2rem, 6vw, 4rem)', margin: '0.75rem 0 0.5rem' }}>
-          Fifteen voices.<br /><span className="outline-text">One silent fleet.</span>
+          <SplitText
+            text="Fifteen voices."
+            tag="span"
+            className="display"
+            splitType="chars"
+            effect="rise"
+            trigger="view"
+            delay={28}
+            duration={1.05}
+            textAlign="left"
+          />
+          <br />
+          <span className="outline-text">
+            <SplitText
+              text="One silent fleet."
+              tag="span"
+              className="outline-text"
+              splitType="chars"
+              effect="blur"
+              trigger="view"
+              delay={22}
+              duration={1.15}
+              textAlign="left"
+            />
+          </span>
         </h2>
         <p style={{ color: 'var(--ink-dim)', maxWidth: '48ch', lineHeight: 1.55, marginBottom: '0.5rem' }}>
           Each leftover speaks in the first person — what they were built for, what they found, why they still matter.
