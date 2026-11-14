@@ -313,16 +313,23 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
     let finished = false
     let degraded = false
 
-    const finish = () => {
-      if (cancelled || finished || !animDone || !assetsDone) return
+    const finish = (force = false) => {
+      if (cancelled || finished) return
+      if (!force && (!animDone || !assetsDone)) return
       finished = true
+      animDone = true
+      assetsDone = true
       onDone?.({ degraded })
     }
 
     const assets = Promise.all([
       preloadCriticalMoon(mobile),
       preloadContinuumModule(),
-      moonReady,
+      // MoonReady may never fire on a bad WebGL remount — don't block boot forever
+      Promise.race([
+        moonReady,
+        new Promise((resolve) => { window.setTimeout(resolve, reduced ? 1800 : 9000) }),
+      ]),
     ]).then(() => {
       if (cancelled) return
       assetsDone = true
@@ -347,13 +354,16 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
       },
     })
 
+    // Hard escape: assetsDone alone used to skip this path and strand the UI
+    // when the boot timeline never completed after a remount/reload.
     const safety = window.setTimeout(() => {
-      if (assetsDone) return
+      if (finished || cancelled) return
       degraded = true
       assetsDone = true
+      animDone = true
       setBootMsg('SIGNAL TIMEOUT · ENTERING CONTINUUM')
-      finish()
-    }, reduced ? 2500 : 16000)
+      finish(true)
+    }, reduced ? 2500 : 12000)
 
     return () => {
       cancelled = true
