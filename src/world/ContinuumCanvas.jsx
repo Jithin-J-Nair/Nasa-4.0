@@ -40,7 +40,6 @@ void main(){
 `
 
 const PLANET_FRAG = `
-#extension GL_OES_standard_derivatives : enable
 uniform float uTime;
 uniform float uBody;
 uniform vec3 uRim;
