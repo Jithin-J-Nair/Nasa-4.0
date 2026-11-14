@@ -21,6 +21,14 @@ import {
   revealOnScroll,
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
+import {
+  Magnet, SpotlightCard, ClickSpark, FadeContent,
+  GradientText, GlareHover, BlurText, TrueFocus,
+} from './bits'
+import './bits/SpotlightCard/SpotlightCard.css'
+import './bits/GradientText/GradientText.css'
+import './bits/GlareHover/GlareHover.css'
+import './bits/TrueFocus/TrueFocus.css'
 
 const ContinuumCanvas = lazy(() => import('./world/ContinuumCanvas'))
 
@@ -269,8 +277,8 @@ function Hero({ ready, reduced }) {
   const { setLabel } = useCursor()
   const rootRef = useRef(null)
   useEffect(() => {
-    if (!ready) return undefined
-    const delay = ranged(0.05, 0.22, 7)
+    if (!ready || reduced) return undefined
+    const delay = ranged(0.05, 0.18, 7)
     return playHeroIntro(rootRef.current, { reduced, seedDelay: delay })
   }, [ready, reduced])
 
@@ -281,25 +289,74 @@ function Hero({ ready, reduced }) {
           NASA SPACE APPS 2026 · ABANDONED BUT NOT FORGOTTEN
         </p>
         <h1 className="display display-xl" style={{ marginBottom: '1.35rem' }} aria-label="Silent Fleet">
-          <span className="hero-line" data-hero-line>SILENT</span>
-          <span className="hero-line grad-text" data-hero-line>FLEET</span>
+          {ready ? (
+            <>
+              <BlurText
+                as="span"
+                text="SILENT"
+                className="hero-line hero-line--blur"
+                animateBy="letters"
+                direction="bottom"
+                delay={ranged(28, 48, 11)}
+                trigger="load"
+                effect="blur"
+              />
+              <span className="hero-line" data-hero-line>
+                <GradientText
+                  colors={['#e8eef5', '#8ec8ff', '#ff7a45', '#e8eef5']}
+                  animationSpeed={ranged(6, 10, 13)}
+                  followPointer
+                  className="hero-gradient-fleet"
+                >
+                  FLEET
+                </GradientText>
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="hero-line">SILENT</span>
+              <span className="hero-line grad-text">FLEET</span>
+            </>
+          )}
         </h1>
-        {/* Accessible unsplit twin for assistive tech when lines animate */}
         <span className="sr-only">Silent Fleet</span>
-        <p
-          data-hero-body
-          style={{ maxWidth: '34ch', color: 'var(--ink-dim)', fontSize: 'clamp(1.05rem, 2.4vw, 1.3rem)', lineHeight: 1.5, marginBottom: '2.25rem', opacity: ready ? undefined : 1 }}
-        >
-          Hardware NASA left behind — and the science that still belongs to it.
-        </p>
+        <div data-hero-body style={{ marginBottom: '2.25rem', maxWidth: '34ch' }}>
+          {ready ? (
+            <BlurText
+              text="Hardware NASA left behind — and the science that still belongs to it."
+              animateBy="words"
+              direction="top"
+              delay={40}
+              trigger="load"
+              className="hero-body-blur"
+            />
+          ) : (
+            <p style={{ color: 'var(--ink-dim)', fontSize: 'clamp(1.05rem, 2.4vw, 1.3rem)', lineHeight: 1.5 }}>
+              Hardware NASA left behind — and the science that still belongs to it.
+            </p>
+          )}
+        </div>
         <div data-hero-cta style={{ opacity: ready ? undefined : 1 }}>
-          <MagneticButton
-            href="#journey"
-            onMouseEnter={() => setLabel('ENTER')}
-            onMouseLeave={() => setLabel('')}
-          >
-            ENTER THE CONTINUUM
-          </MagneticButton>
+          <Magnet padding={80} magnetStrength={2.4} maxOffset={18}>
+            <GlareHover
+              width="auto"
+              height="auto"
+              background="transparent"
+              borderRadius="999px"
+              borderColor="transparent"
+              glareColor="#8ec8ff"
+              glareOpacity={0.35}
+              transitionDuration={650}
+            >
+              <MagneticButton
+                href="#journey"
+                onMouseEnter={() => setLabel('ENTER')}
+                onMouseLeave={() => setLabel('')}
+              >
+                ENTER THE CONTINUUM
+              </MagneticButton>
+            </GlareHover>
+          </Magnet>
         </div>
       </div>
       <div className="hero-scroll-cue" data-hero-cue aria-hidden style={{ opacity: ready ? undefined : 0.7 }}>
@@ -312,34 +369,65 @@ function Hero({ ready, reduced }) {
 
 function Heartbeats({ onOpen, reduced }) {
   const { setLabel } = useCursor()
-  const rootRef = useRef(null)
-  useEffect(() => revealOnScroll(rootRef.current, { reduced }), [reduced])
   return (
-    <section className="heartbeats" id="recover" aria-label="Recover hardware" ref={rootRef}>
-      <p className="kicker" data-reveal style={{ marginBottom: '0.75rem' }}>THREE HEARTBEATS · STILL OUT THERE</p>
-      <h2 className="display" data-reveal style={{ marginBottom: '0.5rem' }}>
-        Recover them<br />by name
-      </h2>
-      <div className="heartbeat-row" data-reveal>
-        {HEARTBEATS.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            className="heartbeat-cell"
-            onClick={() => onOpen(a)}
-            onMouseEnter={() => setLabel('OPEN')}
-            onMouseLeave={() => setLabel('')}
-          >
-            <div className="mono" style={{ fontSize: '0.58rem', letterSpacing: '0.14em', color: 'var(--ink-mute)' }}>
-              {a.mission} · {a.status}
-            </div>
-            <div className="tx">“{a.transmission}”</div>
-            <div style={{ color: 'var(--ink-dim)', fontSize: '0.88rem', lineHeight: 1.45 }}>
-              {a.science.slice(0, 110)}…
-            </div>
-          </button>
-        ))}
-      </div>
+    <section className="heartbeats" id="recover" aria-label="Recover hardware">
+      <FadeContent blur={!reduced} duration={0.9} threshold={0.15} ease="power2.out">
+        <p className="kicker" style={{ marginBottom: '0.75rem' }}>THREE HEARTBEATS · STILL OUT THERE</p>
+        <div className="heartbeat-focus">
+          <TrueFocus
+            sentence="Recover them by name"
+            borderColor="#8ec8ff"
+            glowColor="rgba(142,200,255,0.35)"
+            blurAmount={reduced ? 0 : 4}
+            animationDuration={0.55}
+            pauseBetweenAnimations={1.1}
+            manualMode={false}
+            focusStyle="brackets"
+          />
+        </div>
+        <div className="heartbeat-row" style={{ marginTop: '2rem' }}>
+          {HEARTBEATS.map((a) => (
+            <SpotlightCard
+              key={a.id}
+              className="heartbeat-spotlight"
+              theme="dark"
+              spotlightColor="#8ec8ff"
+              intensity={0.22}
+              spotlightSize={280}
+              softness={0.75}
+              grain={0.08}
+              style={{ background: 'rgba(7,7,12,0.72)', borderRadius: 0, padding: 0 }}
+            >
+              <GlareHover
+                width="100%"
+                height="100%"
+                background="transparent"
+                borderRadius="0"
+                borderColor="transparent"
+                glareColor="#ff7a45"
+                glareOpacity={0.22}
+              >
+                <button
+                  type="button"
+                  className="heartbeat-cell"
+                  onClick={() => onOpen(a)}
+                  onMouseEnter={() => setLabel('OPEN')}
+                  onMouseLeave={() => setLabel('')}
+                  style={{ width: '100%', background: 'transparent', border: 'none' }}
+                >
+                  <div className="mono" style={{ fontSize: '0.58rem', letterSpacing: '0.14em', color: 'var(--ink-mute)' }}>
+                    {a.mission} · {a.status}
+                  </div>
+                  <div className="tx">“{a.transmission}”</div>
+                  <div style={{ color: 'var(--ink-dim)', fontSize: '0.88rem', lineHeight: 1.45 }}>
+                    {a.science.slice(0, 110)}…
+                  </div>
+                </button>
+              </GlareHover>
+            </SpotlightCard>
+          ))}
+        </div>
+      </FadeContent>
     </section>
   )
 }
@@ -607,78 +695,91 @@ export default function App() {
 
   return (
     <CursorProvider>
-      <div className="sf-app" ref={mainRef}>
-        <ErrorBoundary fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
-          {!booting && (
-            <Suspense fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
-              <ContinuumCanvas
-                progress={smoothProgress}
-                mouse={mouse}
-                mobile={mobile}
-                reduced={reduced}
-                active={!booting}
-                onSample={onFilmSample}
-              />
-            </Suspense>
-          )}
-        </ErrorBoundary>
-        <div className="sf-veil" aria-hidden />
-
-        <a
-          href="#journey"
-          className="mono"
-          style={{ position: 'absolute', left: -9999, top: 'auto', width: 1, height: 1, overflow: 'hidden' }}
-          onFocus={(e) => {
-            e.currentTarget.style.left = '12px'
-            e.currentTarget.style.top = '12px'
-            e.currentTarget.style.width = 'auto'
-            e.currentTarget.style.height = 'auto'
-            e.currentTarget.style.zIndex = 200
-            e.currentTarget.style.padding = '8px 12px'
-            e.currentTarget.style.background = '#fff'
-            e.currentTarget.style.color = '#000'
-          }}
-        >
-          Skip to content
-        </a>
-
-        {booting && <Preloader onDone={onBootDone} reduced={reduced} />}
-
-        <Nav progress={smoothProgress} />
-        {!booting && <WorldCaption progress={smoothProgress} onOpen={openDossier} />}
-
-        <button
-          type="button"
-          className={`audio-toggle ${audioOn ? 'on' : ''}`}
-          onClick={toggleAudio}
-          aria-pressed={audioOn}
-          aria-label={audioOn ? 'Mute soundscape' : 'Enable soundscape'}
-        >
-          {audioOn ? actLabel : 'SOUND'}
-        </button>
-
-        <div className="sf-chapters">
-          <ErrorBoundary fallback={<section className="hero"><div className="hero-content"><h1 className="display display-xl">SILENT FLEET</h1></div></section>}>
-            <Hero ready={ready && !booting} reduced={reduced} />
+      <ClickSpark
+        sparkColor={['#8ec8ff', '#ff7a45', '#e8eef5']}
+        sparkSize={12}
+        sparkRadius={28}
+        sparkCount={10}
+        duration={520}
+        easing="ease-out"
+        glow={0.45}
+        ring
+        className="sf-spark-root"
+        style={{ minHeight: '100%' }}
+      >
+        <div className="sf-app" ref={mainRef}>
+          <ErrorBoundary fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
+            {!booting && (
+              <Suspense fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
+                <ContinuumCanvas
+                  progress={smoothProgress}
+                  mouse={mouse}
+                  mobile={mobile}
+                  reduced={reduced}
+                  active={!booting}
+                  onSample={onFilmSample}
+                />
+              </Suspense>
+            )}
           </ErrorBoundary>
+          <div className="sf-veil" aria-hidden />
 
-          <FilmJourney />
+          <a
+            href="#journey"
+            className="mono"
+            style={{ position: 'absolute', left: -9999, top: 'auto', width: 1, height: 1, overflow: 'hidden' }}
+            onFocus={(e) => {
+              e.currentTarget.style.left = '12px'
+              e.currentTarget.style.top = '12px'
+              e.currentTarget.style.width = 'auto'
+              e.currentTarget.style.height = 'auto'
+              e.currentTarget.style.zIndex = 200
+              e.currentTarget.style.padding = '8px 12px'
+              e.currentTarget.style.background = '#fff'
+              e.currentTarget.style.color = '#000'
+            }}
+          >
+            Skip to content
+          </a>
 
-          <ErrorBoundary>
-            <Heartbeats onOpen={openDossier} reduced={reduced} />
-          </ErrorBoundary>
+          {booting && <Preloader onDone={onBootDone} reduced={reduced} />}
 
-          <Footer />
+          <Nav progress={smoothProgress} />
+          {!booting && <WorldCaption progress={smoothProgress} onOpen={openDossier} />}
+
+          <button
+            type="button"
+            className={`audio-toggle ${audioOn ? 'on' : ''}`}
+            onClick={toggleAudio}
+            aria-pressed={audioOn}
+            aria-label={audioOn ? 'Mute soundscape' : 'Enable soundscape'}
+          >
+            {audioOn ? actLabel : 'SOUND'}
+          </button>
+
+          <div className="sf-chapters">
+            <ErrorBoundary fallback={<section className="hero"><div className="hero-content"><h1 className="display display-xl">SILENT FLEET</h1></div></section>}>
+              <Hero ready={ready && !booting} reduced={reduced} />
+            </ErrorBoundary>
+
+            <FilmJourney />
+
+            <ErrorBoundary>
+              <Heartbeats onOpen={openDossier} reduced={reduced} />
+            </ErrorBoundary>
+
+            <Footer />
+          </div>
+
+          <AnimatePresence>
+            {selected && (
+              <ArtifactModal item={selected} onClose={() => setSelected(null)} />
+            )}
+          </AnimatePresence>
+
+          <div className="sf-disclosure">AI-ASSISTED · NASA SPACE APPS 2026</div>
         </div>
-
-        <AnimatePresence>
-          {selected && (
-            <ArtifactModal item={selected} onClose={() => setSelected(null)} />
-          )}
-        </AnimatePresence>
-
-        <div className="sf-disclosure">AI-ASSISTED · NASA SPACE APPS 2026</div>
-      </div>
+      </ClickSpark>
     </CursorProvider>
   )
 }

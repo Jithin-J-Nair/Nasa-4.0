@@ -944,7 +944,9 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
   const warpRef = useRef(0)
   const darkRef = useRef(0)
   const sunDirRef = useRef(new THREE.Vector3(0.85, 0.32, 0.42))
-  const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_4k.jpg'
+  // SVS CGI Moon Kit — 8K desktop / 2K mobile (LROC WAC + LOLA)
+  const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_8k.jpg'
+  const moonHeight = mobile ? '/textures/moon_height_2k.jpg' : '/textures/moon_height_4k.jpg'
 
   return (
     <>
@@ -987,7 +989,7 @@ function ContinuumScene({ progress, mouse, mobile, reduced, onSample }) {
           rim="#9ecfff"
           mobile={mobile}
           colorPath={moonColor}
-          heightPath="/textures/moon_height_2k.jpg"
+          heightPath={moonHeight}
           gradeRef={gradeRef}
           stormRef={stormRef}
           darkRef={darkRef}

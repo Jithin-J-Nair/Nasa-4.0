@@ -523,6 +523,54 @@ img, svg { display: block; max-width: 100%; }
   padding-inline-end: 0.1em;
   will-change: transform, opacity, filter;
 }
+.hero-line .gradient-text,
+.hero-line .gradient-text__content,
+.hero-gradient-fleet {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  padding-inline-end: 0.1em;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+.hero-line.hero-line--blur {
+  display: flex;
+}
+.hero-body-blur {
+  color: var(--ink-dim) !important;
+  font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+  line-height: 1.5;
+  margin: 0;
+}
+.sf-spark-root {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+}
+.heartbeat-focus {
+  text-align: left;
+  margin-bottom: 0.25rem;
+}
+.heartbeat-focus .focus-container {
+  justify-content: flex-start;
+  gap: 0.35em;
+}
+.heartbeat-focus .focus-word {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 6vw, 4.2rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  color: var(--ink);
+}
+.heartbeat-spotlight {
+  min-width: 0;
+}
+.heartbeat-spotlight .spotlight-card__border,
+.heartbeat-spotlight .spotlight-card__edge {
+  border-radius: 0;
+}
 .boot-bar {
   width: min(220px, 50vw);
   height: 2px;

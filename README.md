@@ -16,6 +16,7 @@ Accuracy throughout. Connection over scrap lists.
 - **Hero:** Brand left · LROC Moon stage-right  
 - **Type:** Syne / Unbounded at exaggerated display sizes; IBM Plex Mono for telemetry  
 - **Motion stack:** GSAP + ScrollTrigger + Lenis (sole smooth-scroll engine)  
+- **UI bits:** Curated [React Bits](https://github.com/DavidHDev/react-bits) (JS) — Magnet, SpotlightCard, ClickSpark, FadeContent, GradientText, GlareHover, BlurText, TrueFocus  
 - **WebGL:** Justified continuum — albedo/AO/roughness planets, Fresnel atmosphere, diegetic scene events  
 - **Assets:** NASA SVS / LROC / RSS-Mars (see `public/textures/ATTRIBUTION.txt`)
 
@@ -24,6 +25,8 @@ Accuracy throughout. Connection over scrap lists.
 - Directed acts with holds, smash, darkness / fog punctuation  
 - Scene events — crater bowl · Meridiani dust sheets · Pioneer signal beam  
 - GSAP boot + hero stagger; session-seeded timing variance on reload  
+- React Bits hero (BlurText + GradientText), ClickSpark field, Magnet/Glare CTA  
+- Heartbeats via TrueFocus + SpotlightCard + GlareHover  
 - Cursor trail + magnetic CTA; diegetic captions open dossiers  
 - Scored silence for Opportunity death and carrier lost  
 
@@ -48,4 +51,4 @@ Code AI-assisted per Space Apps guidelines. Textures are NASA public products.
 
 ## Stack
 
-React 19 · Vite · GSAP · ScrollTrigger · Lenis · Framer Motion (UI springs) · Three · R3F · Drei · postprocessing · Fontsource
+React 19 · Vite · GSAP · ScrollTrigger · Lenis · Framer Motion / Motion · React Bits (vendored) · Three · R3F · Drei · postprocessing · Fontsource

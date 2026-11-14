@@ -1,0 +1,5 @@
+React Bits — https://github.com/DavidHDev/react-bits
+MIT License (David Haz)
+Vendored JS + CSS flavors into src/bits/ (Club GSAP plugins omitted).
+Components used: Magnet, SpotlightCard, ClickSpark, FadeContent,
+GradientText, GlareHover, BlurText, TrueFocus.
