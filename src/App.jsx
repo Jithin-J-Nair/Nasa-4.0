@@ -17,6 +17,7 @@ import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
 import { VOYAGER_LIGHT_DAY, lightDayRemaining, pad2 } from './data/voyagerLightDay'
 import { preloadContinuumModule, preloadCriticalMoon, preloadPlanetTextures } from './world/preloadTextures'
 import { GLOBAL_CSS } from './styles/global.css.js'
+import { FLEET_SHELF_CSS } from './styles/fleet-shelf.css.js'
 import {
   createScrollEngine, destroyScrollEngine, scrollToHash, playHeroIntro, playBootSequence,
   revealOnScroll, scheduleScrollRefresh, playMoonToMarsJourney,
@@ -27,7 +28,7 @@ import {
   Magnet, SpotlightCard, ClickSpark, FadeContent,
   GradientText, GlareHover, BlurText, TrueFocus, OptionWheel, SplitText,
 } from './bits'
-const FleetBooks = lazy(() => import('./fleet/FleetBooks'))
+const FleetShelf = lazy(() => import('./fleet/FleetShelf'))
 import './bits/SpotlightCard/SpotlightCard.css'
 import './bits/GradientText/GradientText.css'
 import './bits/SplitText/SplitText.css'
@@ -825,12 +826,7 @@ function LocationAtlas({ onActiveChange, onFocusSite, onCardSite, cardSiteId }) 
   )
 }
 
-const FLEET_LINKS = [
-  'Moon', 'Mars', 'Deep space', 'Landers', 'Rovers', 'Probes', 'Still answering', 'Open a dossier',
-]
-
 function Fleet({ onOpen }) {
-  const { setLabel } = useCursor()
   const rootRef = useRef(null)
   const [inView, setInView] = useState(false)
 
@@ -842,7 +838,7 @@ function Fleet({ onOpen }) {
     }
     const io = new IntersectionObserver(
       ([e]) => { if (e?.isIntersecting) setInView(true) },
-      { threshold: 0.12 },
+      { threshold: 0.1 },
     )
     io.observe(el)
     return () => io.disconnect()
@@ -873,36 +869,18 @@ function Fleet({ onOpen }) {
         <p className="fleet-folio__outline outline-text display">One silent fleet.</p>
       </div>
 
-      <nav className="fleet-folio__links" aria-label="Fleet categories">
-        {FLEET_LINKS.map((label) => (
-          <button
-            key={label}
-            type="button"
-            className="fleet-folio__link"
-            onClick={() => {
-              if (label === 'Open a dossier' && ARTIFACTS[0]) onOpen(ARTIFACTS[0])
-            }}
-            onMouseEnter={() => setLabel(label === 'Open a dossier' ? 'OPEN' : '')}
-            onMouseLeave={() => setLabel('')}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-
       <p className="fleet-folio__lede">
-        Move across the shelf — leftovers rise to speak. Click a spine to open its NASA dossier.
+        Spine out on the shelf. The active leftover turns to face you — full NASA cover, dossier proportions.
+        Click the cover to listen.
       </p>
 
-      <div className="fleet-folio__stage">
-        {inView ? (
-          <Suspense fallback={<div className="fleet-folio__boot mono">LOADING SHELF…</div>}>
-            <FleetBooks onSelect={onOpen} />
-          </Suspense>
-        ) : (
-          <div className="fleet-folio__boot mono">SHELF AWAITS</div>
-        )}
-      </div>
+      {inView ? (
+        <Suspense fallback={<p className="mono" style={{ textAlign: 'center', opacity: 0.45 }}>LOADING SHELF…</p>}>
+          <FleetShelf onSelect={onOpen} />
+        </Suspense>
+      ) : (
+        <p className="mono" style={{ textAlign: 'center', opacity: 0.35, marginTop: '2rem' }}>SHELF AWAITS</p>
+      )}
     </section>
   )
 }
@@ -1349,7 +1327,7 @@ export default function App() {
   useEffect(() => {
     const style = document.createElement('style')
     style.setAttribute('data-sf', 'global')
-    style.textContent = GLOBAL_CSS
+    style.textContent = GLOBAL_CSS + FLEET_SHELF_CSS
     document.head.appendChild(style)
     return () => style.remove()
   }, [])
