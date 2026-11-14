@@ -1868,15 +1868,13 @@ html.lenis, html.lenis body { height: auto; }
     linear-gradient(180deg, #020206 0%, #03040a 40%, #020206 100%);
 }
 
-/* Folio-inspired Fleet shelf — one black stage, rising hardcover row */
+/* Folio Fleet shelf — atmosphere only; solid plate lives in fleet-shelf.css */
 .fleet-folio {
   position: relative;
   z-index: 90;
-  isolation: isolate;
   min-height: 100vh;
   min-height: 100dvh;
-  background: #000;
-  color: #fff;
+  color: var(--ink);
   scroll-margin-top: var(--nav-h);
   overflow: hidden;
   padding: 0;

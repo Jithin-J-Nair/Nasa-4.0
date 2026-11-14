@@ -2,14 +2,27 @@ export const FLEET_SHELF_CSS = `
 .fleet-folio {
   position: relative;
   z-index: 90;
-  isolation: isolate;
   min-height: 100vh;
   min-height: 100dvh;
-  background: #050508;
-  color: #e8eef5;
+  /* Same ink as page — soft atmosphere only, no hard slab */
+  background:
+    radial-gradient(ellipse 75% 48% at 50% 28%, rgba(142, 200, 255, 0.055) 0%, transparent 58%),
+    radial-gradient(ellipse 55% 40% at 78% 72%, rgba(255, 122, 69, 0.03) 0%, transparent 52%),
+    linear-gradient(180deg, var(--bg) 0%, #06060b 42%, var(--bg) 100%);
+  color: var(--ink);
   scroll-margin-top: var(--nav-h);
   overflow: hidden;
-  padding: 0 0 clamp(2rem, 5vh, 3.5rem);
+  padding: 0 0 clamp(2.5rem, 6vh, 4rem);
+}
+.fleet-folio::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(180deg, transparent 62%, rgba(7, 7, 12, 0.55) 100%),
+    radial-gradient(ellipse 90% 55% at 50% 58%, transparent 35%, rgba(7, 7, 12, 0.45) 100%);
 }
 .fleet-folio__rail {
   position: absolute;
@@ -50,6 +63,8 @@ export const FLEET_SHELF_CSS = `
   font-size: clamp(2.2rem, 6.5vw, 4.4rem);
   letter-spacing: -0.03em;
   line-height: 0.95;
+  color: var(--ink);
+  text-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
 }
 .fleet-folio__outline {
   margin: 0.12em 0 0;
@@ -73,8 +88,9 @@ export const FLEET_SHELF_CSS = `
 .fleet-shelf {
   --H: min(46vh, 31vw);
   position: relative;
+  z-index: 2;
   width: 100%;
-  min-height: calc(var(--H) + 220px);
+  min-height: calc(var(--H) + 240px);
   margin-top: 0.5rem;
   user-select: none;
 }
@@ -91,13 +107,16 @@ export const FLEET_SHELF_CSS = `
   display: flex;
   justify-content: center;
   width: max-content;
-  margin: 0.85rem auto 0;
-  border: 1px solid rgba(232, 238, 245, 0.22);
+  margin: 1rem auto 0;
+  border: 1px solid rgba(232, 238, 245, 0.16);
+  background: rgba(7, 7, 12, 0.35);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 40px -24px rgba(0, 0, 0, 0.8);
 }
 .fleet-shelf__tab-ind {
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  background: #8ec8ff;
+  background: linear-gradient(180deg, #a8d6ff 0%, #8ec8ff 100%);
   transition: width 0.6s cubic-bezier(.2,.8,.2,1), transform 0.6s cubic-bezier(.2,.8,.2,1);
   z-index: 0;
   pointer-events: none;
@@ -105,12 +124,12 @@ export const FLEET_SHELF_CSS = `
 .fleet-shelf__tab {
   position: relative;
   z-index: 1;
-  height: 23px;
-  padding: 0 11px;
+  height: 28px;
+  padding: 0 14px;
   margin-left: -1px;
-  border: 1px solid rgba(232, 238, 245, 0.22);
+  border: 1px solid rgba(232, 238, 245, 0.14);
   background: transparent;
-  color: #e8eef5;
+  color: rgba(232, 238, 245, 0.78);
   font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 600;
@@ -124,10 +143,29 @@ export const FLEET_SHELF_CSS = `
 .fleet-shelf__stage-wrap {
   position: relative;
   width: 100%;
-  height: calc(var(--H) + 80px);
-  margin-top: 1.1rem;
-  perspective: 2200px;
-  perspective-origin: 50% 50%;
+  height: calc(var(--H) + 96px);
+  margin-top: 1.35rem;
+  perspective: 2400px;
+  perspective-origin: 50% 48%;
+  background: transparent;
+}
+.fleet-shelf__stage-wrap::before,
+.fleet-shelf__stage-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 12%;
+  width: clamp(2.5rem, 8vw, 6rem);
+  z-index: 3;
+  pointer-events: none;
+}
+.fleet-shelf__stage-wrap::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--bg) 0%, transparent 100%);
+}
+.fleet-shelf__stage-wrap::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--bg) 0%, transparent 100%);
 }
 .fleet-shelf__stage {
   position: absolute;
@@ -319,8 +357,8 @@ export const FLEET_SHELF_CSS = `
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 9px;
-  margin-top: 0.35rem;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
   pointer-events: none;
   text-align: center;
 }
@@ -334,25 +372,32 @@ export const FLEET_SHELF_CSS = `
   display: block;
   width: 100%;
 }
+/* Match hero / “One silent fleet.” outline title treatment */
 .fleet-shelf__mask--title {
-  height: 1.25em;
+  height: 1.35em;
   font-family: var(--font-display);
-  font-size: clamp(1.35rem, 3.2vw, 1.95rem);
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  font-size: clamp(1.85rem, 4.8vw, 3.1rem);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  filter: drop-shadow(0 14px 36px rgba(0, 0, 0, 0.45));
+}
+.fleet-shelf__mask--title,
+.fleet-shelf__mask--title span {
+  color: transparent;
+  -webkit-text-stroke: 1.25px rgba(232, 238, 245, 0.62);
 }
 .fleet-shelf__mask--sub {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  color: #8ec8ff;
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  color: rgba(142, 200, 255, 0.88);
   text-transform: uppercase;
 }
 .fleet-shelf__mask--year {
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  color: rgba(232, 238, 245, 0.5);
+  letter-spacing: 0.12em;
+  color: rgba(232, 238, 245, 0.48);
 }
 
 .fleet-shelf__arrow {
@@ -361,23 +406,31 @@ export const FLEET_SHELF_CSS = `
   top: calc(50% + var(--H) * 0.52);
   width: 44px;
   height: 44px;
-  border: none;
-  background: transparent;
+  border: 1px solid rgba(232, 238, 245, 0.14);
+  border-radius: 50%;
+  background: rgba(7, 7, 12, 0.35);
+  backdrop-filter: blur(8px);
   color: #e8eef5;
   cursor: pointer;
-  opacity: 0.75;
+  opacity: 0.8;
+  transition: opacity 0.25s var(--ease), border-color 0.25s var(--ease), background 0.25s var(--ease);
 }
-.fleet-shelf__arrow:hover { opacity: 1; }
+.fleet-shelf__arrow:hover {
+  opacity: 1;
+  border-color: rgba(142, 200, 255, 0.35);
+  background: rgba(12, 16, 28, 0.55);
+}
 .fleet-shelf__arrow svg { width: 18px; height: 10px; }
 .fleet-shelf__arrow--l { left: 20px; }
 .fleet-shelf__arrow--r { right: 20px; }
 
 .fleet-shelf__hint {
   text-align: center;
-  margin: 1.1rem auto 0;
+  margin: 1.35rem auto 0;
+  padding: 0 1rem;
   font-size: 0.58rem;
-  letter-spacing: 0.14em;
-  color: rgba(232, 238, 245, 0.4);
+  letter-spacing: 0.16em;
+  color: rgba(232, 238, 245, 0.38);
   max-width: 48ch;
 }
 
@@ -388,7 +441,9 @@ export const FLEET_SHELF_CSS = `
   .fleet-folio__outline { font-size: 8.5vw; }
   .fleet-shelf__arrow--l { left: 6px; }
   .fleet-shelf__arrow--r { right: 6px; }
-  .fleet-shelf__mask--title { font-size: 1.35rem; }
-  .fleet-shelf__tab { padding: 0 7px; font-size: 9px; }
+  .fleet-shelf__mask--title { font-size: clamp(1.45rem, 7.5vw, 2rem); }
+  .fleet-shelf__tab { padding: 0 9px; font-size: 9px; height: 26px; }
+  .fleet-shelf__stage-wrap::before,
+  .fleet-shelf__stage-wrap::after { width: 1.5rem; }
 }
 `
