@@ -25,3 +25,17 @@ dist-ssr
 
 # Local agent skills / Cursor workspace
 .cursor/
+# Track web-creative skills (Silent Fleet continuum stack)
+!.cursor/
+!.cursor/skills/
+.cursor/skills/*
+!.cursor/skills/creative-frontend-architect/
+!.cursor/skills/creative-frontend-architect/**
+!.cursor/skills/threejs-r3f-expert/
+!.cursor/skills/threejs-r3f-expert/**
+!.cursor/skills/glsl-shader-engineer/
+!.cursor/skills/glsl-shader-engineer/**
+!.cursor/skills/gsap-motion-director/
+!.cursor/skills/gsap-motion-director/**
+!.cursor/skills/web-performance-engineer/
+!.cursor/skills/web-performance-engineer/**
