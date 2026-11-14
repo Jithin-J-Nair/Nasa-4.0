@@ -1049,11 +1049,13 @@ function FilmDirector({
     const sample = sampleActs(filmP.current)
     onSample?.(sample)
 
-    diveRef.current = sample.event.dive
-    stormRef.current = sample.event.storm
-    carrierRef.current = sample.event.carrier
-    warpRef.current = sample.event.warp
-    darkRef.current = sample.dark
+    // Atlas soft-hold sits near the dive act edge — zero diegetic events so crater/dust stay gone
+    const eventMute = atlasLock ? 0 : 1
+    diveRef.current = sample.event.dive * eventMute
+    stormRef.current = sample.event.storm * eventMute
+    carrierRef.current = sample.event.carrier * eventMute
+    warpRef.current = sample.event.warp * (atlasLock ? 0.15 : 1)
+    darkRef.current = atlasLock ? sample.dark * 0.15 : sample.dark
     gradeRef.current = sample.grade
 
     // Hero: free spin. From Objective→Atlas: ease the site onto the lens center.
@@ -1146,8 +1148,11 @@ function FilmDirector({
       moonRef.current.scale.setScalar(moonScale.current)
       moonRef.current.position.copy(moonPos.current)
     }
+    // Atlas owns the stage — kill dive crater / Mars / Pioneer bleed from film edge-blend
+    const atlasClear = ab > 0.35
     if (craterRef.current) {
-      if (f === 'dive' || sample.event.dive > 0.08) {
+      const showCrater = !atlasClear && (f === 'dive' || sample.event.dive > 0.08)
+      if (showCrater) {
         craterRef.current.visible = true
         craterRef.current.position.set(0.9, -0.18, 0.65)
         craterRef.current.scale.setScalar(lerp(0.9, 2.6, sample.event.dive))
@@ -1156,7 +1161,7 @@ function FilmDirector({
       }
     }
     if (marsRef.current) {
-      const show = f === 'mars' || f === 'storm'
+      const show = !atlasClear && (f === 'mars' || f === 'storm')
       marsRef.current.visible = show
       if (show) {
         marsRef.current.position.set(2.72, 0.12, -0.45)
@@ -1168,12 +1173,12 @@ function FilmDirector({
       }
     }
     if (pioneerRef.current) {
-      const show = f === 'pioneer'
+      const show = !atlasClear && f === 'pioneer'
       pioneerRef.current.visible = show
       pioneerRef.current.position.set(0, 0.08, -9)
       pioneerRef.current.scale.setScalar(show ? lerp(0.85, 1.35, sample.eased) : 0.01)
     }
-    if (beamActiveRef) beamActiveRef.current = f === 'pioneer'
+    if (beamActiveRef) beamActiveRef.current = !atlasClear && f === 'pioneer'
 
     // Lighting lockstep with events
     const marsish = f === 'mars' || f === 'storm'

@@ -41,8 +41,8 @@ export function equirectXY(lat, lon, { pad = 4 } = {}) {
   }
 }
 
-/** Film tip held while Atlas is on screen — gentle centered zoom, site facing lens. */
-export const ATLAS_HOLD_PROGRESS = 0.20
+/** Film tip held while Atlas is on screen — mid-intimacy, clear of dive edge-blend. */
+export const ATLAS_HOLD_PROGRESS = 0.155
 
 /** Aim targets — NSSDC / LROC Mean Earth–Polar Axis (match artifacts.js lat/lon). */
 export const SITE_FOCUS = {
