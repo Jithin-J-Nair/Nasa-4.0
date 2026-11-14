@@ -662,7 +662,7 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 }
 .atlas-overlay--hud {
   position: fixed;
-  top: calc(var(--nav-h) + 0.85rem);
+  top: calc(var(--nav-h) + 2.75rem);
   left: clamp(1.25rem, 5vw, 5rem);
   z-index: 95;
   max-width: min(420px, 86vw);
