@@ -783,6 +783,7 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   z-index: 95;
   max-width: min(420px, 86vw);
   pointer-events: none;
+  transition: opacity 1.05s cubic-bezier(0.22, 1, 0.36, 1), visibility 1.05s;
 }
 .atlas-heading {
   flex: 0 0 auto;
@@ -1379,14 +1380,8 @@ body.is-coarse .fleet-card { cursor: pointer; }
   margin-top: 2rem;
 }
 .section {
-  /* Outside the story plate only — avoid chapter “fade loads” in the continuous flow */
+  /* Avoid chapter “fade loads” — continuous story plate owns the flow */
   transition: none;
-}
-.atlas-overlay--hud {
-  transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.85s;
-}
-.atlas-overlay--hud.is-on {
-  transition: opacity 1.05s cubic-bezier(0.22, 1, 0.36, 1), visibility 1.05s;
 }
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
