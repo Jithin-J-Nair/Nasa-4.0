@@ -399,18 +399,20 @@ function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
 }
 
 function FilmJourney({ label = 'JOURNEY' }) {
+  const silence = label === 'SILENCE' || label === 'CARRIER'
   const phase =
     label === 'NEAR PASS' || label === 'NEAR SIDE' ? 'Lunar zoom'
       : label === 'JOURNEY' ? 'Transit corridor'
         : label === 'MERIDIANI' || label === 'LAST LIGHT' || label === 'DUST STORM' ? 'Mars arrival'
-          : 'Continuum'
+          : silence ? 'Voyager 1 · interstellar'
+            : 'Continuum'
   return (
     <section id="journey" className="journey-spacer" aria-label="Film continuum journey">
       <span id="journey-dive" className="journey-beat" style={{ top: '10%' }} aria-hidden />
       <span id="journey-transit" className="journey-beat" style={{ top: '42%' }} aria-hidden />
       <span id="journey-mars" className="journey-beat" style={{ top: '74%' }} aria-hidden />
       <span id="journey-last-light" className="journey-beat" style={{ top: '88%' }} aria-hidden />
-      <div className={`journey-hud ${label === 'LAST LIGHT' ? 'is-last-light' : ''}`} aria-hidden>
+      <div className={`journey-hud ${label === 'LAST LIGHT' ? 'is-last-light' : ''} ${silence ? 'is-silence' : ''}`} aria-hidden>
         <span className="section-rail journey-hud__rail">FILM · CONTINUUM</span>
         <p className="journey-hud__act mono">{label}</p>
         <p className="journey-hud__phase">{phase}</p>
@@ -418,6 +420,20 @@ function FilmJourney({ label = 'JOURNEY' }) {
           <span className="journey-hud__meter-fill" />
         </div>
       </div>
+      {silence && (
+        <div className="silence-coda" aria-live="polite">
+          <div className="silence-coda__copy">
+            <p className="silence-coda__kicker mono">STILL OUT THERE · STILL SPEAKING</p>
+            <h2 className="silence-coda__title display">One light-day from home</h2>
+            <p className="silence-coda__lede">
+              I was built to understand Jupiter and Saturn. I finished that work.
+              Then I kept going — past the heliosphere, into the quiet between stars.
+              Soon light itself will need a full day to find me. I am still phoning home.
+            </p>
+          </div>
+          <LightDayCountdown compact className="light-day--silence" />
+        </div>
+      )}
     </section>
   )
 }

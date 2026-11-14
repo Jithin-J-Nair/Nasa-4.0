@@ -360,6 +360,80 @@ img, svg { display: block; max-width: 100%; }
 .journey-hud__meter[data-label='DUST STORM'] .journey-hud__meter-fill {
   background: linear-gradient(90deg, rgba(255, 160, 110, 0.2), rgba(255, 200, 150, 0.9));
 }
+.journey-hud.is-silence .journey-hud__phase {
+  color: rgba(200, 220, 255, 0.88);
+}
+.silence-coda {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding:
+    calc(var(--nav-h) + 1.5rem)
+    clamp(1rem, 3vw, 2rem)
+    clamp(1.4rem, 4vh, 2.4rem)
+    clamp(1rem, 4vw, 2.5rem);
+  background:
+    linear-gradient(90deg, rgba(3, 4, 10, 0.55) 0%, transparent 42%),
+    linear-gradient(0deg, rgba(3, 4, 10, 0.72) 0%, transparent 38%);
+}
+.silence-coda__copy {
+  max-width: min(34rem, 52vw);
+  align-self: center;
+  margin-top: -6vh;
+}
+.silence-coda__kicker {
+  margin: 0 0 0.55rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  color: rgba(142, 200, 255, 0.72);
+}
+.silence-coda__title {
+  margin: 0;
+  font-size: clamp(1.85rem, 4.6vw, 3.35rem);
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  color: #f2f6fb;
+  text-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
+}
+.silence-coda__lede {
+  margin: 0.85rem 0 0;
+  max-width: 38ch;
+  font-size: clamp(0.92rem, 1.5vw, 1.05rem);
+  line-height: 1.55;
+  color: rgba(200, 210, 225, 0.78);
+}
+.light-day--silence {
+  pointer-events: auto;
+  align-self: flex-end;
+  margin: 0;
+  max-width: min(22rem, 92vw);
+  border-color: rgba(142, 200, 255, 0.28);
+  background:
+    radial-gradient(ellipse 90% 120% at 100% 0%, rgba(142, 200, 255, 0.14), transparent 55%),
+    rgba(4, 6, 12, 0.88);
+  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.85);
+}
+.light-day--silence .light-day__lede { display: none; }
+@media (max-width: 767px) {
+  .silence-coda {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding-bottom: 5.5rem;
+  }
+  .silence-coda__copy {
+    max-width: none;
+    margin-top: 0;
+  }
+  .light-day--silence {
+    max-width: none;
+  }
+}
 @keyframes journeyMeter {
   from { transform: scaleX(0.12); opacity: 0.55; }
   to { transform: scaleX(1); opacity: 1; }

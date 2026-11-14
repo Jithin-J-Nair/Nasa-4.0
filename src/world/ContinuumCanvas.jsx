@@ -6,7 +6,7 @@
  */
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, useTexture } from '@react-three/drei'
+import { Html, useTexture, useGLTF } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
 import { Vector2 } from 'three'
@@ -915,74 +915,72 @@ function BodySphere({
   )
 }
 
-function PioneerProbe({ groupRef, carrierRef }) {
+/** NASA VTAD Voyager — https://science.nasa.gov/resource/voyager-3d-model/ */
+const VOYAGER_GLB = '/models/Voyager.glb'
+useGLTF.preload(VOYAGER_GLB)
+
+function VoyagerCraft({ groupRef, carrierRef }) {
+  const { scene } = useGLTF(VOYAGER_GLB)
+  const model = useMemo(() => {
+    const root = scene.clone(true)
+    root.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.castShadow = false
+        obj.receiveShadow = false
+        if (obj.material) {
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
+          mats.forEach((m) => {
+            if (!m) return
+            m.envMapIntensity = 1.15
+            m.needsUpdate = true
+          })
+        }
+      }
+    })
+    // Normalize NASA asset to a ~2.6-unit craft for the silence camera
+    const box = new THREE.Box3().setFromObject(root)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    const max = Math.max(size.x, size.y, size.z, 0.001)
+    root.scale.setScalar(2.6 / max)
+    box.setFromObject(root)
+    const center = new THREE.Vector3()
+    box.getCenter(center)
+    root.position.sub(center)
+    // Dish-forward pose toward camera look
+    root.rotation.set(0.18, Math.PI * 0.72, 0.08)
+    return root
+  }, [scene])
+
   const inner = useRef()
   const rings = useRef([])
-  const plaque = useRef()
   useFrame((s) => {
     const die = carrierRef?.current ?? 0
     if (inner.current) {
-      inner.current.rotation.y = s.clock.elapsedTime * 0.07 * (1 - die * 0.85)
+      inner.current.rotation.y = s.clock.elapsedTime * 0.045 * (1 - die * 0.85)
     }
     rings.current.forEach((mesh, i) => {
       if (!mesh) return
-      const t = ((s.clock.elapsedTime * 0.28 + i * 0.9) % 3.2) / 3.2
-      const sc = 0.35 + t * 4.2
+      const t = ((s.clock.elapsedTime * 0.22 + i * 0.9) % 3.4) / 3.4
+      const sc = 0.55 + t * 3.6
       mesh.scale.set(sc, sc, sc)
-      mesh.material.opacity = (1 - t) * 0.45 * (1 - die)
+      mesh.material.opacity = (1 - t) * 0.32 * (1 - die)
     })
-    if (plaque?.current) {
-      plaque.current.material.emissiveIntensity = 0.55 * (1 - die * 0.95)
-    }
   })
-  const dishPoints = useMemo(() => {
-    const pts = []
-    for (let i = 0; i <= 20; i++) {
-      const t = i / 20
-      pts.push(new THREE.Vector2(t * 0.92, t * t * 0.36))
-    }
-    return pts
-  }, [])
+
   return (
     <group ref={groupRef} visible={false}>
-      <group ref={inner} scale={1.08}>
-        <mesh rotation={[Math.PI, 0, 0]} position={[0, 0.15, 0]}>
-          <latheGeometry args={[dishPoints, 48]} />
-          <meshStandardMaterial color="#c2c8d2" metalness={0.92} roughness={0.22} envMapIntensity={1.1} />
-        </mesh>
-        <mesh position={[0, -0.2, 0]}>
-          <cylinderGeometry args={[0.022, 0.022, 0.48, 10]} />
-          <meshStandardMaterial color="#8a9098" metalness={0.75} roughness={0.35} />
-        </mesh>
-        <mesh position={[0, 0.55, 0]}>
-          <boxGeometry args={[0.58, 0.36, 0.48]} />
-          <meshStandardMaterial color="#6e7584" metalness={0.6} roughness={0.4} />
-        </mesh>
-        <mesh ref={plaque} position={[0.3, 0.55, 0.26]}>
-          <planeGeometry args={[0.2, 0.14]} />
-          <meshStandardMaterial color="#ffb347" emissive="#ff9a2e" emissiveIntensity={0.55} metalness={0.95} roughness={0.18} />
-        </mesh>
-        {[-1, 0, 1].map((s, i) => (
-          <group key={i} rotation={[0, 0, (s * Math.PI) / 3]} position={[0, 0.55, 0]}>
-            <mesh position={[0.72, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.014, 0.014, 1.15, 8]} />
-              <meshStandardMaterial color="#7a8088" metalness={0.75} roughness={0.38} />
-            </mesh>
-            <mesh position={[1.28, 0, 0]}>
-              <cylinderGeometry args={[0.085, 0.085, 0.22, 12]} />
-              <meshStandardMaterial color="#4a4038" emissive="#ff6030" emissiveIntensity={0.3} roughness={0.5} metalness={0.4} />
-            </mesh>
-          </group>
-        ))}
+      <group ref={inner}>
+        <primitive object={model} />
         {[0, 1, 2].map((i) => (
           <mesh
             key={i}
             ref={(el) => { rings.current[i] = el }}
             rotation={[Math.PI / 2, 0, 0]}
-            position={[0, -0.35, 0]}
+            position={[0, -0.55, 0]}
           >
-            <torusGeometry args={[0.45, 0.007, 6, 56]} />
-            <meshBasicMaterial color="#8ec8ff" transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} />
+            <torusGeometry args={[0.55, 0.006, 6, 64]} />
+            <meshBasicMaterial color="#8ec8ff" transparent opacity={0.28} blending={THREE.AdditiveBlending} depthWrite={false} />
           </mesh>
         ))}
       </group>
@@ -1318,8 +1316,9 @@ function FilmDirector({
     if (pioneerRef.current) {
       const show = !atlasClear && f === 'pioneer'
       pioneerRef.current.visible = show
-      pioneerRef.current.position.set(0, 0.08, -9)
-      pioneerRef.current.scale.setScalar(show ? lerp(0.85, 1.35, sample.eased) : 0.01)
+      // Frame NASA Voyager for the silence camera (look ~ -9.2)
+      pioneerRef.current.position.set(0.35, 0.05, -9.05)
+      pioneerRef.current.scale.setScalar(show ? lerp(1.05, 1.55, sample.eased) : 0.01)
     }
     if (beamActiveRef) beamActiveRef.current = !atlasClear && f === 'pioneer'
 
@@ -1547,7 +1546,9 @@ function ContinuumScene({
         />
       </Suspense>
 
-      <PioneerProbe groupRef={pioneerRef} carrierRef={carrierRef} />
+      <Suspense fallback={null}>
+        <VoyagerCraft groupRef={pioneerRef} carrierRef={carrierRef} />
+      </Suspense>
       <SignalBeam carrierRef={carrierRef} activeRef={beamActiveRef} groupRef={beamRef} />
       <ContinuumPost mobile={mobile} reduced={reduced} stormRef={stormRef} diveRef={diveRef} darkRef={darkRef} />
     </>

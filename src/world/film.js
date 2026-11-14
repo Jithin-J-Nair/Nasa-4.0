@@ -285,7 +285,7 @@ export const ACTS = [
     fog: [16, 80],
     focus: 'pioneer',
     cue: 'carrier',
-    hotspot: 'pioneer10',
+    hotspot: 'voyager1',
     lookId: 'void',
   },
   {
