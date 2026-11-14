@@ -1606,45 +1606,23 @@ const PLANET_VERT = `
 uniform float uTime;
 uniform float uBody;
 uniform float uHeightScale;
-uniform float uMicro;
 uniform sampler2D uHeightMap;
-varying vec3 vPos;
 varying vec3 vN;
 varying vec3 vWorld;
-varying float vDisp;
 varying vec3 vObj;
 varying vec2 vUv;
-${NOISE_GLSL}
-float heightAt(vec2 uv, vec3 nrm){
-  float h = texture2D(uHeightMap, uv).r;
-  float disp = (h - 0.5) * uHeightScale;
-  disp += terrain(nrm, uBody) * uMicro;
-  return clamp(disp, -0.18, 0.14);
-}
+varying float vH;
 void main(){
   vUv = uv;
   vec3 nrm = normalize(position);
-  float disp = heightAt(uv, nrm);
+  // Height is for bump/lighting — keep vertex displacement tiny so the
+  // LROC/Viking color map stays readable (no crumpled-potato silhouette).
+  float h = texture2D(uHeightMap, uv).r;
+  float disp = (h - 0.5) * uHeightScale;
   vec3 newPos = nrm * (1.0 + disp);
-  vec3 t1 = normalize(cross(nrm, abs(nrm.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
-  vec3 t2 = normalize(cross(nrm, t1));
-  float e = 0.008;
-  vec3 n1 = normalize(nrm + t1 * e);
-  vec3 n2 = normalize(nrm + t2 * e);
-  // approximate UV deltas along tangents
-  vec2 duv1 = vec2(e * 0.35, 0.0);
-  vec2 duv2 = vec2(0.0, e * 0.35);
-  float h1 = heightAt(fract(uv + duv1), n1);
-  float h2 = heightAt(fract(uv + duv2), n2);
-  vec3 p0 = newPos;
-  vec3 p1 = n1 * (1.0 + h1);
-  vec3 p2 = n2 * (1.0 + h2);
-  vec3 N = normalize(cross(p1 - p0, p2 - p0));
-  if (dot(N, nrm) < 0.0) N = -N;
-  vPos = newPos;
+  vH = h;
   vObj = nrm;
-  vDisp = disp;
-  vN = normalize(normalMatrix * N);
+  vN = normalize(normalMatrix * nrm);
   vec4 world = modelMatrix * vec4(newPos, 1.0);
   vWorld = world.xyz;
   gl_Position = projectionMatrix * viewMatrix * world;
@@ -1654,49 +1632,63 @@ void main(){
 const PLANET_FRAG = `
 uniform float uTime;
 uniform float uBody;
-uniform vec3 uColorCool;
-uniform vec3 uColorWarm;
 uniform vec3 uRim;
 uniform float uGlitter;
 uniform float uScan;
+uniform float uBump;
 uniform sampler2D uColorMap;
 uniform sampler2D uHeightMap;
-varying vec3 vPos;
 varying vec3 vN;
 varying vec3 vWorld;
-varying float vDisp;
 varying vec3 vObj;
 varying vec2 vUv;
-${NOISE_GLSL}
+varying float vH;
 void main(){
+  vec3 tex = texture2D(uColorMap, vUv).rgb;
+  // Punch maria / highland separation so LROC map matches the flat reference
+  tex = pow(max(tex, 0.0), vec3(0.88));
+  tex = (tex - 0.48) * 1.35 + 0.48;
+  tex = clamp(tex, 0.0, 1.0);
+
+  // Screen-space bump from height map (smooth sphere + readable relief)
+  float h = texture2D(uHeightMap, vUv).r;
   vec3 N = normalize(vN);
-  vec3 L = normalize(vec3(0.72, 0.42, 0.55));
-  vec3 L2 = normalize(vec3(-0.55, -0.15, -0.4));
+  vec3 dp1 = dFdx(vWorld);
+  vec3 dp2 = dFdy(vWorld);
+  vec2 duv1 = dFdx(vUv);
+  vec2 duv2 = dFdy(vUv);
+  vec3 T = normalize(dp1 * duv2.y - dp2 * duv1.y);
+  vec3 B = normalize(-dp1 * duv2.x + dp2 * duv1.x);
+  float dhdx = dFdx(h);
+  float dhdy = dFdy(h);
+  N = normalize(N - (T * dhdx + B * dhdy) * uBump);
+
+  vec3 L = normalize(vec3(0.85, 0.35, 0.45));
+  vec3 Lfill = normalize(vec3(-0.55, -0.1, -0.35));
   vec3 V = normalize(cameraPosition - vWorld);
   float ndl = max(dot(N, L), 0.0);
-  // NASA / RSS color map (LROC WAC or Viking-class Mars)
-  vec3 tex = texture2D(uColorMap, vUv).rgb;
-  // gentle grade toward cinematic cool/warm split
-  vec3 albedo = mix(tex * uColorCool * 1.8, tex * uColorWarm * 1.15, ndl * 0.5 + 0.5);
-  albedo = mix(albedo, tex, 0.72);
-  float micro = fbm(vObj * 14.0) * 0.5 + 0.5;
-  albedo *= 0.88 + micro * 0.18;
-  albedo *= 0.92 + clamp(vDisp * 4.0, -0.08, 0.12);
-  float spark = step(0.988, fract(snoise(vObj * 60.0) * 0.5 + 0.5 + uTime * 0.03));
-  albedo += spark * uGlitter * vec3(1.0, 0.97, 0.92);
+  float wrap = ndl * 0.65 + 0.35;
+
+  // Matte regolith — no wet specular
+  vec3 albedo = tex;
   float hemi = N.y * 0.5 + 0.5;
-  vec3 ambient = mix(uColorCool * 0.04, uRim * 0.12, hemi) * (0.35 + tex.r * 0.4);
-  vec3 diffuse = albedo * (ndl * 1.15 + max(dot(N, L2), 0.0) * 0.2);
-  float term = smoothstep(-0.18, 0.3, ndl);
-  diffuse *= mix(0.28, 1.0, term);
-  float fres = pow(1.0 - max(dot(N, V), 0.0), 2.7);
-  vec3 rimCol = uRim * fres * (0.55 + 0.35 * term);
-  float band = abs(fract(vObj.y * 0.55 + uTime / 9.0) - 0.5);
-  float scan = smoothstep(0.07, 0.0, band) * uScan;
-  vec3 irid = mix(vec3(0.35, 0.65, 1.0), vec3(1.0, 0.45, 0.55), 0.4);
-  vec3 col = ambient + diffuse + rimCol + irid * scan * 0.85;
-  col = max(col, albedo * 0.1);
-  col = pow(max(col, 0.0), vec3(0.95));
+  vec3 ambient = albedo * mix(0.08, 0.16, hemi);
+  vec3 diffuse = albedo * (ndl * 1.05 + max(dot(N, Lfill), 0.0) * 0.18);
+  float term = smoothstep(-0.12, 0.35, ndl);
+  diffuse *= mix(0.22, 1.0, term);
+
+  float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+  vec3 rim = uRim * fres * 0.4 * term;
+
+  float spark = step(0.992, fract(h * 47.0 + vUv.x * 13.0 + uTime * 0.02));
+  albedo += spark * uGlitter * 0.35 * vec3(1.0);
+
+  float band = abs(fract(vObj.y * 0.5 + uTime / 10.0) - 0.5);
+  float scan = smoothstep(0.06, 0.0, band) * uScan;
+  vec3 irid = mix(vec3(0.4, 0.7, 1.0), vec3(1.0, 0.45, 0.5), 0.35) * scan * 0.55;
+
+  vec3 col = ambient + diffuse + rim + irid;
+  col = pow(max(col, 0.0), vec3(0.98));
   gl_FragColor = vec4(col, 1.0);
 }
 `
@@ -1836,13 +1828,13 @@ function BodySphere({
     colorMap.colorSpace = THREE.SRGBColorSpace
     heightMap.colorSpace = THREE.NoColorSpace
     ;[colorMap, heightMap].forEach((tex) => {
-      tex.anisotropy = 8
-      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
+      tex.anisotropy = 16
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping
       tex.generateMipmaps = true
       tex.minFilter = THREE.LinearMipmapLinearFilter
       tex.magFilter = THREE.LinearFilter
-      // Center 0° longitude toward camera (+Z)
-      tex.offset.x = 0.25
+      tex.offset.set(0, 0)
+      tex.repeat.set(1, 1)
       tex.needsUpdate = true
     })
   }, [colorMap, heightMap])
@@ -1850,25 +1842,26 @@ function BodySphere({
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
     uBody: { value: body },
-    uHeightScale: { value: isMars ? 0.11 : 0.085 },
-    uMicro: { value: isMars ? 0.012 : 0.018 },
-    uColorCool: { value: new THREE.Color(colorCool) },
-    uColorWarm: { value: new THREE.Color(colorWarm) },
+    // Real lunar topo ≈ ±0.5% radius — keep vertex displace tiny; bump does the rest
+    uHeightScale: { value: isMars ? 0.018 : 0.012 },
+    uBump: { value: isMars ? 2.4 : 1.8 },
     uRim: { value: new THREE.Color(rim) },
     uGlitter: { value: glitter },
     uScan: { value: scan },
     uColorMap: { value: colorMap },
     uHeightMap: { value: heightMap },
-  }), [body, isMars, colorCool, colorWarm, rim, glitter, scan, colorMap, heightMap])
+  }), [body, isMars, rim, glitter, scan, colorMap, heightMap])
 
+  // Sphere UV: u=0 at +X, u=0.25 at +Z. Texture center (0°E) is u=0.5 → yaw -90°.
+  const baseYaw = -Math.PI / 2
   useFrame((s) => {
     uniforms.uTime.value = s.clock.elapsedTime
     if (mesh.current) {
-      mesh.current.rotation.y = s.clock.elapsedTime * spin
-      mesh.current.rotation.z = Math.sin(s.clock.elapsedTime * 0.08) * 0.035
+      mesh.current.rotation.y = baseYaw + s.clock.elapsedTime * spin
+      mesh.current.rotation.z = Math.sin(s.clock.elapsedTime * 0.08) * 0.03
     }
   })
-  const segs = mobile ? 96 : 192
+  const segs = mobile ? 128 : 256
   return (
     <mesh ref={mesh} position={position} scale={scale}>
       <sphereGeometry args={[1, segs, segs]} />
@@ -1948,7 +1941,7 @@ function MarsBob({ mobile }) {
       <BodySphere
         body={1}
         colorCool="#2a120c" colorWarm="#ff7a45" rim="#ff9a6a"
-        glitter={0.18} scan={0.28} scale={0.42} detail={5} mobile={mobile} spin={0.06}
+        glitter={0.08} scan={0.15} scale={0.42} detail={5} mobile={mobile} spin={0.05}
       />
       <Atmosphere scale={1.18} color="#ff7a45" />
     </group>
@@ -2047,13 +2040,13 @@ function HeroPost({ mobile, reduced }) {
   if (mobile || reduced) return null
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
-      <Bloom intensity={0.28} luminanceThreshold={0.82} luminanceSmoothing={0.2} mipmapBlur />
+      <Bloom intensity={0.12} luminanceThreshold={0.9} luminanceSmoothing={0.15} mipmapBlur />
       <ChromaticAberration
         blendFunction={BlendFunction.NORMAL}
-        offset={new Vector2(0.00035, 0.0005)}
+        offset={new Vector2(0.0002, 0.0003)}
       />
-      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.12} />
-      <Vignette eskil={false} offset={0.28} darkness={0.55} />
+      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.06} />
+      <Vignette eskil={false} offset={0.32} darkness={0.5} />
     </EffectComposer>
   )
 }
@@ -2064,10 +2057,10 @@ function HeroSceneContent({ scrollProgress, mouse, mobile, reduced }) {
     <>
       <color attach="background" args={['#04040a']} />
       <fog attach="fog" args={['#04040a', 12, 55]} />
-      <ambientLight intensity={0.14} />
-      <directionalLight position={[5.5, 3.2, 4]} intensity={1.55} color="#fff2e4" />
-      <directionalLight position={[-4, -0.6, -2.5]} intensity={0.4} color="#6e8fff" />
-      <pointLight position={[2.8, 1.2, 1.5]} intensity={0.45} color="#ff7a45" distance={14} />
+      <ambientLight intensity={0.2} />
+      <directionalLight position={[6, 2.8, 3.5]} intensity={1.35} color="#fff5ea" />
+      <directionalLight position={[-3.5, -0.4, -2.2]} intensity={0.28} color="#8aa6ff" />
+      <pointLight position={[2.8, 1.2, 1.5]} intensity={0.3} color="#ff7a45" distance={14} />
       <HeroCameraRig scrollProgress={scrollProgress} mouse={mouse} reduced={reduced} />
       <Starfield count={mobile ? 7000 : 16000} mouse={mouse} />
       <NebulaPlane />
@@ -2075,7 +2068,7 @@ function HeroSceneContent({ scrollProgress, mouse, mobile, reduced }) {
         <BodySphere
           body={0}
           colorCool="#1c222c" colorWarm="#c5ceda" rim="#9ecfff"
-          glitter={0.38} scan={0.38} scale={1.55} detail={6} mobile={mobile} spin={0.028}
+          glitter={0.12} scan={0.18} scale={1.55} detail={6} mobile={mobile} spin={0.022}
         />
         <Atmosphere scale={1.78} color="#8ec8ff" />
         <GhostShell />
@@ -2105,9 +2098,9 @@ function HeroCanvas({ scrollProgress }) {
       <ErrorBoundary variant="">
         {mounted ? (
           <Canvas
-            dpr={[1, 1.75]}
+            dpr={[1, 2]}
             camera={{ position: [0.35, 0.28, 5.85], fov: 40, near: 0.1, far: 200 }}
-            gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+            gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
             frameloop={inView && !reduced ? 'always' : 'never'}
             onCreated={({ gl }) => {
               gl.setClearColor('#04040a')
