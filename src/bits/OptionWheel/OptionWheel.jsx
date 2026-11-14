@@ -210,7 +210,10 @@ const OptionWheel = ({
     const el = rootRef.current
     if (!el) return undefined
     const onWheel = (e) => {
-      // Keep Lenis/page scroll from stealing the Meridiani stage
+      // Never blanket-steal page scroll. Only scrub the list when the pointer
+      // is over an option label (or Shift is held). Empty HUD space → Lenis.
+      const overItem = e.target?.closest?.('.option-wheel__item')
+      if (!overItem && !e.shiftKey) return
       e.preventDefault()
       e.stopPropagation()
       const cfg = cfgRef.current

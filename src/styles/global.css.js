@@ -979,15 +979,15 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
 }
 .mars-hotspot-wheel {
-  pointer-events: auto;
+  /* Root is pass-through — only option labels capture pointer/wheel */
+  pointer-events: none;
   height: min(84vh, 760px);
   /* Build default body face — Space Grotesk */
   font-family: var(--font-body);
   font-weight: 500;
   letter-spacing: -0.02em;
-  /* Contain wheel gestures so Lenis cannot scroll the Meridiani stage away */
-  touch-action: none;
-  overscroll-behavior: contain;
+  touch-action: pan-y;
+  overscroll-behavior: auto;
 }
 .mars-hotspot-wheel .option-wheel__item {
   cursor: pointer;

@@ -314,9 +314,13 @@ export default function FleetShelf({ onSelect }) {
   }
 
   const onWheel = (e) => {
+    // Prefer page scroll — only scrub the shelf on horizontal / Shift+wheel
+    const absX = Math.abs(e.deltaX)
+    const absY = Math.abs(e.deltaY)
+    if (!e.shiftKey && absY >= absX) return
     e.preventDefault()
     const { ws, gap } = state.current.dims
-    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+    const delta = absX > absY ? e.deltaX : e.deltaY
     state.current.T += delta / (ws + gap) * 0.5
     window.clearTimeout(state.current.wheelTimer)
     state.current.wheelTimer = window.setTimeout(() => {

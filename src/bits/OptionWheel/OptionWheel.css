@@ -10,7 +10,9 @@
   overflow: hidden;
   cursor: grab;
   user-select: none;
-  touch-action: none;
+  /* Let vertical page/film scroll pass through empty HUD space */
+  pointer-events: none;
+  touch-action: pan-y;
   outline: none;
 }
 
@@ -30,6 +32,7 @@
   font-weight: 300;
   transform-origin: left center;
   cursor: pointer;
+  pointer-events: auto;
   will-change: transform, opacity, filter;
   /* Fallback first — color-mix alone can render invisible in some engines */
   color: var(--ow-text-color);

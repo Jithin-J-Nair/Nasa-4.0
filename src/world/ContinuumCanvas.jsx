@@ -708,9 +708,6 @@ function SiteBeacon({
                 <article
                   ref={cardRef}
                   className="moon-hotspot-card"
-                  data-lenis-prevent
-                  data-lenis-prevent-wheel
-                  data-lenis-prevent-touch
                   data-edge="edge-center edge-mid"
                   role="dialog"
                   aria-label={site.name}
