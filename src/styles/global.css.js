@@ -2405,11 +2405,22 @@ html.lenis, html.lenis body { height: auto; }
 .sf-disclosure {
   position: fixed; bottom: 12px; right: 12px; z-index: 40;
   font-size: 0.55rem; letter-spacing: 0.12em; color: var(--ink-mute);
-  opacity: 0.45; pointer-events: none;
+  opacity: 0.55; pointer-events: none;
   font-family: var(--font-mono);
+  max-width: min(52vw, 220px);
+  text-align: right;
+  line-height: 1.35;
 }
 @media (max-width: 640px) {
-  .sf-disclosure { display: none; }
+  /* Keep AI/SI disclosure visible on phones — Space Apps requires acknowledgment */
+  .sf-disclosure {
+    display: block;
+    bottom: 8px;
+    right: 8px;
+    left: auto;
+    font-size: 0.5rem;
+    opacity: 0.7;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════

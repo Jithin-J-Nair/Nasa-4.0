@@ -1,7 +1,13 @@
 Textures used by Silent Fleet (NASA Space Apps 2026)
 
+Primary reference (NASA):
+  CGI Moon Kit — NASA Scientific Visualization Studio (SVS 4720)
+  https://svs.gsfc.nasa.gov/4720/
+  Public NASA visualization products for storytelling / education.
+  Follow NASA Media Usage Guidelines; do not imply NASA endorsement.
+
 Moon color (8K / 4K / 2K):
-  Equirectangular grayscale albedo map supplied for this build (8192×4096).
+  Equirectangular grayscale albedo map for this build (8192×4096).
   LOD pyramid + height maps derived in-repo from luminance for displacement / AO.
   Files:
     moon_color_8k.jpg · moon_color_4k.jpg · moon_color_2k.jpg
@@ -9,7 +15,7 @@ Moon color (8K / 4K / 2K):
   Geographic frame: Mean Earth / Polar Axis equirectangular (lon 0 at center).
 
 Mars color (8K / 4K / 2K):
-  Equirectangular color albedo map supplied for this build (8192×4096).
+  Equirectangular color albedo map for this build (8192×4096).
   LOD pyramid + bump maps derived in-repo from luminance.
   Files:
     mars_color_8k.jpg · mars_color_4k.jpg · mars_color_2k.jpg
@@ -17,7 +23,4 @@ Mars color (8K / 4K / 2K):
   Geographic frame: planetocentric east longitude equirectangular.
 
 Desktop continuum uses 8K color + 4K height/bump; mobile uses 2K.
-8K moon masters are preloaded during the boot preloader so the hero opens on full quality.
-Credit / provenance: project texture pack for Space Apps storytelling.
-Related public references: NASA SVS CGI Moon Kit (https://svs.gsfc.nasa.gov/4720/),
-RSS-Mars (https://github.com/RSS-Reborn/RSS-Mars).
+Credit NASA / SVS where applicable. Submission must list these under NASA Data & References.

@@ -50,9 +50,20 @@ npm run build && npm run preview
 5. Fleet / Archive — full leftover gallery + filters  
 6. Footer — NASA resources  
 
-## AI disclosure
+## AI / SI disclosure (Space Apps 2026)
 
-Code AI-assisted per Space Apps guidelines. Textures are NASA public products.
+- **Code:** Written and refactored with AI assistance (Cursor agents / large language models). No AI-generated NASA logos or mission marks.
+- **Visuals:** Planet globes are real NASA-referenced textures + procedural WebGL shaders (not generative AI images). Artifact stills are unaltered NASA photographs with on-screen credits.
+- **Audio:** NASA historical mission recordings (EMFISIS chorus · Cassini Saturn radio), not AI-generated audio.
+- **In-app notice:** Persistent `AI-ASSISTED · NASA SPACE APPS 2026` disclosure chip.
+- **Submission:** Repeat this disclosure (and name specific tools) on the Space Apps project page.
+
+## Compliance notes
+
+- Challenge: [Abandoned but not Forgotten](https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details)
+- Qualifying NASA Resource used: **NSSDCA** (coordinates / resting places) + Moon catalogue / LROC / images.nasa.gov
+- Original code: Apache-2.0 (`LICENSE`) · third-party list: `THIRD_PARTY_LICENSES.md`
+- No NASA meatball/worm logo; no endorsement implied
 
 ## Stack
 

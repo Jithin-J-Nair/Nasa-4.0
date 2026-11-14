@@ -281,13 +281,14 @@ export const ARTIFACTS = [
 ]
 
 export const NASA_RESOURCES = [
-  { label: 'CGI Moon Kit (SVS 4720)', href: 'https://svs.gsfc.nasa.gov/4720/' },
-  { label: 'RSS-Mars textures', href: 'https://github.com/RSS-Reborn/RSS-Mars' },
-  { label: 'Challenge details', href: 'https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details' },
-  { label: 'Challenge resources', href: 'https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=resources' },
-  { label: 'Lunar material catalogue', href: 'https://www.nasa.gov/wp-content/uploads/2024/02/final-catalogue-of-manmade-material-on-the-moon.pdf' },
-  { label: 'LROC Featured Sites', href: 'https://lroc.im-ldi.com/images' },
+  // Challenge Resources tab — NSSDCA is the Global Awards qualifying data source
   { label: 'NSSDCA Master Catalog', href: 'https://nssdc.gsfc.nasa.gov/nmc/' },
+  { label: 'NSSDCA lunar landing sites', href: 'https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html' },
+  { label: 'Catalogue of Manmade Material on the Moon', href: 'https://www.nasa.gov/wp-content/uploads/2024/02/final-catalogue-of-manmade-material-on-the-moon.pdf' },
+  { label: 'Challenge resources', href: 'https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=resources' },
+  { label: 'Challenge details', href: 'https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details' },
+  { label: 'CGI Moon Kit (SVS 4720)', href: 'https://svs.gsfc.nasa.gov/4720/' },
+  { label: 'LROC Featured Sites', href: 'https://lroc.im-ldi.com/images' },
   { label: 'Apollo Lunar Surface Journal', href: 'https://www.nasa.gov/history/alsj-and-afj/' },
   { label: 'HiRISE / MRO', href: 'https://hirise.lpl.arizona.edu/' },
   { label: 'Apollo ALSEP · PDS', href: 'https://pds-geosciences.wustl.edu/missions/apollo/' },
