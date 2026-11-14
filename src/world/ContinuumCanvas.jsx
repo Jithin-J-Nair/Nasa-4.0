@@ -18,13 +18,12 @@ import { ARTIFACTS } from '../data/artifacts'
 const MOON_SITES = ARTIFACTS.filter((a) => a.body === 'moon' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
 const MARS_SITES = ARTIFACTS.filter((a) => a.body === 'mars' && Number.isFinite(a.lat) && Number.isFinite(a.lon))
 
-/** Atlas-only: click-hold drag moves the moon on X. Facing angle stays locked. */
-const ATLAS_DRAG_LIMIT = 1.45
+/** Atlas-only: click-hold drag rotates the Moon on Y. Stays centered; default yaw = 0 (site facing). */
 const ATLAS_DRAG_SLOP = 8
 
 function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
-  const offsetX = useRef(0)
-  const targetX = useRef(0)
+  const yaw = useRef(0)
+  const targetYaw = useRef(0)
   const dragging = useRef(false)
   const pending = useRef(false)
   const originX = useRef(0)
@@ -35,7 +34,7 @@ function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
 
   useEffect(() => {
     if (!atlasLock || reduced) {
-      targetX.current = 0
+      targetYaw.current = 0
       dragging.current = false
       pending.current = false
       activePointer.current = null
@@ -96,8 +95,9 @@ function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
       if (!dragging.current) return
       const dx = e.clientX - lastClientX.current
       lastClientX.current = e.clientX
-      const worldPerPx = (ATLAS_DRAG_LIMIT * 2.15) / Math.max(1, size.width)
-      targetX.current = clamp(targetX.current + dx * worldPerPx, -ATLAS_DRAG_LIMIT, ATLAS_DRAG_LIMIT)
+      // Grab-the-surface: drag right → surface follows finger (negative Y yaw from +Z camera)
+      const radPerPx = (Math.PI * 1.25) / Math.max(1, size.width)
+      targetYaw.current -= dx * radPerPx
     }
 
     el.addEventListener('pointerdown', onDown)
@@ -122,13 +122,13 @@ function useAtlasMoonDrag(atlasLock, reduced, onDraggingChange) {
   useFrame((_, dt) => {
     const step = Math.min(0.05, Math.max(0.001, dt))
     if (!atlasLock) {
-      // Leave Atlas → ease back to centered default
-      targetX.current = lerp(targetX.current, 0, Math.min(1, 3.5 * step))
+      // Leave Atlas → ease back to default facing (offset 0)
+      targetYaw.current = lerp(targetYaw.current, 0, Math.min(1, 3.5 * step))
     }
-    offsetX.current = lerp(offsetX.current, targetX.current, Math.min(1, (dragging.current ? 18 : 10) * step))
+    yaw.current = lerp(yaw.current, targetYaw.current, Math.min(1, (dragging.current ? 22 : 12) * step))
   })
 
-  return offsetX
+  return yaw
 }
 
 /* ─── planet material system ─── */
@@ -772,6 +772,7 @@ function BodySphere({
   sites = [],
   hotspotRef,
   aimLonRef,
+  yawOffsetRef,
   beaconsVisibleRef,
   hotspotsInteractive = false,
   cardSiteId = null,
@@ -858,7 +859,9 @@ function BodySphere({
         // Gentle continuous spin (~0.02 rad/s) — same feel as the locked hero tip
         yawSmooth.current += spin * spinMul * step
       }
-      mesh.current.rotation.y = yawSmooth.current
+      // Atlas user drag is additive yaw on top of the locked site facing
+      const userYaw = yawOffsetRef?.current ?? 0
+      mesh.current.rotation.y = yawSmooth.current + userYaw
     }
   })
 
@@ -1015,7 +1018,6 @@ function FilmDirector({
   moonAimRef,
   marsAimRef,
   beaconsVisibleRef,
-  atlasDragXRef,
   onSample,
   atlasLock = false,
   focusSiteId = null,
@@ -1134,15 +1136,9 @@ function FilmDirector({
         tz = 0
       }
 
-      // Atlas drag: horizontal translate only — facing/aim stays locked
-      const dragX = (atlasDragXRef?.current ?? 0) * ab
-      tx += dragX
-
       const poseDamp = Math.min(1, (reduced ? 8 : 4.5) * step)
       moonScale.current = lerp(moonScale.current, targetScale, poseDamp)
-      // While dragging, follow X tightly; otherwise keep cinematic pose damp
-      const xDamp = ab > 0.5 ? Math.min(1, 14 * step) : poseDamp
-      moonPos.current.x = lerp(moonPos.current.x, tx, xDamp)
+      moonPos.current.x = lerp(moonPos.current.x, tx, poseDamp)
       moonPos.current.y = lerp(moonPos.current.y, ty, poseDamp)
       moonPos.current.z = lerp(moonPos.current.z, tz, poseDamp)
       moonRef.current.scale.setScalar(moonScale.current)
@@ -1264,7 +1260,7 @@ function ContinuumScene({
   const moonAimRef = useRef(null)
   const marsAimRef = useRef(null)
   const beaconsVisibleRef = useRef(0)
-  const atlasDragXRef = useAtlasMoonDrag(atlasLock, reduced, onAtlasDraggingChange)
+  const atlasYawRef = useAtlasMoonDrag(atlasLock, reduced, onAtlasDraggingChange)
   // Full masters — bytes warmed during preloader (see preloadTextures.js)
   const moonColor = mobile ? '/textures/moon_color_2k.jpg' : '/textures/moon_color_8k.jpg'
   const moonHeight = mobile ? '/textures/moon_height_2k.jpg' : '/textures/moon_height_4k.jpg'
@@ -1302,7 +1298,6 @@ function ContinuumScene({
         moonAimRef={moonAimRef}
         marsAimRef={marsAimRef}
         beaconsVisibleRef={beaconsVisibleRef}
-        atlasDragXRef={atlasDragXRef}
         onSample={onSample}
         atlasLock={atlasLock}
         focusSiteId={focusSiteId}
@@ -1328,6 +1323,7 @@ function ContinuumScene({
           sites={MOON_SITES}
           hotspotRef={hotspotRef}
           aimLonRef={moonAimRef}
+          yawOffsetRef={atlasYawRef}
           beaconsVisibleRef={beaconsVisibleRef}
           hotspotsInteractive={hotspotsInteractive}
           cardSiteId={cardSiteId}
