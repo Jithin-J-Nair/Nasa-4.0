@@ -277,7 +277,7 @@ export const ARTIFACTS = [
     credit: 'NASA / JPL-Caltech',
     orbital: 'https://voyager.jpl.nasa.gov/',
     source: 'https://images.nasa.gov/details/PIA17462',
-  },,
+  },
   {
     id: "viking1",
     body: "mars",
