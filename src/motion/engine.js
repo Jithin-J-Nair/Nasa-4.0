@@ -20,6 +20,20 @@ let refreshTimer = 0
 let resizeObs = null
 let filmRailTrigger = null
 let filmScrollTween = null
+/** When true, Journey timeline owns filmProgressRef — ScrollTrigger must not fight it */
+let filmDriveLocked = false
+
+export function lockFilmDrive(locked) {
+  filmDriveLocked = !!locked
+}
+
+export function pauseScrollEngine() {
+  lenis?.stop?.()
+}
+
+export function resumeScrollEngine() {
+  lenis?.start?.()
+}
 
 /**
  * Single owner of continuum time (0→1).
@@ -140,14 +154,16 @@ export function createScrollEngine({ onScroll } = {}) {
     return { lenis: null, refresh: () => ScrollTrigger.refresh() }
   }
 
-  // Silkier Lenis — lower lerp = more inertia without ScrollSmoother (never dual-stack)
+  // Touch: syncTouch + snappier lerp = accurate finger tracking without wheel silk fighting it
+  const coarse = typeof window !== 'undefined'
+    && window.matchMedia('(pointer: coarse)').matches
   lenis = new Lenis({
-    lerp: 0.055,
-    smoothWheel: true,
+    lerp: coarse ? 0.14 : 0.055,
+    smoothWheel: !coarse,
     wheelMultiplier: 0.78,
-    touchMultiplier: 1.05,
-    syncTouch: false,
-    syncTouchLerp: 0.055,
+    touchMultiplier: coarse ? 1.4 : 1.05,
+    syncTouch: coarse,
+    syncTouchLerp: coarse ? 0.12 : 0.055,
     autoResize: true,
   })
 
@@ -233,12 +249,15 @@ export function createFilmRail() {
     invalidateOnRefresh: true,
     anticipatePin: 0,
     onUpdate: (self) => {
+      if (filmDriveLocked) return
       filmProgressRef.current = mapRailProgress(self.progress)
     },
     onLeaveBack: () => {
+      if (filmDriveLocked) return
       filmProgressRef.current = 0
     },
     onLeave: () => {
+      if (filmDriveLocked) return
       filmProgressRef.current = 1
     },
   })
@@ -339,12 +358,23 @@ export function playMoonToMarsJourney({
     Math.max(filmProgressRef.current, FILM_MARKERS.atlas),
   )
   const toP = FILM_MARKERS.meridiani
+  lockFilmDrive(true)
   onStart?.()
+
+  const release = () => {
+    lockFilmDrive(false)
+  }
 
   if (reduced || prefersReducedMotion()) {
     scrollToFilmProgress(toP, { duration: 0.55 })
-    const done = window.setTimeout(() => onComplete?.(), 650)
-    return () => window.clearTimeout(done)
+    const done = window.setTimeout(() => {
+      release()
+      onComplete?.()
+    }, 650)
+    return () => {
+      window.clearTimeout(done)
+      release()
+    }
   }
 
   // Sit on atlas tip before the long scrub (weights inverted for scroll Y)
@@ -357,13 +387,17 @@ export function playMoonToMarsJourney({
       playMoonToMarsJourney._tl = null
       filmScrollTween = null
       scrollToFilmProgress(toP, { duration: 0.9 })
-      gsap.delayedCall(0.35, () => onComplete?.())
+      gsap.delayedCall(0.35, () => {
+        release()
+        onComplete?.()
+      })
     },
   })
 
   tl.to(state, {
     p: toP,
-    duration: 14.2,
+    // Land on Meridiani with Mars already owning the frame
+    duration: 7.2,
     ease: 'power2.inOut',
     onUpdate: () => {
       const y = filmProgressToScrollY(state.p)
@@ -380,6 +414,7 @@ export function playMoonToMarsJourney({
     tl.kill()
     if (playMoonToMarsJourney._tl === tl) playMoonToMarsJourney._tl = null
     filmScrollTween = null
+    release()
   }
 }
 
@@ -515,23 +550,37 @@ export function revealOnScroll(el, { reduced } = {}) {
   const parts = el.querySelectorAll('[data-reveal]')
   const targets = parts.length ? parts : el
   gsap.set(targets, { autoAlpha: 0, y: 36 })
+  let done = false
+  const play = () => {
+    if (done) return
+    done = true
+    gsap.to(targets, {
+      autoAlpha: 1,
+      y: 0,
+      duration: 0.9,
+      stagger: 0.08,
+      ease: 'power3.out',
+      force3D: true,
+      onComplete: () => {
+        gsap.set(targets, { clearProps: 'willChange' })
+      },
+    })
+  }
   const st = ScrollTrigger.create({
     trigger: el,
-    start: 'top 82%',
+    start: 'top 88%',
     once: true,
-    onEnter: () => {
-      gsap.to(targets, {
-        autoAlpha: 1,
-        y: 0,
-        duration: 0.9,
-        stagger: 0.08,
-        ease: 'power3.out',
-        force3D: true,
-        onComplete: () => {
-          gsap.set(targets, { clearProps: 'willChange' })
-        },
-      })
-    },
+    onEnter: play,
+  })
+  // Nav jumps / Lenis can skip onEnter — never leave CTAs/images stranded at autoAlpha 0
+  requestAnimationFrame(() => {
+    ScrollTrigger.refresh()
+    const top = el.getBoundingClientRect().top
+    const vh = window.innerHeight || 1
+    if (st.progress > 0 || (top < vh * 0.92 && top + el.offsetHeight > vh * 0.08)) {
+      play()
+      st.kill()
+    }
   })
   return () => st.kill()
 }

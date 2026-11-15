@@ -183,8 +183,8 @@ export const ACTS = [
     label: 'ARRIVAL',
     range: [0.0, 0.09],
     ease: easeHold,
-    // Moon dead-center — equal starfield both limbs
-    cam: { from: [0, 0.02, 6.8], to: [0, 0.02, 6.4], look: [0, 0, 0], fov: [36, 34] },
+    // Moon dead-center — equal starfield both limbs (Z kept back so portrait never overfills)
+    cam: { from: [0, 0.02, 7.6], to: [0, 0.02, 7.15], look: [0, 0, 0], fov: [38, 36] },
     grade: { lift: [0.01, 0.015, 0.04], gain: [1.05, 1.06, 1.1], exposure: 1.12, grain: 0.028 },
     event: { dive: 0, storm: 0, carrier: 0, warp: 0.02 },
     dark: 0,
@@ -201,7 +201,7 @@ export const ACTS = [
     range: [0.09, 0.18],
     ease: easeInOutCubic,
     // Slight centered zoom only — limbs stay visible both sides
-    cam: { from: [0, 0.02, 6.4], to: [0, 0.02, 5.15], look: [0, 0, 0], fov: [34, 31] },
+    cam: { from: [0, 0.02, 7.15], to: [0, 0.02, 6.35], look: [0, 0, 0], fov: [36, 34] },
     grade: { lift: [0.015, 0.02, 0.045], gain: [1.04, 1.05, 1.1], exposure: 1.02, grain: 0.04 },
     event: { dive: 0, storm: 0, carrier: 0, warp: 0.06 },
     dark: 0.04,
@@ -212,14 +212,14 @@ export const ACTS = [
     lookId: 'lunar_steel',
   },
   {
-    // Soft lunar settle before Journey — no smash zoom
+    // Soft lunar settle before Journey — no smash zoom / no full-frame fill
     id: 'crater_dive',
     label: 'NEAR PASS',
     range: [0.18, 0.28],
     ease: easeInOutCubic,
-    cam: { from: [0, 0.02, 5.15], to: [0, 0.02, 5.35], look: [0, 0, 0], fov: [31, 33] },
+    cam: { from: [0, 0.02, 6.35], to: [0, 0.02, 6.55], look: [0, 0, 0], fov: [34, 35] },
     grade: { lift: [0.02, 0.025, 0.045], gain: [0.98, 1.0, 1.05], exposure: 0.98, grain: 0.05 },
-    event: { dive: 0.22, storm: 0, carrier: 0, warp: 0.12 },
+    event: { dive: 0.14, storm: 0, carrier: 0, warp: 0.12 },
     dark: 0.1,
     fog: [16, 78],
     focus: 'moon',
@@ -232,7 +232,7 @@ export const ACTS = [
     label: 'JOURNEY',
     range: [0.28, 0.52],
     ease: easeCinematic,
-    cam: { from: [0, 0.02, 5.35], to: [0.55, 0.1, 4.7], look: [1.28, 0.06, -0.4], fov: [33, 33] },
+    cam: { from: [0, 0.02, 6.55], to: [0.55, 0.1, 4.7], look: [1.28, 0.06, -0.4], fov: [35, 33] },
     grade: { lift: [0.02, 0.02, 0.05], gain: [1.0, 1.0, 1.08], exposure: 0.9, grain: 0.05 },
     event: { dive: 0.05, storm: 0, carrier: 0, warp: 0.72 },
     dark: 0.18,
@@ -295,11 +295,11 @@ export const ACTS = [
     label: 'SILENCE',
     range: [0.88, 1.0],
     ease: easeHold,
-    cam: { from: [0.12, 0.22, 4.6], to: [0.28, 0.18, 3.7], look: [0.04, 0.1, -9.5], fov: [32, 28] },
-    grade: { lift: [0.01, 0.015, 0.035], gain: [0.9, 0.94, 1.05], exposure: 0.72, grain: 0.04 },
-    event: { dive: 0, storm: 0, carrier: 1, warp: 0.05 },
-    dark: 0.78,
-    fog: [22, 95],
+    cam: { from: [0.12, 0.22, 4.6], to: [0.22, 0.14, 4.05], look: [0.08, 0.06, -8.2], fov: [34, 30] },
+    grade: { lift: [0.01, 0.015, 0.035], gain: [0.92, 0.96, 1.08], exposure: 0.92, grain: 0.035 },
+    event: { dive: 0, storm: 0, carrier: 0.85, warp: 0.04 },
+    dark: 0.42,
+    fog: [18, 88],
     focus: 'pioneer',
     cue: 'carrier_lost',
     hotspot: 'voyager1',
@@ -411,10 +411,10 @@ export function sampleActs(progress) {
       dark = Math.max(dark, 0.88 + hole * 0.1)
     }
   }
-  // Carrier: signal collapses into scored silence
+  // Carrier: signal collapses into scored silence — keep craft readable (not crushed to black)
   if (act.id === 'silence') {
     event.carrier = Math.max(event.carrier, easeHold(local, 0.25))
-    dark = Math.max(dark, 0.55 + local * 0.35)
+    dark = Math.max(dark, 0.32 + local * 0.22)
   }
 
   const smash = act.smash != null && Math.abs(p - act.smash) < 0.014
@@ -428,12 +428,13 @@ export function sampleActs(progress) {
     warp: event.warp,
   }
   if (act.id === 'transit') {
-    // Overlap Moon exit with Mars approach — cinematic crossfade, not a hard cut
+    // ALWAYS keep a planet on stage: Moon recedes fast, Mars is a readable disc from frame 0.
+    // (Do not delay marsPresence — that empties the corridor and Mars “goes missing”.)
     journey = {
-      moonPresence: 1 - smoothstep(0.12, 0.68, local),
-      marsPresence: smoothstep(0.32, 0.82, local),
-      moonExit: smoothstep(0.08, 0.62, local),
-      marsApproach: smoothstep(0.38, 1, local),
+      moonPresence: 1 - smoothstep(0.0, 0.36, local),
+      marsPresence: smoothstep(0.0, 0.26, local),
+      moonExit: smoothstep(0.0, 0.4, local),
+      marsApproach: smoothstep(0.0, 0.52, local),
       warp: event.warp,
     }
   }

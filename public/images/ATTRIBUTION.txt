@@ -1,0 +1,25 @@
+SILENT FLEET — still imagery
+============================
+
+1) pale-blue-dot-revisited.jpg
+   Title: Pale Blue Dot Revisited
+   Credit: NASA / JPL-Caltech
+   Description: Earth as a pale blue pixel in a ray of sunlight, imaged by Voyager 1
+                from about 6 billion kilometers on 14 February 1990; later reprocessed.
+   Source page: https://science.nasa.gov/mission/voyager/voyager-1s-pale-blue-dot/
+   Local file: web downscale (~1600px) of the NASA still for continuum silence coda.
+
+2) eagle-descent.jpg / eagle-aldrin-portrait.jpg
+   Title: Apollo 11 — Astronaut Buzz Aldrin on the Moon (as11-40-5903)
+   Credit: NASA / JSC · Neil A. Armstrong
+   Source: https://images.nasa.gov/details/as11-40-5903
+   Local files: square cache + vertical 3:4 crop for Objective (visor + bootprints).
+
+License / use
+-------------
+NASA media may be used for educational and informational purposes in accordance with
+NASA Media Usage Guidelines (no implication of NASA endorsement):
+https://www.nasa.gov/nasa-media-usage-guidelines/
+
+Credit NASA / JPL-Caltech when practical.
+Space Apps disclosure: AI-assisted integration of this public NASA image.

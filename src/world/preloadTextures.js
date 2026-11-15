@@ -73,3 +73,15 @@ export function preloadCriticalMoon(mobile = false) {
 export function preloadContinuumModule() {
   return import('./ContinuumCanvas')
 }
+
+/** Keep Mars + Voyager warm so Journey / Silence never open on an empty stage. */
+export function preloadMarsAndVoyager(mobile = false) {
+  const urls = mobile
+    ? ['/textures/mars_color_2k.jpg', '/textures/mars_bump_2k.jpg']
+    : ['/textures/mars_color_4k.jpg', '/textures/mars_bump_4k.jpg']
+  const textures = Promise.all(urls.map(loadTexture))
+  const craft = fetch('/models/Voyager.glb', { mode: 'cors', credentials: 'omit' })
+    .then((r) => (r.ok ? r.arrayBuffer() : null))
+    .catch(() => null)
+  return Promise.all([textures, craft])
+}

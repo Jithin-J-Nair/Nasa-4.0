@@ -62,10 +62,11 @@ img, svg { display: block; max-width: 100%; }
 .continuum-canvas {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
+  /* Prefer % over 100vw — vw includes scrollbar and overflows on mobile */
+  width: 100%;
+  height: 100%;
   height: 100svh;
-  max-width: 100vw;
+  max-width: 100%;
   max-height: 100svh;
   z-index: 0;
   pointer-events: none;
@@ -101,6 +102,16 @@ img, svg { display: block; max-width: 100%; }
 .sf-chapters {
   position: relative;
   z-index: 2;
+}
+/* Boot: freeze page scroll so preloader end cannot yank a mid-scroll user to top mid-gesture */
+.sf-app.is-booting {
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  touch-action: none;
+}
+.sf-app.is-booting .sf-chapters {
+  pointer-events: none;
 }
 /* Footer only — never content-visibility inside the continuous story plate */
 .sf-chapters > .footer {
@@ -148,7 +159,6 @@ img, svg { display: block; max-width: 100%; }
   letter-spacing: 0.18em;
 }
 .journey-hud__meter[data-label='LAST LIGHT'] .journey-hud__meter-fill {
-  width: 92%;
   background: linear-gradient(90deg, #ff7a45, #2a0e08);
 }
 .story-plate > .section,
@@ -177,45 +187,52 @@ img, svg { display: block; max-width: 100%; }
   /* No isolation/background — keeps the fixed continuum moon unbroken */
 }
 .atlas-heading--bridge {
-  position: sticky;
-  top: calc(var(--nav-h) + 2.75rem);
+  position: relative;
   z-index: 95;
-  align-self: flex-start;
-  width: min(420px, 78vw);
-  max-width: min(420px, 78vw);
-  /* Pull up into Objective so the title is already on-screen while finishing the challenge copy */
-  margin: clamp(-1.25rem, -4vh, 0.25rem) 0 clamp(-8rem, -16vh, -4rem);
-  /* Keep clear of the left edge / film scrubber — was flush to the corner */
-  margin-left: clamp(2.75rem, 9vw, 7rem);
-  padding: 0.35rem 1rem 0 0;
+  align-self: stretch;
+  width: min(920px, 100%);
+  max-width: 100%;
+  margin: 0 0 clamp(1.25rem, 3vh, 2rem);
+  padding: 0;
   pointer-events: none;
   transform: translate3d(0, 0, 0);
   transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1), filter 0.85s ease;
   will-change: opacity;
 }
-.atlas-heading--bridge.is-peek {
-  opacity: 0.78;
-  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.45));
+.atlas-heading--bridge.is-waiting {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 .atlas-heading--bridge.is-atlas {
   opacity: 1;
+  visibility: visible;
   filter: drop-shadow(0 12px 36px rgba(0, 0, 0, 0.55));
 }
-/* Objective copy dissolves as Atlas title takes the left column */
-.challenge-objective .objective-grid {
+/* Objective copy softens as Atlas takes over — keep the Eagle figure + CTAs readable longer */
+.challenge-objective .objective-copy {
   transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.objective-atlas-band:has(.location-atlas.is-active) .challenge-objective .objective-grid,
-.objective-atlas-band.is-atlas-live .challenge-objective .objective-grid {
+.challenge-objective .objective-figure-fade {
+  transition: opacity 1.1s cubic-bezier(0.22, 1, 0.36, 1), transform 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.objective-atlas-band:has(.location-atlas.is-active) .challenge-objective .objective-copy,
+.objective-atlas-band.is-atlas-live .challenge-objective .objective-copy {
   opacity: 0;
   transform: translate3d(0, -12px, 0);
   pointer-events: none;
 }
+.objective-atlas-band:has(.location-atlas.is-active) .challenge-objective .objective-figure-fade,
+.objective-atlas-band.is-atlas-live .challenge-objective .objective-figure-fade {
+  /* Keep Eagle readable while Atlas peeks — do not kill the hero still */
+  opacity: 0.55;
+  transform: translate3d(4%, 0, 0) scale(0.97);
+  pointer-events: none;
+}
 @media (max-width: 720px) {
   .atlas-heading--bridge {
-    margin-left: clamp(1.5rem, 6vw, 2.25rem);
-    width: min(100%, 88vw);
-    max-width: min(100%, 88vw);
+    width: 100%;
+    max-width: 100%;
   }
 }
 .story-seam--into-film {
@@ -239,9 +256,10 @@ img, svg { display: block; max-width: 100%; }
   inset: 0;
   z-index: 1;
   pointer-events: none;
+  /* Lighter veil — planets stay the hero, not mud under HUD glass */
   background:
-    linear-gradient(180deg, rgba(3,3,8,0.35) 0%, rgba(3,3,8,0.04) 32%, rgba(3,3,8,0.08) 68%, rgba(3,3,8,0.55) 100%),
-    radial-gradient(ellipse at 62% 48%, transparent 22%, rgba(3,3,8,0.28) 100%);
+    linear-gradient(180deg, rgba(3,3,8,0.22) 0%, rgba(3,3,8,0.02) 34%, rgba(3,3,8,0.04) 72%, rgba(3,3,8,0.38) 100%),
+    radial-gradient(ellipse at 62% 48%, transparent 28%, rgba(3,3,8,0.16) 100%);
 }
 .audio-toggle {
   position: fixed;
@@ -336,15 +354,14 @@ img, svg { display: block; max-width: 100%; }
   display: block;
   height: 100%;
   width: 100%;
+  transform: scaleX(0);
   transform-origin: left center;
+  will-change: transform;
   background: linear-gradient(90deg, rgba(142, 200, 255, 0.15), rgba(255, 210, 170, 0.85));
-  animation: journeyMeter 14s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
-}
-.journey-hud__meter[data-label='JOURNEY'] .journey-hud__meter-fill {
-  animation-duration: 8s;
 }
 .journey-hud__meter[data-label='MERIDIANI'] .journey-hud__meter-fill,
-.journey-hud__meter[data-label='DUST STORM'] .journey-hud__meter-fill {
+.journey-hud__meter[data-label='DUST STORM'] .journey-hud__meter-fill,
+.journey-hud__meter[data-label='LAST LIGHT'] .journey-hud__meter-fill {
   background: linear-gradient(90deg, rgba(255, 160, 110, 0.2), rgba(255, 200, 150, 0.9));
 }
 .journey-hud.is-silence .journey-hud__phase {
@@ -371,17 +388,141 @@ img, svg { display: block; max-width: 100%; }
     clamp(1.4rem, 4vh, 2.4rem)
     clamp(1rem, 4vw, 2.5rem);
   background:
-    linear-gradient(90deg, rgba(3, 4, 10, 0.55) 0%, transparent 42%),
-    linear-gradient(0deg, rgba(3, 4, 10, 0.72) 0%, transparent 38%);
+    linear-gradient(90deg, rgba(3, 4, 10, 0.62) 0%, transparent 48%),
+    linear-gradient(0deg, rgba(3, 4, 10, 0.78) 0%, transparent 42%);
 }
 .journey-spacer.is-silence-live .journey-hud {
   opacity: 0;
   visibility: hidden;
 }
+.silence-coda__sky {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+/* NASA still dissolves into the void — no planet-plate rectangle */
+.pale-blue-stage {
+  position: absolute;
+  top: clamp(2%, 4vh, 8%);
+  right: clamp(0%, 2vw, 4%);
+  width: min(64vw, 780px);
+  aspect-ratio: 1600 / 1583;
+  max-height: min(62vh, 580px);
+  pointer-events: none;
+}
+.pale-blue-field {
+  position: absolute;
+  inset: -18%;
+  background-size: cover;
+  background-position: 59% 50%;
+  opacity: 0.62;
+  /* Dissolve into continuum black — sunbeam + pixel remain, no planet-plate */
+  filter: saturate(0.55) contrast(1.02) brightness(0.48) hue-rotate(-8deg);
+  mix-blend-mode: screen;
+  mask-image: radial-gradient(ellipse 48% 52% at 59.5% 52%, #000 0%, rgba(0,0,0,0.55) 28%, transparent 58%);
+  -webkit-mask-image: radial-gradient(ellipse 48% 52% at 59.5% 52%, #000 0%, rgba(0,0,0,0.55) 28%, transparent 58%);
+}
+.pale-blue-hotspot {
+  pointer-events: auto;
+  position: absolute;
+  /* Earth speck in Pale Blue Dot Revisited (~59.5% × 52%) */
+  top: 52%;
+  left: 59.5%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 3;
+}
+.pale-blue-hotspot__core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: #c8e4ff;
+  box-shadow:
+    0 0 0 1.5px rgba(230, 245, 255, 0.95),
+    0 0 14px 4px rgba(140, 200, 255, 0.85),
+    0 0 40px 12px rgba(100, 170, 255, 0.45);
+}
+.pale-blue-hotspot__ring {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 1px solid rgba(142, 200, 255, 0.55);
+  animation: paleBluePulse 2.8s ease-out infinite;
+}
+.pale-blue-hotspot__ring--delay {
+  animation-delay: 1.1s;
+}
+.pale-blue-hotspot.is-on .pale-blue-hotspot__core {
+  background: #e8f3ff;
+  box-shadow:
+    0 0 0 1px #fff,
+    0 0 14px 3px rgba(160, 210, 255, 0.85),
+    0 0 36px 8px rgba(100, 170, 255, 0.4);
+}
+@keyframes paleBluePulse {
+  0% { transform: scale(0.45); opacity: 0.8; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+.pale-blue-card {
+  pointer-events: auto;
+  position: absolute;
+  top: 58%;
+  left: 8%;
+  width: min(280px, 90%);
+  padding: 0.85rem 0.95rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid rgba(142, 200, 255, 0.22);
+  background: rgba(5, 8, 16, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 22px 48px -24px rgba(0, 0, 0, 0.9);
+  z-index: 4;
+}
+.pale-blue-card__kicker {
+  margin: 0 0 0.45rem;
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  color: rgba(142, 200, 255, 0.8);
+}
+.pale-blue-card__line {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: rgba(232, 238, 245, 0.9);
+}
+.pale-blue-card__link {
+  display: inline-block;
+  margin-top: 0.7rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: var(--ice);
+}
+.pale-blue-card__credit {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
+}
 .silence-coda__copy {
-  max-width: min(34rem, 52vw);
+  position: relative;
+  z-index: 2;
+  max-width: min(36rem, 54vw);
   align-self: center;
-  margin-top: -6vh;
+  margin-top: -4vh;
+  pointer-events: none;
 }
 .silence-coda__kicker {
   margin: 0 0 0.55rem;
@@ -391,18 +532,29 @@ img, svg { display: block; max-width: 100%; }
 }
 .silence-coda__title {
   margin: 0;
-  font-size: clamp(1.85rem, 4.6vw, 3.35rem);
-  letter-spacing: -0.035em;
+  font-size: clamp(1.95rem, 5vw, 3.55rem);
+  letter-spacing: -0.04em;
   line-height: 1.02;
   color: #f2f6fb;
-  text-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
+  text-shadow: 0 18px 48px rgba(0, 0, 0, 0.72);
+}
+.silence-coda__title-soft {
+  display: inline;
+  color: rgba(180, 210, 255, 0.92);
+  font-weight: 600;
 }
 .silence-coda__lede {
+  margin: 0.95rem 0 0;
+  max-width: 40ch;
+  font-size: clamp(0.95rem, 1.55vw, 1.08rem);
+  line-height: 1.6;
+  color: rgba(200, 210, 225, 0.82);
+}
+.silence-coda__hint {
   margin: 0.85rem 0 0;
-  max-width: 38ch;
-  font-size: clamp(0.92rem, 1.5vw, 1.05rem);
-  line-height: 1.55;
-  color: rgba(200, 210, 225, 0.78);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  color: rgba(142, 200, 255, 0.55);
 }
 .light-day--silence {
   pointer-events: auto;
@@ -421,20 +573,54 @@ img, svg { display: block; max-width: 100%; }
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-end;
-    gap: 1rem;
-    padding-bottom: 5.5rem;
+    gap: 0.75rem;
+    /* Upper half reserved for Voyager + Pale Blue Dot — copy locked to the lower band */
+    padding-top: 52svh;
+    padding-bottom: max(5.5rem, calc(env(safe-area-inset-bottom) + 4.5rem));
+    background:
+      linear-gradient(0deg, rgba(3, 4, 10, 0.9) 0%, rgba(3, 4, 10, 0.58) 34%, rgba(3, 4, 10, 0.2) 50%, transparent 64%);
+  }
+  .pale-blue-stage {
+    top: 5%;
+    right: 50%;
+    transform: translateX(50%);
+    width: min(94vw, 460px);
+    max-height: 38vh;
+  }
+  .pale-blue-field {
+    opacity: 0.7;
+    mix-blend-mode: screen;
+  }
+  .objective-cta.mag-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .pale-blue-card {
+    top: auto;
+    bottom: -4%;
+    left: 50%;
+    transform: translate(-50%, 100%);
+    width: min(290px, 86vw);
   }
   .silence-coda__copy {
     max-width: none;
     margin-top: 0;
+    position: relative;
+    z-index: 2;
+  }
+  .silence-coda__title {
+    font-size: clamp(1.55rem, 7.2vw, 2.25rem);
+    text-shadow: 0 10px 28px rgba(0, 0, 0, 0.85), 0 2px 8px rgba(0, 0, 0, 0.7);
+  }
+  .silence-coda__lede {
+    font-size: 0.88rem;
+    max-width: 36ch;
   }
   .light-day--silence {
     max-width: none;
+    position: relative;
+    z-index: 2;
   }
-}
-@keyframes journeyMeter {
-  from { transform: scaleX(0.12); opacity: 0.55; }
-  to { transform: scaleX(1); opacity: 1; }
 }
 .story-plate .journey-spacer .section-rail {
   opacity: 0.45;
@@ -893,6 +1079,65 @@ img, svg { display: block; max-width: 100%; }
   margin: 0 0 1rem;
   max-width: 22ch;
 }
+/* Hero: brand first — challenge line is supporting, not competing */
+.hero-challenge-line {
+  margin: 0 0 1rem;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: clamp(0.95rem, 2.1vw, 1.15rem);
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  color: rgba(142, 200, 255, 0.82);
+  max-width: 28ch;
+}
+.atlas-stage-dock {
+  position: absolute;
+  left: clamp(1rem, 4vw, 2.5rem);
+  right: clamp(1rem, 4vw, 2.5rem);
+  bottom: clamp(1.4rem, 4vh, 2.6rem);
+  z-index: 4;
+  max-width: min(36rem, 92vw);
+  pointer-events: none;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(142, 200, 255, 0.14);
+  background: linear-gradient(135deg, rgba(6, 10, 18, 0.55), rgba(6, 10, 18, 0.22));
+  backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: 0 18px 48px -28px rgba(0, 0, 0, 0.75);
+}
+.atlas-stage-dock__kicker {
+  margin: 0 0 0.45rem;
+  color: rgba(142, 200, 255, 0.7);
+}
+.atlas-stage-dock__lede {
+  margin: 0;
+  color: rgba(232, 238, 245, 0.78);
+  font-size: clamp(0.92rem, 2vw, 1.05rem);
+  line-height: 1.45;
+  max-width: 38ch;
+  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+.atlas-stage-dock__meta {
+  margin: 0.65rem 0 0;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: rgba(232, 238, 245, 0.42);
+}
+.moon-hotspot-open {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ice);
+  cursor: pointer;
+  letter-spacing: 0.12em;
+  font-size: 0.62rem;
+}
+.moon-hotspot-open:hover,
+.moon-hotspot-open:focus-visible {
+  color: #fff;
+  outline: none;
+}
 .hero-leftover {
   /* Brand left · leftover plate on the Moon (stage-right) */
   position: absolute;
@@ -938,39 +1183,152 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   margin-bottom: 0;
   background: transparent;
 }
-.objective-grid {
+.objective-hero-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: clamp(1.5rem, 4vw, 3rem);
-  align-items: start;
-  margin-top: 0.5rem;
+  grid-template-columns: minmax(0, 1.15fr) minmax(200px, 0.72fr);
+  gap: clamp(1.25rem, 3.5vw, 2.75rem);
+  align-items: center;
+  margin: 0.35rem 0 1.35rem;
 }
-.objective-copy { max-width: 54ch; }
+.objective-copy {
+  max-width: min(62ch, 100%);
+  width: 100%;
+}
+.objective-cta-row {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.objective-cta.mag-btn {
+  min-height: 48px;
+  padding: 0.85rem 1.55rem;
+  font-size: 0.72rem;
+}
 .objective-link-row {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem 1.5rem;
-  margin-top: 1.75rem;
+  margin: 0;
   font-size: 0.68rem;
   letter-spacing: 0.14em;
 }
 .objective-link-row a { color: var(--ice); }
 .objective-link-row a:hover { color: var(--ink); }
-.objective-figure { margin: 0; }
-.objective-figure figcaption {
+.objective-figure {
+  margin: 0;
+  width: 100%;
+}
+.objective-figure .objective-decay.decay-card {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  max-height: min(62vh, 560px);
+  overflow: visible;
+}
+.objective-figure .decay-card__content {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 0;
+}
+.objective-decay__credit {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: rgba(232, 238, 245, 0.78);
+}
+.objective-figure__caption {
   margin-top: 0.65rem;
   font-size: 0.62rem;
   letter-spacing: 0.12em;
   color: var(--ink-mute);
 }
+.objective-headline {
+  font-size: clamp(2.2rem, 5.2vw, 4.1rem);
+  margin: 0;
+  max-width: 11ch;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+.objective-focus-wrap {
+  margin: 0;
+  max-width: none;
+  width: 100%;
+  align-self: center;
+}
+.objective-focus-wrap .focus-container {
+  justify-content: flex-start;
+  gap: 0.16em 0.38em;
+  max-width: 12ch;
+  width: 100%;
+}
+.objective-focus-wrap .focus-word {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.8vw, 3.8rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  cursor: default;
+}
+.objective-figure-fade {
+  width: 100%;
+  max-width: min(34vw, 380px);
+  justify-self: end;
+  flex-shrink: 0;
+  perspective: 900px;
+}
+.sf-film-grain {
+  pointer-events: none;
+}
+.hero-challenge-line__decrypt,
+.objective-decrypt {
+  display: inline-block;
+}
+.hero-challenge-line__cipher,
+.objective-decrypt__cipher {
+  color: rgba(142, 200, 255, 0.72);
+}
+.hero-scroll-cue__shine {
+  letter-spacing: inherit;
+  font: inherit;
+  text-transform: inherit;
+}
+.footer-mark__shine {
+  font: inherit;
+  letter-spacing: inherit;
+}
+
 .heartbeat-media {
   margin-bottom: 0.85rem !important;
   aspect-ratio: 16 / 10;
   border-radius: 0;
 }
 @media (max-width: 860px) {
-  .objective-grid { grid-template-columns: 1fr; }
-  .objective-figure { max-width: 420px; }
+  .objective-hero-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .objective-figure-fade {
+    max-width: min(72vw, 320px);
+    justify-self: end;
+  }
+  .objective-figure .objective-decay.decay-card {
+    max-height: min(48vh, 420px);
+  }
+  .objective-focus-wrap .focus-container {
+    max-width: none;
+  }
+  .objective-focus-wrap .focus-word {
+    font-size: clamp(1.75rem, 7.5vw, 2.75rem);
+  }
+  .objective-headline {
+    max-width: none;
+  }
 }
 .nasa-media.body-moon img { object-position: 50% 42%; }
 .nasa-media.body-mars img { object-position: 50% 55%; }
@@ -983,16 +1341,15 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   min-height: 118vh;
   min-height: 118dvh;
   height: auto;
-  /* Extra top pad so sticky “Where they still sit” has clear air over the moon */
-  padding: calc(var(--nav-h) + 7.5rem) clamp(1.25rem, 5vw, 5rem) clamp(2rem, 6vh, 4rem);
+  /* Title lives here with the Moon — keep clear of Objective’s Eagle still */
+  padding: calc(var(--nav-h) + 2.5rem) clamp(1.25rem, 5vw, 5rem) clamp(2rem, 6vh, 4rem);
   box-sizing: border-box;
   background: transparent;
   /* overflow visible — clipping here cut a hard line across the fixed moon */
   overflow: visible;
   pointer-events: none;
   scroll-margin-top: calc(var(--nav-h) + 1rem);
-  /* Pull up under the sticky bridge — one continuous plate */
-  margin-top: clamp(-6rem, -12vh, -3rem);
+  margin-top: 0;
 }
 .atlas-overlay {
   max-width: min(460px, 92vw);
@@ -1011,7 +1368,8 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 }
 
 /* Mars Meridiani — large arc hotspot wheel docks left */
-.mars-hotspot-wheel-hud {
+.mars-hotspot-wheel-hud,
+.moon-hotspot-wheel-hud {
   position: fixed;
   left: 0;
   top: var(--nav-h);
@@ -1032,58 +1390,77 @@ body.is-coarse .hero-leftover { cursor: pointer; }
     transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
     visibility 0.45s;
 }
-.mars-hotspot-wheel-hud.is-on {
+.mars-hotspot-wheel-hud.is-on,
+.moon-hotspot-wheel-hud.is-on {
   opacity: 1;
   visibility: visible;
   transform: translate3d(0, 0, 0);
+  /* HUD shell stays pass-through; the OptionWheel root captures hover+scroll */
   pointer-events: none;
 }
-.mars-hotspot-wheel-hud:not(.is-on) {
+.mars-hotspot-wheel-hud:not(.is-on),
+.moon-hotspot-wheel-hud:not(.is-on) {
   pointer-events: none !important;
 }
-.mars-hotspot-wheel-kicker {
+.mars-hotspot-wheel-kicker,
+.moon-hotspot-wheel-kicker {
   pointer-events: none;
   margin: 0 0 0.65rem;
   padding-left: 1.6rem;
-  color: rgba(255, 200, 160, 0.55);
   letter-spacing: 0.18em;
   font-size: 0.62rem;
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
 }
-.mars-hotspot-wheel {
-  /* Root is pass-through — only option labels capture pointer/wheel */
-  pointer-events: none;
+.mars-hotspot-wheel-kicker {
+  color: rgba(255, 200, 160, 0.55);
+}
+.moon-hotspot-wheel-kicker {
+  color: rgba(142, 200, 255, 0.62);
+}
+.mars-hotspot-wheel,
+.moon-hotspot-wheel {
+  /* Hover anywhere on the wheel → OptionScroll sites (web + mobile) */
+  pointer-events: auto;
   height: min(84vh, 760px);
-  /* Build default body face — Space Grotesk */
   font-family: var(--font-body);
   font-weight: 500;
   letter-spacing: -0.02em;
-  touch-action: pan-y;
-  overscroll-behavior: auto;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
-.mars-hotspot-wheel .option-wheel__item {
+.mars-hotspot-wheel .option-wheel__item,
+.moon-hotspot-wheel .option-wheel__item {
   cursor: pointer;
   pointer-events: auto;
   text-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 18px rgba(0, 0, 0, 0.45);
 }
-.mars-hotspot-wheel .option-wheel__item--selected {
+.mars-hotspot-wheel .option-wheel__item--selected,
+.moon-hotspot-wheel .option-wheel__item--selected {
   font-weight: 600;
 }
 @media (max-width: 768px) {
-  .mars-hotspot-wheel-hud {
-    /* Mobile shares the grammar — compact bottom sheet, not exile */
+  .mars-hotspot-wheel-hud,
+  .moon-hotspot-wheel-hud {
+    /* Mobile — compact bottom sheet under atlas/mars stage */
     top: auto;
-    bottom: 5.5rem;
+    bottom: max(5.5rem, calc(env(safe-area-inset-bottom) + 4.25rem));
     left: 0;
     right: 0;
     width: 100%;
-    height: min(38vh, 280px);
+    height: min(36vh, 260px);
     padding: 0 0.5rem;
+    background: linear-gradient(0deg, rgba(3, 4, 10, 0.72) 0%, rgba(3, 4, 10, 0.28) 55%, transparent 100%);
   }
-  .mars-hotspot-wheel {
+  .mars-hotspot-wheel,
+  .moon-hotspot-wheel {
     width: 100%;
     height: 100%;
     font-size: clamp(14px, 3.6vw, 18px);
+  }
+  .mars-hotspot-wheel-kicker,
+  .moon-hotspot-wheel-kicker {
+    padding-left: 1rem;
+    margin-bottom: 0.35rem;
   }
 }
 .atlas-heading {
@@ -1093,16 +1470,24 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   pointer-events: none;
 }
 .atlas-title {
-  font-size: clamp(2.1rem, 5vw, 3.5rem);
-  margin: 0.45rem 0 0.55rem;
+  font-size: clamp(2.4rem, 6.5vw, 4.6rem);
+  margin: 0.45rem 0 0.65rem;
+  max-width: none;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
   text-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+.location-atlas .atlas-heading--bridge {
+  /* Wide below the Moon (second image) — not under Objective’s Eagle still */
+  margin-top: clamp(36vh, 44vh, 52vh);
+  padding-bottom: 0.5rem;
 }
 .atlas-lede {
   color: var(--ink-dim);
-  max-width: 40ch;
-  line-height: 1.5;
+  max-width: 54ch;
+  line-height: 1.55;
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1rem;
   text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 .atlas-drag-cue {
@@ -1214,19 +1599,75 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   transform: scale(1.15);
   outline: none;
 }
+/* Phone / coarse — big invisible hit pad, keep a readable pin via ::before */
+@media (max-width: 768px), (pointer: coarse) {
+  .moon-hotspot.is-touch .moon-hotspot-hit,
+  .moon-hotspot-hit {
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+  .moon-hotspot-hit::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    background: rgba(142, 200, 255, 0.45);
+    box-shadow: 0 0 0 3px rgba(142, 200, 255, 0.16), 0 0 14px rgba(142, 200, 255, 0.35);
+  }
+  .moon-hotspot-hit--mars::before {
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border-color: rgba(255, 210, 170, 0.9);
+    background: rgba(255, 180, 120, 0.5);
+    box-shadow: 0 0 0 2px rgba(255, 180, 120, 0.18), 0 0 12px rgba(255, 160, 90, 0.4);
+  }
+  .moon-hotspot-hit.on::before,
+  .moon-hotspot-hit:focus-visible::before {
+    transform: scale(1.2);
+    background: rgba(142, 200, 255, 0.85);
+  }
+  .moon-hotspot-limb {
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+  }
+  .moon-hotspot-card {
+    width: min(88vw, 320px);
+    max-height: min(48vh, 360px);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .moon-hotspot-card--split .moon-hotspot-card__media {
+    width: 104px;
+    min-width: 104px;
+    max-width: 104px;
+    height: 139px;
+    flex-basis: 104px;
+  }
+}
 .moon-hotspot-card {
   position: absolute;
   left: 50%;
   top: 14px;
   transform: translateX(-50%);
-  width: min(240px, 68vw);
-  max-height: min(70vh, 420px);
+  width: min(360px, 78vw);
+  max-height: min(70vh, 440px);
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  padding: 0.55rem 0.6rem 0.7rem;
+  padding: 0.65rem 0.7rem 0.8rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(7, 7, 12, 0.94);
@@ -1238,22 +1679,70 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   color: var(--ink);
   z-index: 5;
 }
-/* Edge-aware — keep the full dossier card inside the viewport */
-.moon-hotspot-card[data-edge~="edge-left"] {
-  left: auto;
-  right: 18px;
+/* Vertical still on the right of the title; blurb wide below */
+.moon-hotspot-card--split {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.moon-hotspot-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.moon-hotspot-card__intro {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-top: 0.1rem;
+}
+.moon-hotspot-card--split .moon-hotspot-card__media {
+  flex: 0 0 132px;
+  width: 132px;
+  min-width: 132px;
+  max-width: 132px;
+  height: 176px;
+  margin: 0 !important;
+  aspect-ratio: 3 / 4 !important;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.moon-hotspot-card--split .moon-hotspot-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 42% 46%;
+}
+.moon-hotspot-card--split .moon-hotspot-card__media--portrait img {
+  object-position: 42% 46%;
+}
+.moon-hotspot-card--split .moon-hotspot-card__copy {
+  min-width: 0;
+  width: 100%;
+}
+/* Portaled to document.body — JS places left/top; hide until placed to kill 0,0 flash */
+.moon-hotspot-card--viewport {
+  position: fixed;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -8%);
+  z-index: 140;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(70vh, 440px);
+  margin: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.moon-hotspot-card--viewport[data-placed="1"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
   transform: none;
 }
-.moon-hotspot-card[data-edge~="edge-right"] {
-  left: 18px;
-  transform: none;
-}
-.moon-hotspot-card[data-edge~="edge-below"] {
-  top: 14px;
-}
-.moon-hotspot-card[data-edge~="edge-above"] {
-  top: auto;
-  bottom: 18px;
+.moon-hotspot-card--mars {
+  border-color: rgba(255, 200, 160, 0.18);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(255, 180, 120, 0.06);
 }
 .hotspot-html {
   z-index: 90 !important;
@@ -1285,7 +1774,7 @@ body.is-coarse .hero-leftover { cursor: pointer; }
   font-size: 0.78rem;
   line-height: 1.45;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1649,7 +2138,6 @@ body.is-coarse .fleet-card { cursor: pointer; }
 }
 @media (max-width: 900px) {
   .moon-map-wrap { grid-template-columns: 1fr; }
-  .nav-links { display: none; }
 }
 .moon-disc {
   position: relative; aspect-ratio: 1; width: min(100%, 520px); margin: 0 auto;
@@ -1801,6 +2289,13 @@ body.is-coarse .fleet-card { cursor: pointer; }
   aspect-ratio: 16/10;
   background: #0a0a12;
   margin-bottom: 1rem;
+}
+.nasa-media--portrait {
+  aspect-ratio: 3 / 4;
+  max-width: min(360px, 100%);
+}
+.nasa-media--portrait img {
+  object-position: 42% 46%;
 }
 .nasa-media img {
   width: 100%; height: 100%; object-fit: cover;
@@ -2262,14 +2757,232 @@ html.lenis, html.lenis body { height: auto; }
 .sf-disclosure {
   position: fixed; bottom: 12px; right: 12px; z-index: 40;
   font-size: 0.55rem; letter-spacing: 0.12em; color: var(--ink-mute);
-  opacity: 0.45; pointer-events: none;
+  opacity: 0.55; pointer-events: none;
   font-family: var(--font-mono);
+  max-width: min(52vw, 220px);
+  text-align: right;
+  line-height: 1.35;
 }
 @media (max-width: 640px) {
-  .sf-disclosure { display: none; }
-  .resources-attribution {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+  /* Keep AI/SI disclosure visible on phones — Space Apps requires acknowledgment */
+  .sf-disclosure {
+    display: block;
+    bottom: 8px;
+    right: 8px;
+    left: auto;
+    font-size: 0.5rem;
+    opacity: 0.7;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Mobile accuracy pass — phones 320→414, short height, touch
+   Keep desktop grammar; reflow, don't squash.
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  :root { --nav-h: 56px; }
+
+  html, body {
+    overflow-x: clip;
+  }
+  .atlas-stage-dock {
+    left: max(0.75rem, env(safe-area-inset-left));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(11.5rem, calc(env(safe-area-inset-bottom) + 10.5rem));
+    padding: 0.85rem 0.9rem;
+  }
+  .atlas-stage-dock__lede {
+    font-size: 0.9rem;
+    max-width: 34ch;
+  }
+  .hero-challenge-line {
+    font-size: clamp(0.88rem, 3.6vw, 1.05rem);
+    margin-bottom: 0.85rem;
+  }
+
+  .nav {
+    padding: 0 max(0.75rem, env(safe-area-inset-left)) 0 max(0.75rem, env(safe-area-inset-right));
+    gap: 0.65rem;
+  }
+  .nav-brand {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    flex: 0 0 auto;
+  }
+  /* Compact scrollable chapter links — never hide nav on phones */
+  .nav-links {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+    gap: 0.15rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-links a {
+    flex: 0 0 auto;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.55rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .hero {
+    min-height: 100svh;
+    justify-content: flex-end;
+    padding:
+      calc(var(--nav-h) + 1.25rem)
+      max(1rem, env(safe-area-inset-right))
+      max(4.5rem, calc(env(safe-area-inset-bottom) + 3.5rem))
+      max(1rem, env(safe-area-inset-left));
+  }
+  .hero-content {
+    max-width: 100%;
+    width: 100%;
+  }
+  .hero-content h1,
+  .hero-line,
+  .hero-line .gradient-text,
+  .hero-line .gradient-text__content,
+  .hero-gradient-fleet {
+    width: 100%;
+    max-width: 100%;
+  }
+  .display-xl {
+    font-size: clamp(2.55rem, 13.5vw, 4.6rem);
+    line-height: 0.9;
+  }
+  .hero-body-blur {
+    font-size: clamp(0.95rem, 3.8vw, 1.1rem);
+    max-width: 36ch;
+  }
+  .mag-btn {
+    min-height: 48px;
+    padding: 0.85rem 1.25rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+  }
+  .hero-scroll-cue {
+    left: max(1rem, env(safe-area-inset-left));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    font-size: 0.55rem;
+  }
+
+  .section,
+  .challenge-objective,
+  .location-atlas {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  .location-atlas {
+    min-height: 100svh;
+    padding-top: calc(var(--nav-h) + 2rem);
+    margin-top: 0;
+  }
+  .atlas-overlay--hud {
+    position: relative;
+    top: auto;
+    left: auto;
+    max-width: 100%;
+    width: 100%;
+    margin: 0 0 1rem;
+    padding: 0;
+  }
+  .atlas-heading--bridge {
+    margin-left: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  .section-rail {
+    display: none;
+  }
+  .section-num {
+    font-size: clamp(3.2rem, 22vw, 6rem);
+    opacity: 0.7;
+  }
+
+  .audio-toggle {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .journey-hud {
+    top: calc(var(--nav-h) + 1.25rem);
+    max-width: min(92vw, 36ch);
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+  .journey-hud__phase {
+    font-size: clamp(1.15rem, 5.5vw, 1.65rem);
+  }
+
+}
+
+/* Short viewport (split preview / landscape phone) — keep CTA on-screen, no earthquake padding */
+@media (max-height: 700px) {
+  .hero {
+    min-height: 100svh;
+    justify-content: center;
+    padding-top: calc(var(--nav-h) + 0.75rem);
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  }
+  .hero-scroll-cue { display: none; }
+  .display-xl {
+    font-size: clamp(2.1rem, 9vh, 3.4rem);
+  }
+  .hero-content p,
+  .hero-body-blur {
+    margin-bottom: 0.85rem !important;
+    font-size: 0.92rem;
+  }
+  .kicker { margin-bottom: 0.55rem !important; }
+  .challenge-motto {
+    font-size: clamp(1rem, 3.5vw, 1.25rem);
+    margin-bottom: 0.55rem;
+  }
+  .location-atlas {
+    min-height: 100svh;
+    padding-top: calc(var(--nav-h) + 3rem);
+  }
+}
+
+@media (max-width: 480px) {
+  .display-xl {
+    font-size: clamp(2.35rem, 12.5vw, 3.6rem);
+  }
+  .challenge-objective h2 {
+    font-size: clamp(1.75rem, 8vw, 2.6rem) !important;
+  }
+  .objective-link-row {
+    gap: 0.75rem 1rem;
+    font-size: 0.62rem;
+  }
+  .mars-hotspot-wheel-hud {
+    bottom: max(4.5rem, calc(env(safe-area-inset-bottom) + 3.5rem));
+    height: min(34vh, 240px);
+  }
+  .dossier-chip {
+    min-width: min(86vw, 260px);
+  }
+}
+
+@media (max-width: 360px) {
+  .nav-brand { letter-spacing: 0.1em; font-size: 0.64rem; }
+  .nav-links a {
+    padding: 0 0.4rem;
+    font-size: 0.52rem;
+  }
+  .mag-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 `

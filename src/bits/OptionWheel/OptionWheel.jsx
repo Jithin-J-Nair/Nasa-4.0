@@ -210,10 +210,10 @@ const OptionWheel = ({
     const el = rootRef.current
     if (!el) return undefined
     const onWheel = (e) => {
-      // Never blanket-steal page scroll. Only scrub the list when the pointer
-      // is over an option label (or Shift is held). Empty HUD space → Lenis.
-      const overItem = e.target?.closest?.('.option-wheel__item')
-      if (!overItem && !e.shiftKey) return
+      // Hover anywhere on the wheel HUD (or Shift) → OptionScroll the list.
+      // Outside the wheel root → leave Lenis page scroll alone.
+      const overWheel = e.target === el || el.contains(e.target)
+      if (!overWheel && !e.shiftKey) return
       e.preventDefault()
       e.stopPropagation()
       const cfg = cfgRef.current
