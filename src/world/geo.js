@@ -61,6 +61,8 @@ export const SITE_FOCUS = {
   'a16-lrv': { body: 'moon', aimLon: 15.5037, aimLat: -8.9729 },
   'a17-lrv': { body: 'moon', aimLon: 30.7769, aimLat: 20.1896 },
   'a11-lrrr': { body: 'moon', aimLon: 23.47307, aimLat: 0.67345 },
+  viking1: { body: 'mars', aimLon: -47.95, aimLat: 22.27 },
+  viking2: { body: 'mars', aimLon: 134.29, aimLat: 47.64 },
   opportunity: { body: 'mars', aimLon: -5.527, aimLat: -1.946 },
   spirit: { body: 'mars', aimLon: 175.4729, aimLat: -14.5692 },
   phoenix: { body: 'mars', aimLon: -125.7492, aimLat: 68.2188 },
