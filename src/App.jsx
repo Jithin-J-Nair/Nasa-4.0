@@ -274,54 +274,100 @@ class ErrorBoundary extends Component {
 const CursorCtx = createContext({ setLabel: () => {}, setVisible: () => {} })
 function useCursor() { return useContext(CursorCtx) }
 
+function preloadImage(src) {
+  if (!src || typeof Image === 'undefined') return Promise.resolve()
+
+  return new Promise((resolve) => {
+    const image = new Image()
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      image.onload = null
+      image.onerror = null
+      resolve()
+    }
+    const fail = (error) => {
+      if (settled) return
+      console.warn('[SilentFleet] startup image preload failed', src, error)
+      finish()
+    }
+    const decode = () => {
+      if (typeof image.decode === 'function') image.decode().then(finish, fail)
+      else finish()
+    }
+
+    image.onload = decode
+    image.onerror = fail
+    image.src = src
+    if (image.complete) {
+      if (image.naturalWidth > 0) decode()
+      else fail(new Error('Image completed without decoded pixels.'))
+    }
+  })
+}
+
 function Preloader({ onDone, reduced, mobile, moonReady }) {
   const rootRef = useRef(null)
   useEffect(() => {
     let cancelled = false
-    let animDone = false
+    let introDone = false
     let assetsDone = false
-    let finished = false
+    let minTimeDone = reduced
+    let exitStarted = false
+    let sequence
 
     const finish = () => {
-      if (cancelled || finished || !animDone || !assetsDone) return
-      finished = true
-      onDone?.()
+      if (cancelled || exitStarted || !sequence || !introDone || !assetsDone || !minTimeDone) return
+      exitStarted = true
+      sequence.exit()
     }
 
-    // THREE.Cache + Continuum chunk + Moon maps; Mars warms in the background
+    // Warm both planet maps and the first NASA photo while the scene stays covered.
     const assets = Promise.all([
-      preloadCriticalMoon(mobile),
+      preloadPlanetTextures(mobile),
       preloadContinuumModule(),
       moonReady,
+      preloadImage(HERO_LEFTOVER?.image),
+      document.fonts?.ready || Promise.resolve(),
     ]).then(() => {
       assetsDone = true
       finish()
-    }).catch(() => {
+    }).catch((error) => {
+      console.warn('[SilentFleet] startup asset preload failed', error)
       assetsDone = true
       finish()
     })
-    preloadPlanetTextures(mobile)
 
-    const dur = ranged(1.7, 2.4, 3)
-    const stopAnim = playBootSequence(rootRef.current, {
+    const minTimer = minTimeDone ? 0 : window.setTimeout(() => {
+      minTimeDone = true
+      finish()
+    }, 3000)
+
+    const dur = ranged(2.5, 2.8, 3)
+    sequence = playBootSequence(rootRef.current, {
       reduced,
       duration: dur,
-      onDone: () => {
-        animDone = true
+      onReady: () => {
+        introDone = true
         finish()
       },
+      onDone,
     })
+    finish()
 
     // Never trap the user if a texture host stalls
     const safety = window.setTimeout(() => {
       assetsDone = true
+      minTimeDone = true
       finish()
-    }, reduced ? 2500 : 16000)
+    }, reduced ? 8000 : 16000)
 
     return () => {
       cancelled = true
+      window.clearTimeout(minTimer)
       window.clearTimeout(safety)
-      stopAnim?.()
+      sequence?.stop()
       void assets
     }
   }, [onDone, reduced, mobile, moonReady])

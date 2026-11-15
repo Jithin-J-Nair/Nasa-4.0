@@ -453,39 +453,56 @@ export function playHeroIntro(root, { reduced, seedDelay = 0 } = {}) {
   }
 }
 
-/** Preloader choreography → callback */
-export function playBootSequence(root, { onDone, reduced, duration = 2.1 } = {}) {
-  if (!root) { onDone?.(); return () => {} }
+/** Preloader intro stays visible until startup assets are ready, then exits. */
+export function playBootSequence(root, { onReady, onDone, reduced, duration = 2.1 } = {}) {
+  if (!root) {
+    onReady?.()
+    return { exit: () => onDone?.(), stop: () => {} }
+  }
   if (reduced) {
-    onDone?.()
-    return () => {}
+    onReady?.()
+    return { exit: () => onDone?.(), stop: () => {} }
   }
   const brand = root.querySelector('[data-boot-brand]')
   const meta = root.querySelector('[data-boot-meta]')
   const panels = root.querySelectorAll('[data-boot-panel]')
   const bar = root.querySelector('[data-boot-bar]')
 
-  const tl = gsap.timeline({
+  const intro = gsap.timeline({
     defaults: { force3D: true },
-    onComplete: () => onDone?.(),
+    onComplete: () => onReady?.(),
   })
   gsap.set([brand, meta].filter(Boolean), { autoAlpha: 0, y: 20 })
   if (bar) gsap.set(bar, { scaleX: 0, transformOrigin: 'left' })
 
-  if (brand) tl.to(brand, { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 0.1)
-  if (meta) tl.to(meta, { autoAlpha: 1, y: 0, duration: 0.55, ease: 'power2.out' }, 0.35)
-  if (bar) tl.to(bar, { scaleX: 1, duration: duration * 0.55, ease: 'power2.inOut' }, 0.2)
-  if (panels.length) {
-    tl.to(panels, {
-      scaleY: 0,
-      duration: 0.85,
-      stagger: 0.07,
-      ease: 'power4.inOut',
-    }, duration * 0.55)
-  }
-  tl.to(root, { autoAlpha: 0, duration: 0.45, ease: 'power2.inOut' }, '-=0.15')
+  if (brand) intro.to(brand, { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 0.1)
+  if (meta) intro.to(meta, { autoAlpha: 1, y: 0, duration: 0.55, ease: 'power2.out' }, 0.35)
+  if (bar) intro.to(bar, { scaleX: 0.84, duration: duration * 0.9, ease: 'power2.inOut' }, 0.2)
 
-  return () => { tl.kill() }
+  let exit = null
+  return {
+    exit: () => {
+      if (exit) return
+      exit = gsap.timeline({
+        defaults: { force3D: true },
+        onComplete: () => onDone?.(),
+      })
+      if (bar) exit.to(bar, { scaleX: 1, duration: 0.25, ease: 'power1.out' }, 0)
+      if (panels.length) {
+        exit.to(panels, {
+          scaleY: 0,
+          duration: 0.85,
+          stagger: 0.07,
+          ease: 'power4.inOut',
+        }, 0.1)
+      }
+      exit.to(root, { autoAlpha: 0, duration: 0.45, ease: 'power2.inOut' }, '-=0.15')
+    },
+    stop: () => {
+      intro.kill()
+      exit?.kill()
+    },
+  }
 }
 
 /** Section reveal — transform + autoAlpha stagger; once + kill when done */
