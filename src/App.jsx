@@ -13,7 +13,7 @@ import {
   useInView,
 } from 'framer-motion'
 import { createSoundscape } from './audio/Soundscape'
-import { ARTIFACTS, NASA_RESOURCES } from './data/artifacts'
+import { ARTIFACTS, ASSET_ATTRIBUTIONS, NASA_RESOURCES } from './data/artifacts'
 import { VOYAGER_LIGHT_DAY, lightDayRemaining, pad2 } from './data/voyagerLightDay'
 import {
   preloadContinuumModule, preloadCriticalMoon, preloadPlanetTextures, preloadMarsAndVoyager,
@@ -881,7 +881,7 @@ function AtlasBridgeHeading({ atlasActive }) {
 }
 
 /** Left-side Mars hotspot wheel — selects a site and aims the globe */
-function MarsHotspotWheel({ active, selectedId, onSelect }) {
+function MarsHotspotWheel({ active, selectedId, onSelect, mobile = false }) {
   const foundIdx = MARS_HOTSPOT_SITES.findIndex((s) => s.id === selectedId)
   const selectedIdx = foundIdx >= 0
     ? foundIdx
@@ -902,17 +902,17 @@ function MarsHotspotWheel({ active, selectedId, onSelect }) {
           textColor="#8a8680"
           activeColor="#ffe0c8"
           side="left"
-          fontSize={2.05}
-          spacing={1.72}
-          curve={2.35}
-          tilt={14}
-          blur={1.35}
+          fontSize={mobile ? 1.05 : 2.05}
+          spacing={mobile ? 1.2 : 1.72}
+          curve={mobile ? 1.35 : 2.35}
+          tilt={mobile ? 9 : 14}
+          blur={mobile ? 0.7 : 1.35}
           fade={0.18}
           minOpacity={0.12}
           smoothing={520}
-          inset={28}
+          inset={mobile ? 16 : 28}
           loop={false}
-          draggable
+          draggable={!mobile}
           soundUrl=""
           className="mars-hotspot-wheel"
           aria-label="Mars hotspot selector"
@@ -927,7 +927,7 @@ function MarsHotspotWheel({ active, selectedId, onSelect }) {
 }
 
 /** Moon Atlas wheel — phone/desktop picker matching Mars grammar (ice grade) */
-function MoonHotspotWheel({ active, selectedId, onSelect }) {
+function MoonHotspotWheel({ active, selectedId, onSelect, mobile = false }) {
   const foundIdx = MOON_HOTSPOT_SITES.findIndex((s) => s.id === selectedId)
   const selectedIdx = foundIdx >= 0
     ? foundIdx
@@ -948,17 +948,17 @@ function MoonHotspotWheel({ active, selectedId, onSelect }) {
           textColor="#7a8496"
           activeColor="#d7ebff"
           side="left"
-          fontSize={1.85}
-          spacing={1.58}
-          curve={2.2}
-          tilt={12}
-          blur={1.2}
+          fontSize={mobile ? 1.05 : 1.85}
+          spacing={mobile ? 1.15 : 1.58}
+          curve={mobile ? 1.3 : 2.2}
+          tilt={mobile ? 8 : 12}
+          blur={mobile ? 0.65 : 1.2}
           fade={0.16}
           minOpacity={0.12}
           smoothing={520}
-          inset={28}
+          inset={mobile ? 16 : 28}
           loop={false}
-          draggable
+          draggable={!mobile}
           soundUrl=""
           className="moon-hotspot-wheel"
           aria-label="Moon hotspot selector"
@@ -1302,7 +1302,27 @@ function ArtifactModal({ item, onClose }) {
 function Footer() {
   const utc = useUTCClock()
   const ref = useRef(null)
+  const sourceTabRefs = useRef({})
+  const [sourceTab, setSourceTab] = useState('resources')
   const inView = useInView(ref, { once: true })
+  const onSourceTabKeyDown = (event) => {
+    const tabs = ['resources', 'attributions']
+    const currentIndex = tabs.indexOf(sourceTab)
+    const nextIndex = event.key === 'ArrowRight' || event.key === 'ArrowDown'
+      ? (currentIndex + 1) % tabs.length
+      : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+        ? (currentIndex + tabs.length - 1) % tabs.length
+        : event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? tabs.length - 1
+            : -1
+    if (nextIndex < 0) return
+    event.preventDefault()
+    const nextTab = tabs[nextIndex]
+    setSourceTab(nextTab)
+    sourceTabRefs.current[nextTab]?.focus()
+  }
   return (
     <footer className="footer" ref={ref}>
       <FadeContent blur duration={0.9} threshold={0.2} once>
@@ -1318,13 +1338,104 @@ function Footer() {
             className="footer-mark__shine"
           />
         </div>
-        <div className="footer-links resources-strip">
-          {NASA_RESOURCES.map((r) => (
-            <a key={r.href} className="glass-2" href={r.href} target="_blank" rel="noreferrer">
-              {r.label.toUpperCase()} ↗
-            </a>
-          ))}
+        <div className="footer-resource-tabs" role="tablist" aria-label="Project resources and attributions" onKeyDown={onSourceTabKeyDown}>
+          <button
+            ref={(el) => { sourceTabRefs.current.resources = el }}
+            id="footer-resources-tab"
+            className="footer-resource-tab"
+            type="button"
+            role="tab"
+            aria-selected={sourceTab === 'resources'}
+            aria-controls="footer-resources-panel"
+            tabIndex={sourceTab === 'resources' ? 0 : -1}
+            onClick={() => setSourceTab('resources')}
+          >
+            DATA & RESOURCES
+          </button>
+          <button
+            ref={(el) => { sourceTabRefs.current.attributions = el }}
+            id="footer-attributions-tab"
+            className="footer-resource-tab"
+            type="button"
+            role="tab"
+            aria-selected={sourceTab === 'attributions'}
+            aria-controls="footer-attributions-panel"
+            tabIndex={sourceTab === 'attributions' ? 0 : -1}
+            onClick={() => setSourceTab('attributions')}
+          >
+            ATTRIBUTIONS
+          </button>
         </div>
+        <section
+          id="footer-resources-panel"
+          className="footer-resource-panel"
+          role="tabpanel"
+          aria-labelledby="footer-resources-tab"
+          hidden={sourceTab !== 'resources'}
+        >
+          <div className="footer-links resources-strip">
+            {NASA_RESOURCES.map((r, index) => (
+              <a key={`${r.href}-${index}`} className="glass-2" href={r.href} target="_blank" rel="noopener noreferrer">
+                {r.label.toUpperCase()} ↗
+              </a>
+            ))}
+          </div>
+        </section>
+        <section
+          id="footer-attributions-panel"
+          className="footer-resource-panel"
+          role="tabpanel"
+          aria-labelledby="footer-attributions-tab"
+          hidden={sourceTab !== 'attributions'}
+        >
+          <p className="attribution-disclaimer">
+            Credits below identify the source of each media asset. NASA does not endorse this project.
+            Review the original record and terms for any third-party material.
+          </p>
+          <div className="attribution-groups">
+            {ASSET_ATTRIBUTIONS.map((group) => (
+              <section className="attribution-card" key={group.id}>
+                <h3>{group.title}</h3>
+                <p>{group.credit}</p>
+                <div className="attribution-links">
+                  {group.links.map((link) => (
+                    <a key={`${group.id}-${link.href}`} href={link.href} target="_blank" rel="noopener noreferrer">
+                      {link.label} ↗
+                    </a>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+          <details className="attribution-records">
+            <summary>Mission images and location records ({ARTIFACTS.length})</summary>
+            <ul>
+              {ARTIFACTS.map((item) => (
+                <li key={item.id}>
+                  <strong>{item.mission} · {item.name}</strong>
+                  <span>{item.credit}</span>
+                  <div className="attribution-links">
+                    {item.image && (
+                      <a href={item.image} target="_blank" rel="noopener noreferrer">
+                        Image asset ↗
+                      </a>
+                    )}
+                    {item.source && (
+                      <a href={item.source} target="_blank" rel="noopener noreferrer">
+                        Source record ↗
+                      </a>
+                    )}
+                    {item.orbital && (
+                      <a href={item.orbital} target="_blank" rel="noopener noreferrer">
+                        Mission / location context ↗
+                      </a>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </details>
+        </section>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '1rem', alignItems: 'end' }}>
           <div>
             <div className="mono" style={{ fontSize: '0.7rem', color: 'var(--ink-mute)', marginBottom: 8 }}>MISSION CLOCK · {utc}</div>
@@ -1793,11 +1904,13 @@ export default function App() {
             active={atlasLock && !booting}
             selectedId={focusSiteId}
             onSelect={onMarsHotspotSelect}
+            mobile={mobile}
           />
           <MarsHotspotWheel
             active={marsLock && !atlasLock && !booting && chromeKill < 0.55}
             selectedId={focusSiteId}
             onSelect={onMarsHotspotSelect}
+            mobile={mobile}
           />
 
           <a

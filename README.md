@@ -178,3 +178,54 @@ and credits: the Moon and Mars textures are attributed under CC BY 4.0 in
 in [`public/models/ATTRIBUTION.txt`](public/models/ATTRIBUTION.txt). NASA images and audio include
 source and credit information in the application; follow the applicable NASA media guidance and any
 third-party source terms. NASA does not endorse this project.
+
+## Sources & Attributions
+
+### NASA data, mission records, and challenge references
+
+- [NASA Catalogue of Manmade Material on the Moon](https://www.nasa.gov/wp-content/uploads/2024/02/final-catalogue-of-manmade-material-on-the-moon.pdf)
+- [NSSDCA Master Catalog](https://nssdc.gsfc.nasa.gov/nmc/)
+- [NSSDCA Apollo Lunar Module](https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1969-059C)
+- [NSSDCA Lunar Roving Vehicle](https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1971-063C)
+- [NSSDCA ALSEP](https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1969-099C)
+- [NSSDCA Lunar landing sites](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html)
+- [LROC Featured Sites](https://lroc.im-ldi.com/images)
+- [Apollo Lunar Surface Journal](https://www.nasa.gov/history/alsj-and-afj/)
+- [PDS Geosciences Node Apollo data](https://pds-geosciences.wustl.edu/missions/apollo/)
+- [HiRISE / Mars Reconnaissance Orbiter](https://hirise.lpl.arizona.edu/)
+- [NASA Surveyor 3](https://science.nasa.gov/mission/surveyor-3/)
+- [NASA Mars Pathfinder / Sojourner](https://science.nasa.gov/mission/mars-pathfinder/)
+- [NASA Spirit and Opportunity](https://science.nasa.gov/mission/mars-exploration-rovers-spirit-and-opportunity/)
+- [NASA Viking 1](https://science.nasa.gov/mission/viking-1/)
+- [NASA Viking 2](https://science.nasa.gov/mission/viking-2/)
+- [NASA Phoenix](https://science.nasa.gov/mission/phoenix/)
+- [NASA InSight](https://science.nasa.gov/mission/insight/)
+- [NASA Dawn](https://science.nasa.gov/mission/dawn/)
+- [NASA NEAR Shoemaker](https://science.nasa.gov/mission/near-shoemaker/)
+- [NASA Pioneer 10 and 11](https://science.nasa.gov/mission/pioneer-10/)
+- [NASA Ingenuity](https://science.nasa.gov/mission/mars-2020-perseverance/ingenuity-mars-helicopter/)
+- [NASA Kepler](https://science.nasa.gov/mission/kepler/)
+- [NASA Voyager 1 light-day reference](https://science.nasa.gov/mission/voyager/voyager-1/voyager-1-what-is-a-light-day/)
+- [NASA Voyager 3D model (VTAD)](https://science.nasa.gov/resource/voyager-3d-model/)
+- [NASA Historical Sounds](https://www.nasa.gov/historical-sounds/)
+- [NASA electron-whistle sound reference](https://www.nasa.gov/missions/mms/nasa-listens-in-as-electrons-whistle-while-they-work/)
+- [NASA Space Apps challenge details](https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details)
+- [NASA Space Apps provided resources](https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=resources)
+- [NASA Images and Video Library](https://images.nasa.gov/)
+- [NASA CGI Moon Kit (SVS 4720)](https://svs.gsfc.nasa.gov/4720/)
+- [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/)
+- [Space Apps legal notice](https://www.spaceappschallenge.org/legal/)
+
+### NASA image records used by the app
+
+[Apollo 11](https://images.nasa.gov/details/as11-40-5903), [Apollo 12 ALSEP](https://images.nasa.gov/details/as12-47-6919), [Surveyor 3](https://images.nasa.gov/details/as12-48-7121), [Apollo 14](https://images.nasa.gov/details/as14-64-9140), [Apollo 15](https://images.nasa.gov/details/as15-86-11603), [Apollo 16](https://images.nasa.gov/details/as16-115-18559), [Apollo 17](https://images.nasa.gov/details/as17-137-20979), [Apollo 11 ascent](https://images.nasa.gov/details/as11-40-5948), [Mars Pathfinder](https://images.nasa.gov/details/PIA16442), [Mars rover](https://images.nasa.gov/details/PIA17759), [Phoenix](https://images.nasa.gov/details/PIA22876), [Viking](https://images.nasa.gov/details/PIA01122), [Pioneer](https://images.nasa.gov/details/ARC-1972-AC72-2135), [Voyager](https://images.nasa.gov/details/PIA17462), and [Kepler](https://images.nasa.gov/details/PIA11824).
+
+Additional item-specific image and location records are listed with each mission in [`src/data/artifacts.js`](src/data/artifacts.js).
+
+### Other media and code
+
+- Moon and Mars source maps: [Solar System Scope / INOVE](https://www.solarsystemscope.com/textures/), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The 8K source maps are retained; runtime LOD copies and luminance-derived height/bump maps are adaptations.
+- Ambient sound: [Van Allen Probes EMFISIS chorus](https://www.nasa.gov/wp-content/uploads/2015/01/693857main_emfisis_chorus_1.mp3) and [Cassini Saturn radio emissions](https://www.nasa.gov/wp-content/uploads/2015/01/584791main_spookysaturn.mp3), credited in [`public/audio/ATTRIBUTION.txt`](public/audio/ATTRIBUTION.txt). Playback is opt-in.
+- Interface components: [React Bits](https://www.reactbits.dev/get-started/introduction).
+- Third-party dependency terms: [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
+- [Project per-mission image and source index](https://github.com/Jithin-J-Nair/Nasa-4.0/blob/main/src/data/artifacts.js).

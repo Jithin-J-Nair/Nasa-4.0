@@ -1,26 +1,27 @@
-Textures used by Silent Fleet (NASA Space Apps 2026)
+SILENT FLEET — Moon and Mars textures
+=====================================
 
-Primary reference (NASA):
-  CGI Moon Kit — NASA Scientific Visualization Studio (SVS 4720)
+Source maps:
+  Solar System Scope / INOVE planetary texture pack
+  https://www.solarsystemscope.com/textures/
+  License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+  https://creativecommons.org/licenses/by/4.0/
+
+Adaptations in this build:
+  The provided 8K Moon and Mars maps are retained. The runtime uses 4K desktop
+  and 2K mobile level-of-detail copies. Height/bump maps were generated from the
+  source-map luminance for displacement and surface shading. These are adaptations
+  of the CC BY 4.0 maps.
+
+  Moon maps use a Mean Earth / Polar Axis equirectangular frame.
+  Mars maps use a planetocentric east-longitude equirectangular frame.
+
+Solar System Scope states that its texture pack is based on NASA elevation and
+imagery data, with tuned colors; unmapped regions may contain fictional terrain.
+The textures are credited to Solar System Scope / INOVE, not represented as raw
+NASA imagery. NASA CGI Moon Kit (SVS 4720) is a related NASA visualization
+reference, not the source of these texture files:
   https://svs.gsfc.nasa.gov/4720/
-  Public NASA visualization products for storytelling / education.
-  Follow NASA Media Usage Guidelines; do not imply NASA endorsement.
 
-Moon color (8K / 4K / 2K):
-  Equirectangular grayscale albedo map for this build (8192×4096).
-  LOD pyramid + height maps derived in-repo from luminance for displacement / AO.
-  Files:
-    moon_color_8k.jpg · moon_color_4k.jpg · moon_color_2k.jpg
-    moon_height_4k.jpg · moon_height_2k.jpg
-  Geographic frame: Mean Earth / Polar Axis equirectangular (lon 0 at center).
-
-Mars color (8K / 4K / 2K):
-  Equirectangular color albedo map for this build (8192×4096).
-  LOD pyramid + bump maps derived in-repo from luminance.
-  Files:
-    mars_color_8k.jpg · mars_color_4k.jpg · mars_color_2k.jpg
-    mars_bump_4k.jpg · mars_bump_2k.jpg · mars_bump_1k.jpg
-  Geographic frame: planetocentric east longitude equirectangular.
-
-Desktop continuum uses 8K color + 4K height/bump; mobile uses 2K.
-Credit NASA / SVS where applicable. Submission must list these under NASA Data & References.
+Attribution: Solar System Scope / INOVE, planetary textures, CC BY 4.0.
+Changes: resized level-of-detail copies and locally derived luminance height/bump maps.

@@ -2,3 +2,7 @@ Voyager.glb
 Source: https://science.nasa.gov/resource/voyager-3d-model/
 Credit: NASA Visualization Technology Applications and Development (VTAD)
 Downloaded: Voyager.glb (glTF) from assets.science.nasa.gov
+
+NASA media use guidance: https://www.nasa.gov/nasa-brand-center/images-and-media/
+NASA does not endorse this project; any third-party notices on the source asset
+remain applicable.

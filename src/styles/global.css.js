@@ -31,7 +31,14 @@ export const GLOBAL_CSS = `
   --glass-4: rgba(10,10,18,0.82);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: auto; background: var(--bg); color: var(--ink); }
+html {
+  scroll-behavior: auto;
+  background: var(--bg);
+  color: var(--ink);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar { display: none; }
 html, body, #root { min-height: 100%; }
 body {
   font-family: var(--font-body);
@@ -1456,6 +1463,7 @@ body.is-coarse .hero-leftover { cursor: pointer; }
     width: 100%;
     height: 100%;
     font-size: clamp(14px, 3.6vw, 18px);
+    touch-action: pan-y;
   }
   .mars-hotspot-wheel-kicker,
   .moon-hotspot-wheel-kicker {
@@ -2239,6 +2247,126 @@ body.is-coarse .fleet-card { cursor: pointer; }
   display: block; padding: 1rem 1.2rem; border-radius: 14px;
   font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.1em;
 }
+.footer-resource-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.8rem;
+}
+.footer-resource-tab {
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgba(232, 238, 245, 0.12);
+  border-radius: 999px;
+  background: rgba(232, 238, 245, 0.035);
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.footer-resource-tab[aria-selected='true'] {
+  border-color: rgba(142, 200, 255, 0.5);
+  background: rgba(142, 200, 255, 0.08);
+  color: var(--ice);
+}
+.footer-resource-tab:focus-visible {
+  outline: 2px solid var(--ice);
+  outline-offset: 3px;
+}
+.footer-resource-panel[hidden] { display: none; }
+.footer-resource-panel { margin-bottom: 2.5rem; }
+.attribution-disclaimer {
+  margin: 0 0 1rem;
+  max-width: 76ch;
+  color: var(--ink-mute);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+.attribution-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 0.75rem;
+}
+.attribution-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid rgba(232, 238, 245, 0.08);
+  border-radius: 14px;
+  background: rgba(7, 7, 12, 0.78);
+}
+.attribution-card h3 {
+  margin: 0 0 0.55rem;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.attribution-card p {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+.attribution-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.9rem;
+  margin-top: 0.8rem;
+}
+.attribution-links a {
+  color: var(--ice);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.attribution-records {
+  margin-top: 0.9rem;
+  border: 1px solid rgba(232, 238, 245, 0.1);
+  border-radius: 14px;
+  background: rgba(7, 7, 12, 0.78);
+}
+.attribution-records summary {
+  min-height: 44px;
+  padding: 0.8rem 1rem;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+}
+.attribution-records ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.3rem 1rem 1rem;
+  list-style: none;
+}
+.attribution-records li {
+  min-width: 0;
+  padding: 0.8rem;
+  border: 1px solid rgba(232, 238, 245, 0.07);
+  border-radius: 10px;
+}
+.attribution-records li strong,
+.attribution-records li span {
+  display: block;
+}
+.attribution-records li strong {
+  color: var(--ink);
+  font-size: 0.75rem;
+}
+.attribution-records li span {
+  margin-top: 0.3rem;
+  color: var(--ink-mute);
+  font-size: 0.68rem;
+}
 
 .canvas-fallback {
   position: absolute; inset: 0;
@@ -2929,8 +3057,8 @@ html.lenis, html.lenis body { height: auto; }
 
 @media (max-width: 768px) {
   .journey-spacer {
-    height: 600vh;
-    height: 600svh;
+    height: 480vh;
+    height: 480svh;
   }
   .objective-figure-fade {
     overflow: clip;
@@ -2979,6 +3107,14 @@ html.lenis, html.lenis body { height: auto; }
   .mars-hotspot-wheel-hud {
     bottom: max(4.5rem, calc(env(safe-area-inset-bottom) + 3.5rem));
     height: min(34vh, 240px);
+  }
+  .moon-hotspot-wheel-hud {
+    bottom: max(4.5rem, calc(env(safe-area-inset-bottom) + 3.5rem));
+    height: min(34vh, 240px);
+  }
+  .footer-resource-tab {
+    flex: 1 1 145px;
+    padding-inline: 0.75rem;
   }
   .dossier-chip {
     min-width: min(86vw, 260px);
