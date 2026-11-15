@@ -337,6 +337,7 @@ export function createSoundscape() {
       if (cue === 'near') ping(640, 0.022, 0.35)
       lastCue = cue
     }
+  }
 
   function setProgress(p) {
     const storm = clamp((p - 0.5) / 0.14, 0, 1) * (1 - clamp((p - 0.66) / 0.06, 0, 1))
@@ -403,7 +404,10 @@ export function createSoundscape() {
     }, 400)
   }
 
-    const now = audioContext.currentTime
+  function signalDropout(ms = 900) {
+    if (!enabled || !ctx || !master) return
+    const now = ctx.currentTime
+    silenceUntil = now + ms / 1000
     master.gain.cancelScheduledValues(now)
     master.gain.setTargetAtTime(0.02, now, 0.08)
     master.gain.setTargetAtTime(0.72, now + ms / 1000, 0.5)
