@@ -15,7 +15,7 @@ const BED_URLS = {
 }
 
 export function createSoundscape() {
-  let context = null
+  let ctx = null
   let master = null
   let bedBus = null
   let bedFilter = null
@@ -95,8 +95,7 @@ export function createSoundscape() {
     if (!AC) return
     ctx = new AC()
 
-    context = new AudioContextClass()
-    master = context.createGain()
+    master = ctx.createGain()
     master.gain.value = 0
     master.connect(ctx.destination)
 
@@ -238,19 +237,20 @@ export function createSoundscape() {
     return ctx.state === 'running'
   }
 
-  function setEnabled(on) {
+  async function setEnabled(on) {
     enabled = !!on
     ensureGraph()
-    if (!ctx || !master) return
+    if (!ctx || !master) return false
     const now = ctx.currentTime
     master.gain.cancelScheduledValues(now)
     master.gain.setTargetAtTime(enabled ? 0.78 : 0, now, 0.5)
     if (enabled) {
-      unlock()
+      return unlock()
     } else if (chorusGain && saturnGain) {
       chorusGain.gain.setTargetAtTime(0, now, 0.35)
       saturnGain.gain.setTargetAtTime(0, now, 0.35)
     }
+    return true
   }
 
   function toggle() {

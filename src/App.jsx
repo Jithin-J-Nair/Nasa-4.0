@@ -339,46 +339,48 @@ function preloadImage(src) {
   })
 }
 
-function Preloader({ onDone, reduced, moonReady }) {
+function Preloader({ onDone, reduced, mobile, moonReady }) {
   const rootRef = useRef(null)
   const [bootMsg, setBootMsg] = useState('LOADING LUNAR SURFACE')
   useEffect(() => {
     let cancelled = false
     let introDone = false
     let assetsDone = false
-    let finished = false
+    let minTimeDone = reduced
+    let exitStarted = false
     let degraded = false
+    let sequence
 
-    const finish = (force = false) => {
-      if (cancelled || finished) return
-      if (!force && (!animDone || !assetsDone)) return
-      finished = true
-      animDone = true
-      assetsDone = true
-      onDone?.({ degraded })
+    const finish = () => {
+      if (cancelled || exitStarted || !sequence || !introDone || !assetsDone || !minTimeDone) return
+      exitStarted = true
+      sequence.exit()
     }
 
     const assets = Promise.all([
+      preloadCriticalMoon(mobile),
+      preloadPlanetTextures(mobile),
+      preloadMarsAndVoyager(mobile),
       preloadContinuumModule(),
-      // MoonReady may never fire on a bad WebGL remount — don't block boot forever
       Promise.race([
         moonReady,
         new Promise((resolve) => { window.setTimeout(resolve, reduced ? 1800 : 9000) }),
       ]),
+      preloadImage(HERO_LEFTOVER?.image),
+      document.fonts?.ready || Promise.resolve(),
     ]).then(() => {
       if (cancelled) return
       assetsDone = true
       setBootMsg('LUNAR SURFACE LOCKED')
       finish()
-    }).catch(() => {
+    }).catch((error) => {
       if (cancelled) return
+      console.warn('[SilentFleet] startup asset preload failed', error)
       degraded = true
       assetsDone = true
       setBootMsg('LUNAR MAPS DELAYED · ENTERING ANYWAY')
       finish()
     })
-    preloadPlanetTextures(mobile)
-    preloadMarsAndVoyager(mobile)
 
     const minTimer = minTimeDone ? 0 : window.setTimeout(() => {
       minTimeDone = true
@@ -397,15 +399,14 @@ function Preloader({ onDone, reduced, moonReady }) {
     })
     finish()
 
-    // Hard escape: assetsDone alone used to skip this path and strand the UI
-    // when the boot timeline never completed after a remount/reload.
     const safety = window.setTimeout(() => {
-      if (finished || cancelled) return
+      if (exitStarted || cancelled) return
       degraded = true
       assetsDone = true
-      animDone = true
+      introDone = true
+      minTimeDone = true
       setBootMsg('SIGNAL TIMEOUT · ENTERING CONTINUUM')
-      finish(true)
+      finish()
     }, reduced ? 2500 : 12000)
 
     return () => {
@@ -439,7 +440,7 @@ function Preloader({ onDone, reduced, moonReady }) {
   )
 }
 
-function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
+function Nav({ progress, onNavAtlas, onNavJourney, onNavVoyager, onNavCoda }) {
   const scaleX = useSpring(progress, { stiffness: 90, damping: 24 })
   const go = (fn) => (e) => {
     e.preventDefault()
@@ -467,6 +468,7 @@ function Nav({ progress, onNavAtlas, onNavJourney, onNavCoda }) {
         </a>
         <a href="#atlas" role="listitem" onClick={go(onNavAtlas)}>ATLAS</a>
         <a href="#journey" role="listitem" onClick={go(onNavJourney)}>MARS</a>
+        <a href="#voyager" role="listitem" onClick={go(onNavVoyager)}>VOYAGER</a>
         <a href="#fleet" role="listitem" onClick={go(onNavCoda)}>FLEET</a>
       </div>
       <motion.div className="nav-progress" style={{ scaleX, width: '100%' }} />
@@ -544,7 +546,7 @@ function FilmJourney({ label = 'JOURNEY' }) {
 function SilenceCoda() {
   const [dotOpen, setDotOpen] = useState(false)
   return (
-    <div className="silence-coda" aria-live="polite">
+    <div id="voyager" className="silence-coda" aria-live="polite">
       <div className="silence-coda__sky">
         <div className="pale-blue-stage">
           <div
@@ -1598,6 +1600,7 @@ export default function App() {
     requestAnimationFrame(() => {
       killJourneyRef.current = playMoonToMarsJourney({
         reduced,
+        duration: mobile ? 3.8 : 7.2,
         onStart: () => {
           journeyPlayingRef.current = true
           setAtlasLock(false)
@@ -1610,7 +1613,24 @@ export default function App() {
         },
       })
     })
-  }, [reduced])
+  }, [mobile, reduced])
+
+  const onNavVoyager = useCallback((e) => {
+    e?.preventDefault?.()
+    killJourneyRef.current?.()
+    killJourneyRef.current = null
+    journeyPlayingRef.current = false
+    setAtlasLock(false)
+    setMarsLock(false)
+    setCardSiteId(null)
+    setFocusSiteId('voyager1')
+    history.replaceState(null, '', '#voyager')
+    createFilmRail()
+    scheduleScrollRefresh(0)
+    requestAnimationFrame(() => {
+      scrollToFilmMarker('silence', { duration: mobile ? 1.8 : 2.6 })
+    })
+  }, [mobile])
 
   /** Fleet — soft continuum coda (not a hard brochure jump mid-film). */
   const onNavCoda = useCallback((e) => {
@@ -1814,6 +1834,7 @@ export default function App() {
               progress={filmMv}
               onNavAtlas={onNavAtlas}
               onNavJourney={onNavJourney}
+              onNavVoyager={onNavVoyager}
               onNavCoda={onNavCoda}
             />
 
