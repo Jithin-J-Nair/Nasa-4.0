@@ -1484,9 +1484,15 @@ export default function App() {
         style={{ minHeight: '100%' }}
       >
         <div className="sf-app" ref={mainRef}>
-          <ErrorBoundary fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
-            {/* Mount during preloader so 8K GPU upload overlaps boot choreography */}
-            <Suspense fallback={<div className="canvas-fallback" style={{ position: 'fixed', inset: 0 }} />}>
+          <ErrorBoundary fallback={<div className="canvas-fallback" role="status" aria-label="3D scene unavailable; continuing in visual fallback mode">
+              <span className="canvas-fallback__orb" aria-hidden="true" />
+              <span className="canvas-fallback__label mono">CONTINUUM · VISUAL FALLBACK</span>
+            </div>}>
+            {/* Keep the story usable if the optional WebGL scene cannot initialize. */}
+            <Suspense fallback={<div className="canvas-fallback" role="status" aria-label="3D scene unavailable; continuing in visual fallback mode">
+              <span className="canvas-fallback__orb" aria-hidden="true" />
+              <span className="canvas-fallback__label mono">CONTINUUM · VISUAL FALLBACK</span>
+            </div>}>
               <ContinuumCanvas
                 progress={filmMv}
                 mouse={mouse}
