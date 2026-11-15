@@ -127,7 +127,7 @@ function useUTCClock() {
 function useLightDayCountdown() {
   const [rem, setRem] = useState(() => lightDayRemaining())
   useEffect(() => {
-    const id = setInterval(() => setRem(lightDayRemaining()), 250)
+    const id = setInterval(() => setRem(lightDayRemaining()), 1000)
     return () => clearInterval(id)
   }, [])
   return rem
@@ -307,7 +307,7 @@ function preloadImage(src) {
   })
 }
 
-function Preloader({ onDone, reduced, mobile, moonReady }) {
+function Preloader({ onDone, reduced, moonReady }) {
   const rootRef = useRef(null)
   useEffect(() => {
     let cancelled = false
@@ -323,9 +323,8 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
       sequence.exit()
     }
 
-    // Warm both planet maps and the first NASA photo while the scene stays covered.
+    // Wait for first-frame essentials; Mars textures load behind their own Suspense boundary.
     const assets = Promise.all([
-      preloadPlanetTextures(mobile),
       preloadContinuumModule(),
       moonReady,
       preloadImage(HERO_LEFTOVER?.image),
@@ -342,9 +341,9 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
     const minTimer = minTimeDone ? 0 : window.setTimeout(() => {
       minTimeDone = true
       finish()
-    }, 3000)
+    }, 1200)
 
-    const dur = ranged(2.5, 2.8, 3)
+    const dur = ranged(0.95, 1.1, 3)
     sequence = playBootSequence(rootRef.current, {
       reduced,
       duration: dur,
@@ -370,7 +369,7 @@ function Preloader({ onDone, reduced, mobile, moonReady }) {
       sequence?.stop()
       void assets
     }
-  }, [onDone, reduced, mobile, moonReady])
+  }, [onDone, reduced, moonReady])
   return (
     <div className="preloader" ref={rootRef}>
       <div className="preloader-panels" aria-hidden>
@@ -1550,7 +1549,6 @@ export default function App() {
             <Preloader
               onDone={onBootDone}
               reduced={reduced}
-              mobile={mobile}
               moonReady={moonReadyPromise}
             />
           )}
