@@ -422,7 +422,7 @@ export const ARTIFACTS = [
     voice: "My sister reached Jupiter first. I went farther, toward Saturn’s rings and their hidden structure. I found new moons and a new ring before turning toward the stars. The signal ended; the trajectory did not.",
     tags: ["PROBE","SATURN","PLAQUE"],
     color: "#ffb347",
-    image: "https://images-assets.nasa.gov/image/PIA02240/PIA02240~medium.jpg",
+    image: "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/solar/2023/09/7/739460main_ac79-9107.3-1.jpg?crop=faces%2Cfocalpoint&fit=clip&h=2143&w=3000",
     imageAlt: "Saturn and Titan imaged by Pioneer 11",
     credit: "NASA / Ames",
     orbital: "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1973-019A",
