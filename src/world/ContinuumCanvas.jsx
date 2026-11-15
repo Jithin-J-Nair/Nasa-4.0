@@ -651,7 +651,7 @@ function SiteBeacon({
               {cardOpen && (
                 <article
                   ref={cardRef}
-                  className="moon-hotspot-card"
+                  className={`moon-hotspot-card moon-hotspot-card--${site.id}`}
                   data-edge="edge-center edge-mid"
                   role="dialog"
                   aria-label={site.name}
@@ -666,7 +666,14 @@ function SiteBeacon({
                   <h3>{site.name}</h3>
                   <p className="mono coords">{site.coords}</p>
                   <p className="blurb">{site.science}</p>
-                  <span className="mono open">OPEN DOSSIER →</span>
+                  <button
+                    type="button"
+                    className="mono open"
+                    aria-label={`Open ${site.name} dossier`}
+                    onClick={() => onOpen?.(site)}
+                  >
+                    OPEN DOSSIER →
+                  </button>
                 </article>
               )}
             </div>
