@@ -1077,6 +1077,10 @@ function Footer() {
           </a>
         ))}
       </div>
+      <p className="mono" style={{ color: 'var(--ink-mute)', fontSize: '0.62rem', lineHeight: 1.65, maxWidth: 900, margin: '1rem 0 1.5rem' }}>
+        NASA does not endorse any non-U.S. Government entity and is not responsible for information contained on non-U.S. Government websites. For non-U.S. Government websites, participants must comply with any data use parameters of that specific website.
+        {' '}<a href="https://www.spaceappschallenge.org/legal/" target="_blank" rel="noreferrer">NASA SPACE APPS LEGAL NOTICE ↗</a>
+      </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '1rem', alignItems: 'end' }}>
         <div>
           <div className="mono" style={{ fontSize: '0.7rem', color: 'var(--ink-mute)', marginBottom: 8 }}>MISSION CLOCK · {utc}</div>
