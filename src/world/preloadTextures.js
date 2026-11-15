@@ -81,7 +81,11 @@ export function preloadMarsAndVoyager(mobile = false) {
     : ['/textures/mars_color_4k.jpg', '/textures/mars_bump_4k.jpg']
   const textures = Promise.all(urls.map(loadTexture))
   const craft = fetch('/models/Voyager.glb', { mode: 'cors', credentials: 'omit' })
-    .then((r) => (r.ok ? r.arrayBuffer() : null))
-    .catch(() => null)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Voyager model preload failed: HTTP ${response.status}`)
+      }
+      return response.arrayBuffer()
+    })
   return Promise.all([textures, craft])
 }

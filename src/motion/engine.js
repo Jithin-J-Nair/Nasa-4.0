@@ -154,16 +154,16 @@ export function createScrollEngine({ onScroll } = {}) {
     return { lenis: null, refresh: () => ScrollTrigger.refresh() }
   }
 
-  // Touch: syncTouch + snappier lerp = accurate finger tracking without wheel silk fighting it
+  // Keep touch inertia smooth while retaining direct, predictable finger tracking.
   const coarse = typeof window !== 'undefined'
     && window.matchMedia('(pointer: coarse)').matches
   lenis = new Lenis({
-    lerp: coarse ? 0.14 : 0.055,
+    lerp: coarse ? 0.1 : 0.055,
     smoothWheel: !coarse,
     wheelMultiplier: 0.78,
-    touchMultiplier: coarse ? 1.4 : 1.05,
+    touchMultiplier: coarse ? 1.1 : 1.05,
     syncTouch: coarse,
-    syncTouchLerp: coarse ? 0.12 : 0.055,
+    syncTouchLerp: coarse ? 0.075 : 0.055,
     autoResize: true,
   })
 
