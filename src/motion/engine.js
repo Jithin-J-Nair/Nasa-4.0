@@ -336,6 +336,7 @@ export function scrollToFilmMarker(name, opts = {}) {
  */
 export function playMoonToMarsJourney({
   reduced = false,
+  duration = 7.2,
   onStart,
   onComplete,
 } = {}) {
@@ -397,7 +398,7 @@ export function playMoonToMarsJourney({
   tl.to(state, {
     p: toP,
     // Land on Meridiani with Mars already owning the frame
-    duration: 7.2,
+    duration,
     ease: 'power2.inOut',
     onUpdate: () => {
       const y = filmProgressToScrollY(state.p)

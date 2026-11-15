@@ -2767,11 +2767,12 @@ html.lenis, html.lenis body { height: auto; }
   /* Keep AI/SI disclosure visible on phones — Space Apps requires acknowledgment */
   .sf-disclosure {
     display: block;
-    bottom: 8px;
-    right: 8px;
-    left: auto;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    right: auto;
+    left: max(8px, env(safe-area-inset-left));
     font-size: 0.5rem;
     opacity: 0.7;
+    text-align: left;
   }
 }
 
@@ -2801,7 +2802,7 @@ html.lenis, html.lenis body { height: auto; }
   }
 
   .nav {
-    padding: 0 max(0.75rem, env(safe-area-inset-left)) 0 max(0.75rem, env(safe-area-inset-right));
+    padding: 0 max(0.75rem, env(safe-area-inset-right)) 0 max(0.75rem, env(safe-area-inset-left));
     gap: 0.65rem;
   }
   .nav-brand {
@@ -2924,6 +2925,16 @@ html.lenis, html.lenis body { height: auto; }
     font-size: clamp(1.15rem, 5.5vw, 1.65rem);
   }
 
+}
+
+@media (max-width: 768px) {
+  .journey-spacer {
+    height: 600vh;
+    height: 600svh;
+  }
+  .objective-figure-fade {
+    overflow: clip;
+  }
 }
 
 /* Short viewport (split preview / landscape phone) — keep CTA on-screen, no earthquake padding */
