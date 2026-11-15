@@ -21,7 +21,7 @@ import { FLEET_SHELF_CSS } from './styles/fleet-shelf.css.js'
 import {
   createScrollEngine, destroyScrollEngine, scrollToHash, playHeroIntro, playBootSequence,
   revealOnScroll, scheduleScrollRefresh, playMoonToMarsJourney,
-  createFilmRail, filmProgressRef, scrollToFilmMarker, scrollToFilmProgress, setFilmProgress,
+  createFilmRail, filmProgressRef, scrollToFilmMarker,
 } from './motion/engine'
 import { ranged, getSessionSeed } from './motion/seed'
 import {
@@ -467,63 +467,6 @@ function FilmJourney({ label = 'JOURNEY' }) {
         </div>
       )}
     </section>
-  )
-}
-
-/** Dev-only film scrubber — rehearse the five owned shots */
-function FilmScrubber() {
-  const [p, setP] = useState(() => filmProgressRef.current)
-  useEffect(() => {
-    let id = 0
-    const tick = () => {
-      setP(filmProgressRef.current)
-      id = requestAnimationFrame(tick)
-    }
-    id = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(id)
-  }, [])
-  const jump = (v) => {
-    createFilmRail()
-    scheduleScrollRefresh(0)
-    requestAnimationFrame(() => {
-      scrollToFilmProgress(v, { immediate: true })
-      setP(v)
-    })
-  }
-  return (
-    <div className="film-scrubber" role="group" aria-label="Film scrubber">
-      <label className="mono" htmlFor="film-scrub">
-        FILM {p.toFixed(3)}
-      </label>
-      <input
-        id="film-scrub"
-        type="range"
-        min={0}
-        max={1}
-        step={0.001}
-        value={p}
-        onPointerDown={(e) => e.stopPropagation()}
-        onChange={(e) => jump(Number(e.target.value))}
-      />
-      <div className="film-scrubber__shots">
-        {[
-          ['ARRIVAL', 0.05],
-          ['ATLAS', 0.155],
-          ['LEAVE', 0.30],
-          ['MARS', 0.56],
-          ['LIGHT', 0.70],
-        ].map(([label, tip]) => (
-          <button
-            key={label}
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => jump(tip)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
   )
 }
 
@@ -1076,6 +1019,31 @@ function Footer() {
             {r.label.toUpperCase()} ↗
           </a>
         ))}
+        <div className="glass-2 resources-attribution">
+          <strong>AMBIENCE · NASA SPACE SOUNDS</strong>
+          <div className="resources-attribution__copy">
+            <span>
+              EMFISIS Chorus Radio Waves — NASA / University of Iowa; Cassini Saturn Radio
+              Emissions #2 — NASA.
+            </span>
+            <span>
+              NASA invites downloading and mixing these recordings. Its media guidance says NASA
+              media is generally not copyright-protected in the U.S. and may be used for factual
+              educational or informational purposes; credit NASA and do not imply endorsement.
+            </span>
+          </div>
+          <div className="resources-attribution__links">
+            <a href="https://www.nasa.gov/historical-sounds/" target="_blank" rel="noreferrer">
+              NASA HISTORICAL SOUNDS ↗
+            </a>
+            <a href="https://www.nasa.gov/missions/mms/nasa-listens-in-as-electrons-whistle-while-they-work/" target="_blank" rel="noreferrer">
+              EMFISIS SOURCE & CREDIT ↗
+            </a>
+            <a href="https://www.nasa.gov/nasa-brand-center/images-and-media/" target="_blank" rel="noreferrer">
+              NASA MEDIA GUIDELINES ↗
+            </a>
+          </div>
+        </div>
       </div>
       <p className="mono" style={{ color: 'var(--ink-mute)', fontSize: '0.62rem', lineHeight: 1.65, maxWidth: 900, margin: '1rem 0 1.5rem' }}>
         NASA does not endorse any non-U.S. Government entity and is not responsible for information contained on non-U.S. Government websites. For non-U.S. Government websites, participants must comply with any data use parameters of that specific website.
@@ -1199,6 +1167,8 @@ export default function App() {
   const [ready, setReady] = useState(false)
   const [selected, setSelected] = useState(null)
   const [audioOn, setAudioOn] = useState(false)
+  const [audioError, setAudioError] = useState(false)
+  const [audioLoading, setAudioLoading] = useState(false)
   const [actLabel, setActLabel] = useState('ARRIVAL')
   const [atlasLock, setAtlasLock] = useState(false)
   const [marsLock, setMarsLock] = useState(false)
@@ -1210,7 +1180,6 @@ export default function App() {
   const moonReadyResolve = useRef(null)
   const journeyPlayingRef = useRef(false)
   const killJourneyRef = useRef(null)
-  const scoreUnlockedRef = useRef(false)
   const moonReadyPromise = useMemo(
     () => new Promise((resolve) => { moonReadyResolve.current = resolve }),
     [],
@@ -1250,33 +1219,7 @@ export default function App() {
     preloadPlanetTextures(mobile)
   }, [mobile])
 
-  // Score unlocks on first intentional gesture — mute is escape, not the designed path
-  useEffect(() => {
-    if (booting) return undefined
-    const unlock = async () => {
-      if (scoreUnlockedRef.current) return
-      scoreUnlockedRef.current = true
-      const s = soundRef.current
-      if (!s) return
-      await s.unlock()
-      if (!s.isEnabled?.()) {
-        const on = s.toggle()
-        setAudioOn(!!on)
-      }
-    }
-    const opts = { once: true, passive: true }
-    window.addEventListener('pointerdown', unlock, opts)
-    window.addEventListener('keydown', unlock, opts)
-    window.addEventListener('wheel', unlock, opts)
-    return () => {
-      window.removeEventListener('pointerdown', unlock)
-      window.removeEventListener('keydown', unlock)
-      window.removeEventListener('wheel', unlock)
-    }
-  }, [booting])
-
   const onFilmSample = useCallback((sample) => {
-    soundRef.current?.setFilm(sample)
     if (sample?.label) setActLabel((prev) => (prev === sample.label ? prev : sample.label))
     const kill = sample?.chromeKill ?? 0
     setChromeKill((prev) => (Math.abs(prev - kill) < 0.02 ? prev : kill))
@@ -1458,16 +1401,32 @@ export default function App() {
 
   const openDossier = useCallback((item) => {
     setSelected(item)
-    soundRef.current?.ping(item?.body === 'mars' ? 480 : item?.body === 'deep' ? 720 : 560)
   }, [])
 
   const toggleAudio = useCallback(async () => {
     const s = soundRef.current
     if (!s) return
-    await s.unlock()
-    const on = s.toggle()
-    setAudioOn(on)
-  }, [])
+    if (audioOn) {
+      s.setEnabled(false)
+      setAudioOn(false)
+      return
+    }
+    setAudioLoading(true)
+    try {
+      const enabled = await s.setEnabled(true)
+      if (!enabled) {
+        setAudioError(true)
+        return
+      }
+      setAudioOn(true)
+      setAudioError(false)
+    } catch (error) {
+      console.error('Unable to start the ambient soundscape:', error)
+      setAudioError(true)
+    } finally {
+      setAudioLoading(false)
+    }
+  }, [audioOn])
 
   return (
     <CursorProvider>
@@ -1566,15 +1525,13 @@ export default function App() {
               className={`audio-toggle ${audioOn ? 'on' : ''}`}
               onClick={toggleAudio}
               aria-pressed={audioOn}
-              aria-label={audioOn ? 'Mute soundscape' : 'Enable soundscape'}
+              aria-busy={audioLoading}
+              aria-label={audioLoading ? 'Loading background ambience' : audioError ? 'Retry background ambience' : `Background ambience ${audioOn ? 'on' : 'off'}`}
+              disabled={audioLoading}
             >
-              {audioOn ? actLabel : 'SOUND'}
+              {audioLoading ? 'AMBIENCE LOADING' : audioError ? 'SOUND RETRY' : `AMBIENCE ${audioOn ? 'ON' : 'OFF'}`}
             </button>
           </div>
-
-          {!booting && import.meta.env.DEV && (
-            <FilmScrubber />
-          )}
 
           <div className="sf-chapters">
             <ErrorBoundary fallback={<section className="hero"><div className="hero-content"><h1 className="display display-xl">SILENT FLEET</h1></div></section>}>
