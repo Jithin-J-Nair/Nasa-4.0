@@ -1,0 +1,26 @@
+SILENT FLEET — audio beds
+=========================
+
+Two NASA media recordings are crossfaded as the continuum score.
+Processed (loudness + loop crossfade) for web playback; content unchanged in origin.
+
+1) bed-chorus.mp3
+   Source: Chorus Radio Waves within Earth’s Atmosphere
+   Mission / instrument: NASA Van Allen Probes · EMFISIS (University of Iowa)
+   Original: https://www.nasa.gov/wp-content/uploads/2015/01/693857main_emfisis_chorus_1.mp3
+   Collection: https://www.nasa.gov/historical-sounds/
+
+2) bed-saturn.mp3
+   Source: Cassini — Saturn radio emissions (“Spooky Saturn”)
+   Mission: NASA / ESA / ASI Cassini-Huygens
+   Original: https://www.nasa.gov/wp-content/uploads/2015/01/584791main_spookysaturn.mp3
+   Collection: https://www.nasa.gov/historical-sounds/
+
+License / use
+-------------
+NASA media may be used for educational and informational purposes in accordance with
+NASA Media Usage Guidelines (no implication of NASA endorsement):
+https://www.nasa.gov/nasa-media-usage-guidelines/
+
+Credit NASA (and University of Iowa for EMFISIS chorus) when practical.
+Space Apps disclosure: AI-assisted integration of these public NASA audio assets.

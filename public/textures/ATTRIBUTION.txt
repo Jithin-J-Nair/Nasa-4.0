@@ -1,35 +1,26 @@
 Textures used by Silent Fleet (NASA Space Apps 2026)
 
-MOON TEXTURES
-Source: Solar System Scope / INOVE
-Source page: https://www.solarsystemscope.com/textures/
-License: Creative Commons Attribution 4.0 International (CC BY 4.0)
-License text: https://creativecommons.org/licenses/by/4.0/
-Required credit: "Moon texture by Solar System Scope / INOVE, licensed under CC BY 4.0."
-Files:
-  moon_color_8k.jpg · moon_color_4k.jpg · moon_color_2k.jpg
-  moon_height_4k.jpg · moon_height_2k.jpg
-Processing:
-  The height maps / LOD derivatives are generated in this repository from the source texture's luminance. These are project-made derivatives, not separate source downloads.
+Primary reference (NASA):
+  CGI Moon Kit — NASA Scientific Visualization Studio (SVS 4720)
+  https://svs.gsfc.nasa.gov/4720/
+  Public NASA visualization products for storytelling / education.
+  Follow NASA Media Usage Guidelines; do not imply NASA endorsement.
 
-MARS TEXTURES
-Source: Solar System Scope / INOVE
-Source page: https://www.solarsystemscope.com/textures/
-License: Creative Commons Attribution 4.0 International (CC BY 4.0)
-License text: https://creativecommons.org/licenses/by/4.0/
-Required credit: "Mars texture by Solar System Scope / INOVE, licensed under CC BY 4.0."
-Files:
-  mars_color_8k.jpg · mars_color_4k.jpg · mars_color_2k.jpg
-  mars_bump_4k.jpg · mars_bump_2k.jpg · mars_bump_1k.jpg
-Processing:
-  The bump maps / LOD derivatives are generated in this repository from the source texture's luminance. These are project-made derivatives, not separate source downloads.
+Moon color (8K / 4K / 2K):
+  Equirectangular grayscale albedo map for this build (8192×4096).
+  LOD pyramid + height maps derived in-repo from luminance for displacement / AO.
+  Files:
+    moon_color_8k.jpg · moon_color_4k.jpg · moon_color_2k.jpg
+    moon_height_4k.jpg · moon_height_2k.jpg
+  Geographic frame: Mean Earth / Polar Axis equirectangular (lon 0 at center).
 
-IMPORTANT SOURCE NOTES
-Solar System Scope describes these as equirectangular planetary maps based on NASA elevation and imagery data, with tuned colors and some fictional terrain used to fill unmapped areas. They are visual textures, not primary scientific datasets and must not be presented as scientific measurements.
-Indicate that the maps were adapted when redistributing modified derivatives. Preserve the CC BY 4.0 attribution and link the licence.
+Mars color (8K / 4K / 2K):
+  Equirectangular color albedo map for this build (8192×4096).
+  LOD pyramid + bump maps derived in-repo from luminance.
+  Files:
+    mars_color_8k.jpg · mars_color_4k.jpg · mars_color_2k.jpg
+    mars_bump_4k.jpg · mars_bump_2k.jpg · mars_bump_1k.jpg
+  Geographic frame: planetocentric east longitude equirectangular.
 
-Related NASA scientific visualization reference:
-  NASA SVS CGI Moon Kit: https://svs.gsfc.nasa.gov/4720/
-
-Runtime note:
-  Desktop continuum currently selects 4K color maps; mobile selects 2K maps. Verify preload behavior against src/world/preloadTextures.js before changing this record.
+Desktop continuum uses 8K color + 4K height/bump; mobile uses 2K.
+Credit NASA / SVS where applicable. Submission must list these under NASA Data & References.

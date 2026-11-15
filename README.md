@@ -18,16 +18,27 @@ engineering, and discovery.
 
 ## 🌎 The Challenge
 
-The project is built around [NASA Space Apps Challenge 2026: NASA's Discarded Equipment
-Storytelling](https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details).
-The experience connects selected lunar, Martian, and deep-space mission remains to the work and
-science associated with them.
+- **Thesis:** Abandoned hardware as a touchable scroll-film — silence as material  
+- **Hero:** Brand left · LROC Moon stage-right  
+- **Type:** Syne / Unbounded at exaggerated display sizes; IBM Plex Mono for telemetry  
+- **Motion stack:** GSAP + ScrollTrigger + Lenis (sole smooth-scroll engine)  
+- **UI bits:** Curated [React Bits](https://www.reactbits.dev/) (JS) — Magnet, SpotlightCard, ClickSpark, FadeContent, GradientText, GlareHover, BlurText, TrueFocus, Noise, ShinyText, DecryptedText, TiltedCard, DecayCard  
+- **WebGL:** Justified continuum — albedo/AO/roughness planets, Fresnel atmosphere, diegetic scene events  
+- **Assets:** 8K equirect Moon + Mars albedo masters (desktop) with derived height/bump LODs — see `public/textures/ATTRIBUTION.txt`
 
 ## 💡 Solution
 
-A continuous, scroll-directed film moves through a WebGL-rendered Moon and Mars, then into a
-deep-space sequence. A coordinate-based atlas and a browsable archive let visitors pause the story,
-inspect selected mission locations, and read more about each spacecraft.
+- Directed acts with holds, smash, darkness / fog punctuation  
+- Scene events — crater bowl · Meridiani dust sheets · Pioneer signal beam  
+- GSAP boot + hero stagger; session-seeded timing variance on reload  
+- React Bits hero (BlurText + GradientText + DecryptedText + ShinyText scroll cue), ClickSpark field, Magnet/Glare CTA  
+- Objective TrueFocus + DecayCard (Aldrin portrait); film grain via Noise; Atlas/footer decrypt + FadeContent  
+
+- Cursor trail + magnetic CTA; diegetic captions open dossiers  
+- Scored silence for Opportunity death and carrier lost  
+- Score beds: NASA EMFISIS chorus × Cassini Saturn radio (crossfaded) — see `public/audio/ATTRIBUTION.txt`
+- Silence coda: NASA Pale Blue Dot Revisited still + interactive Earth hotspot — see `public/images/ATTRIBUTION.txt`  
+
 
 ## ✨ Features
 
@@ -97,14 +108,20 @@ images are referenced by external source URLs.
 
 ## 🛠 Technology Stack
 
-- **App and build:** React 19, Vite
-- **3D scene:** Three.js, React Three Fiber, Drei, React Three Postprocessing
-- **Scroll and animation:** GSAP, ScrollTrigger, Lenis, Framer Motion
-- **Audio:** Web Audio API and browser speech synthesis
-- **Typography:** Fontsource packages for Syne, Space Grotesk, IBM Plex Mono, and Unbounded
-- **Quality checks:** Oxlint; GitHub Actions production-build workflow
+## AI / SI disclosure (Space Apps 2026)
 
-## 📊 Impact
+- **Code:** Written and refactored with AI assistance (Cursor agents / large language models). No AI-generated NASA logos or mission marks.
+- **Visuals:** Planet globes are real NASA-referenced textures + procedural WebGL shaders (not generative AI images). Artifact stills are unaltered NASA photographs with on-screen credits.
+- **Audio:** NASA historical mission recordings (EMFISIS chorus · Cassini Saturn radio), not AI-generated audio.
+- **In-app notice:** Persistent `AI-ASSISTED · NASA SPACE APPS 2026` disclosure chip.
+- **Submission:** Repeat this disclosure (and name specific tools) on the Space Apps project page.
+
+## Compliance notes
+
+- Challenge: [Abandoned but not Forgotten](https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details)
+- Qualifying NASA Resource used: **NSSDCA** (coordinates / resting places) + Moon catalogue / LROC / images.nasa.gov
+- Original code: Apache-2.0 (`LICENSE`) · third-party list: `THIRD_PARTY_LICENSES.md`
+- No NASA meatball/worm logo; no endorsement implied
 
 The project's intended impact is educational storytelling: make the history and science connected to
 mission remains more engaging to explore. No user analytics, learning assessment, reach metrics, or

@@ -4,7 +4,8 @@
  * Moon / Mars as place · Meridiani dust · carrier death as physics.
  * Material system: albedo + height AO/roughness + GGX + ASC-CDL grade.
  */
-import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, useTexture, useGLTF } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@react-three/postprocessing'
@@ -102,11 +103,27 @@ function usePlanetYawDrag(enabled, reduced, onDraggingChange) {
       targetYaw.current += dx * radPerPx
     }
 
+    // Hover + wheel → OptionScroll-style yaw (rotate globe without dragging)
+    let hovering = false
+    const onEnter = () => { hovering = true }
+    const onLeave = () => { hovering = false }
+    const onWheel = (e) => {
+      if (!hovering && e.target !== el) return
+      // Prefer horizontal intent; allow vertical wheel to yaw when hovering the globe
+      e.preventDefault()
+      const delta = e.deltaMode === 1 ? e.deltaY * 18 : e.deltaY
+      const radPerPx = (Math.PI * 1.35) / Math.max(1, size.width)
+      targetYaw.current += delta * radPerPx * 0.55
+    }
+
     el.addEventListener('pointerdown', onDown)
     el.addEventListener('pointermove', onMove)
     el.addEventListener('pointerup', clearDrag)
     el.addEventListener('pointercancel', clearDrag)
     el.addEventListener('lostpointercapture', clearDrag)
+    el.addEventListener('pointerenter', onEnter)
+    el.addEventListener('pointerleave', onLeave)
+    el.addEventListener('wheel', onWheel, { passive: false })
 
     return () => {
       el.removeEventListener('pointerdown', onDown)
@@ -114,6 +131,9 @@ function usePlanetYawDrag(enabled, reduced, onDraggingChange) {
       el.removeEventListener('pointerup', clearDrag)
       el.removeEventListener('pointercancel', clearDrag)
       el.removeEventListener('lostpointercapture', clearDrag)
+      el.removeEventListener('pointerenter', onEnter)
+      el.removeEventListener('pointerleave', onLeave)
+      el.removeEventListener('wheel', onWheel)
       dragging.current = false
       pending.current = false
       activePointer.current = null
@@ -511,6 +531,91 @@ function DustSheets({ stormRef, darkRef, sunDirRef }) {
   )
 }
 
+
+/** Keep hotspot dossier cards fully inside the viewport (Mars right-limb safe). */
+function placeHotspotCard(card, uiRoot, size, screenXY) {
+  if (!card || typeof document === 'undefined') return
+  const pad = 16
+  const vw = size?.width || window.innerWidth
+  const vh = size?.height || window.innerHeight
+  const cw = Math.min(card.offsetWidth || 360, vw - pad * 2)
+  const ch = Math.min(card.offsetHeight || 320, vh - pad * 2)
+
+  const hit = uiRoot?.querySelector?.('.moon-hotspot-hit')
+  const pin = hit?.getBoundingClientRect?.()
+  const pinAlive = pin
+    && !(pin.width === 0 && pin.height === 0 && pin.left === 0 && pin.top === 0)
+    && Number.isFinite(pin.left)
+    && pin.left > -vw
+    && pin.left < vw * 2
+
+  // Prefer live hit rect; else projected 3D site; else never leave the card at 0,0
+  let pinCx
+  let pinCy
+  let pinBottom
+  let pinTop
+  let pinLeft
+  let pinRight
+  if (pinAlive) {
+    pinCx = pin.left + pin.width / 2
+    pinCy = pin.top + pin.height / 2
+    pinBottom = pin.bottom
+    pinTop = pin.top
+    pinLeft = pin.left
+    pinRight = pin.right
+  } else if (screenXY && Number.isFinite(screenXY.x) && Number.isFinite(screenXY.y)) {
+    pinCx = screenXY.x
+    pinCy = screenXY.y
+    pinBottom = screenXY.y + 10
+    pinTop = screenXY.y - 10
+    pinLeft = screenXY.x - 10
+    pinRight = screenXY.x + 10
+  } else {
+    // Safe readable dock — never the top-left corner flash
+    pinCx = vw * 0.58
+    pinCy = vh * 0.42
+    pinBottom = pinCy + 12
+    pinTop = pinCy - 12
+    pinLeft = pinCx - 12
+    pinRight = pinCx + 12
+  }
+
+  // Prefer under the pin, centered (image-2 grammar)
+  let left = pinCx - cw / 2
+  let top = pinBottom + 14
+
+  // Near right limb → bias card left of pin; near left → bias right
+  if (pinCx > vw * 0.58) {
+    left = pinLeft - cw - 14
+  } else if (pinCx < vw * 0.32) {
+    left = pinRight + 14
+  }
+
+  // Keep clear of OptionWheel HUD on the left
+  const wheelGuard = Math.min(vw * 0.34, 280)
+  left = Math.min(Math.max(Math.max(pad, wheelGuard), left), vw - pad - cw)
+
+  if (top + ch > vh - pad) {
+    top = pinTop - 14 - ch
+  }
+  if (top < pad) {
+    top = pad
+  }
+  top = Math.min(Math.max(pad, top), vh - pad - ch)
+
+  card.style.position = 'fixed'
+  card.style.left = `${Math.round(left)}px`
+  card.style.top = `${Math.round(top)}px`
+  card.style.right = 'auto'
+  card.style.bottom = 'auto'
+  card.style.transform = 'none'
+  card.style.zIndex = '140'
+  card.style.maxWidth = `${Math.min(360, vw - pad * 2)}px`
+  card.style.opacity = '1'
+  card.style.visibility = 'visible'
+  card.dataset.placed = '1'
+}
+
 function SiteBeacon({
   site,
   hotspotRef,
@@ -518,6 +623,7 @@ function SiteBeacon({
   interactive = false,
   visibleRef,
   cardOpen = false,
+  mobile = false,
   onHover,
   onLeave,
   onOpen,
@@ -542,10 +648,29 @@ function SiteBeacon({
   const camLocal = useMemo(() => new THREE.Vector3(), [])
   const limbLocal = useMemo(() => new THREE.Vector3(), [])
   const tmp = useMemo(() => new THREE.Vector3(), [])
+  const { size } = useThree()
+
+  // First paint — project site to screen so the card never flashes at 0,0
+  useLayoutEffect(() => {
+    if (!cardOpen) return undefined
+    const id = requestAnimationFrame(() => {
+      placeHotspotCard(cardRef.current, uiRef.current, size, null)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [cardOpen, site.id, size.width, size.height])
 
   useFrame((s) => {
     if (!frontRef.current || !limbRef.current) return
     const stageOn = (visibleRef?.current ?? 0) > 0.42 && interactive
+
+    // Always know where the site is in screen space while its card is open
+    frontRef.current.getWorldPosition(worldPos)
+    const ndc = worldPos.clone().project(s.camera)
+    const screenXY = {
+      x: (ndc.x * 0.5 + 0.5) * s.size.width,
+      y: (-ndc.y * 0.5 + 0.5) * s.size.height,
+    }
+
     if (!stageOn) {
       frontRef.current.visible = false
       limbRef.current.visible = false
@@ -559,11 +684,14 @@ function SiteBeacon({
         limbUiRef.current.style.visibility = 'hidden'
         limbUiRef.current.style.pointerEvents = 'none'
       }
+      // OptionWheel can open a card while stage chrome flickers — still dock it
+      if (cardOpen && cardRef.current) {
+        placeHotspotCard(cardRef.current, uiRef.current, s.size, screenXY)
+      }
       return
     }
 
     // Facing test in world space
-    frontRef.current.getWorldPosition(worldPos)
     worldNrm.copy(localNrm)
     if (frontRef.current.parent) {
       worldNrm.transformDirection(frontRef.current.parent.matrixWorld)
@@ -578,15 +706,11 @@ function SiteBeacon({
       uiRef.current.style.pointerEvents = facing ? 'auto' : 'none'
       uiRef.current.style.visibility = facing ? 'visible' : 'hidden'
     }
+    // Place whenever the card is open — even if the pin is on the far limb
+    if (cardOpen && cardRef.current) {
+      placeHotspotCard(cardRef.current, uiRef.current, s.size, screenXY)
+    }
     if (facing && frontMesh.current) {
-      if (cardRef.current && cardOpen) {
-        const ndc = worldPos.clone().project(s.camera)
-        const nx = (ndc.x + 1) * 0.5
-        const ny = 1 - (ndc.y + 1) * 0.5
-        const edgeX = nx > 0.62 ? 'edge-left' : nx < 0.28 ? 'edge-right' : 'edge-center'
-        const edgeY = ny < 0.28 ? 'edge-below' : ny > 0.72 ? 'edge-above' : 'edge-mid'
-        cardRef.current.dataset.edge = `${edgeX} ${edgeY}`
-      }
       const active = hotspotRef?.current === site.id || cardOpen
       const pulse = active ? 0.5 + Math.sin(s.clock.elapsedTime * 3.6) * 0.22 : 0.32
       frontMesh.current.scale.setScalar(active ? 1.2 + pulse * 0.25 : 0.9)
@@ -621,23 +745,40 @@ function SiteBeacon({
     limbMesh.current.material.opacity = 0.22 + sonar * 0.45
   })
 
+  const pinR = mobile ? 0.014 : 0.0075
+  const limbR = mobile ? 0.011 : 0.006
+  // Ritual: first tap opens the in-world card; second tap / CTA opens the dossier
+  const selectOrOpen = (e) => {
+    e?.stopPropagation?.()
+    if (cardOpen) onOpen?.(site)
+    else onHover?.(site)
+  }
+  const openDossier = (e) => {
+    e?.stopPropagation?.()
+    onOpen?.(site)
+  }
+  const revealSite = (e) => {
+    e?.stopPropagation?.()
+    onReveal?.(site)
+  }
+
   return (
     <>
       <group ref={frontRef} position={posArr} visible={false}>
         <mesh ref={frontMesh} renderOrder={2}>
-          <sphereGeometry args={[0.0075, 12, 12]} />
+          <sphereGeometry args={[pinR, 12, 12]} />
           <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
         </mesh>
         {interactive && (
           <Html
             center
-            distanceFactor={site.body === 'mars' ? 3.4 : 2.35}
+            distanceFactor={site.body === 'mars' ? (mobile ? 2.8 : 3.4) : (mobile ? 2.0 : 2.35)}
             zIndexRange={[80, 0]}
             style={{ pointerEvents: 'none' }}
             occlude={false}
             wrapperClass="hotspot-html"
           >
-            <div className={`moon-hotspot ${site.body === 'mars' ? 'moon-hotspot--mars' : ''}`} ref={uiRef} style={{ opacity: 0, visibility: 'hidden' }}>
+            <div className={`moon-hotspot ${site.body === 'mars' ? 'moon-hotspot--mars' : ''} ${mobile ? 'is-touch' : ''}`} ref={uiRef} style={{ opacity: 0, visibility: 'hidden' }}>
               <button
                 type="button"
                 className={`moon-hotspot-hit ${site.body === 'mars' ? 'moon-hotspot-hit--mars' : ''} ${cardOpen ? 'on' : ''}`}
@@ -646,35 +787,36 @@ function SiteBeacon({
                 onFocus={() => onHover?.(site)}
                 onMouseLeave={() => onLeave?.(site)}
                 onBlur={() => onLeave?.(site)}
-                onClick={() => onOpen?.(site)}
+                onClick={selectOrOpen}
               />
-              {cardOpen && (
+              {cardOpen && typeof document !== 'undefined' && createPortal(
                 <article
                   ref={cardRef}
-                  className={`moon-hotspot-card moon-hotspot-card--${site.id}`}
-                  data-edge="edge-center edge-mid"
+                  className={`moon-hotspot-card moon-hotspot-card--viewport moon-hotspot-card--split${site.body === 'mars' ? ' moon-hotspot-card--mars' : ''}`}
                   role="dialog"
                   aria-label={site.name}
                 >
-                  {site.image && (
-                    <div className={`nasa-media body-${site.body}`}>
-                      <img src={site.image} alt={site.imageAlt || site.name} loading="lazy" decoding="async" />
-                      <span className="credit">{site.credit}</span>
+                  <div className="moon-hotspot-card__top">
+                    <div className="moon-hotspot-card__intro">
+                      <p className="kicker">{site.mission} · {site.status}</p>
+                      <h3>{site.name}</h3>
+                      <p className="mono coords">{site.coords}</p>
                     </div>
-                  )}
-                  <p className="kicker">{site.mission} · {site.status}</p>
-                  <h3>{site.name}</h3>
-                  <p className="mono coords">{site.coords}</p>
-                  <p className="blurb">{site.science}</p>
-                  <button
-                    type="button"
-                    className="mono open"
-                    aria-label={`Open ${site.name} dossier`}
-                    onClick={() => onOpen?.(site)}
-                  >
-                    OPEN DOSSIER →
-                  </button>
-                </article>
+                    {site.image && (
+                      <div className={`nasa-media body-${site.body} moon-hotspot-card__media${site.imagePortrait ? ' moon-hotspot-card__media--portrait' : ''}`}>
+                        <img src={site.image} alt={site.imageAlt || site.name} loading="lazy" decoding="async" />
+                        <span className="credit">{site.credit}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="moon-hotspot-card__copy">
+                    <p className="blurb">{site.science}</p>
+                    <button type="button" className="mono open moon-hotspot-open" onClick={openDossier}>
+                      OPEN DOSSIER →
+                    </button>
+                  </div>
+                </article>,
+                document.body,
               )}
             </div>
           </Html>
@@ -684,25 +826,25 @@ function SiteBeacon({
       {/* Limb echo — far-side sites pulse on the silhouette to invite a drag/rotate */}
       <group ref={limbRef} visible={false}>
         <mesh ref={limbMesh} renderOrder={3}>
-          <sphereGeometry args={[0.006, 10, 10]} />
+          <sphereGeometry args={[limbR, 10, 10]} />
           <meshBasicMaterial color={color} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
         </mesh>
         {interactive && (
           <Html
             center
-            distanceFactor={2.6}
+            distanceFactor={mobile ? 2.2 : 2.6}
             zIndexRange={[70, 0]}
             style={{ pointerEvents: 'none' }}
             occlude={false}
             wrapperClass="hotspot-html"
           >
-            <div className="moon-hotspot moon-hotspot--limb" ref={limbUiRef} style={{ opacity: 0, visibility: 'hidden' }}>
+            <div className={`moon-hotspot moon-hotspot--limb ${mobile ? 'is-touch' : ''}`} ref={limbUiRef} style={{ opacity: 0, visibility: 'hidden' }}>
               <button
                 type="button"
                 className="moon-hotspot-limb"
                 aria-label={`Rotate to reveal ${site.name}`}
                 title={`Drag to reveal ${site.name}`}
-                onClick={() => onReveal?.(site)}
+                onClick={revealSite}
               >
                 <span className="moon-hotspot-limb__ring" aria-hidden />
                 <span className="moon-hotspot-limb__ring moon-hotspot-limb__ring--delay" aria-hidden />
@@ -849,7 +991,7 @@ function BodySphere({
             extensions={{ derivatives: true }}
           />
         </mesh>
-        {!mobile && sites.map((site) => (
+        {sites.map((site) => (
           <SiteBeacon
             key={site.id}
             site={site}
@@ -858,6 +1000,7 @@ function BodySphere({
             interactive={hotspotsInteractive}
             visibleRef={beaconsVisibleRef}
             cardOpen={cardSiteId === site.id}
+            mobile={mobile}
             onHover={onHotspotHover}
             onLeave={onHotspotLeave}
             onOpen={onHotspotOpen}
@@ -878,6 +1021,8 @@ function BodySphere({
 
 /** NASA VTAD Voyager — https://science.nasa.gov/resource/voyager-3d-model/ */
 const VOYAGER_GLB = '/models/Voyager.glb'
+// Warm the craft during Continuum boot so Silence never mounts an empty Suspense hole
+try { useGLTF.preload(VOYAGER_GLB) } catch { /* SSR / first paint */ }
 
 function VoyagerCraft({ groupRef, carrierRef }) {
   const { scene } = useGLTF(VOYAGER_GLB)
@@ -983,6 +1128,7 @@ function FilmDirector({
   progress,
   mouse,
   reduced,
+  mobile = false,
   moonRef,
   marsRef,
   pioneerRef,
@@ -1007,7 +1153,7 @@ function FilmDirector({
   marsLock = false,
   focusSiteId = null,
 }) {
-  const { camera, gl, scene } = useThree()
+  const { camera, gl, scene, size } = useThree()
   const look = useMemo(() => new THREE.Vector3(), [])
   const desired = useMemo(() => new THREE.Vector3(), [])
   const inertia = useInertiaPointer(mouse, reduced)
@@ -1015,7 +1161,8 @@ function FilmDirector({
   const atlasBlend = useRef(0)
   const filmP = useRef(0)
   const moonPos = useRef(new THREE.Vector3(0, 0, 0))
-  const moonScale = useRef(1.66)
+  // Start closer to framed arrival scale so first paint isn't an overfilled disc
+  const moonScale = useRef(mobile ? 1.22 : 1.42)
   const atlasAimLon = useRef(null)
   const marsAimLon = useRef(null)
   const marsHemi = useRef(0)
@@ -1060,10 +1207,11 @@ function FilmDirector({
       warp: sample.event.warp,
     }
     const marsish = f === 'mars' || f === 'storm' || (transit && journey.marsPresence > 0.35)
-    const atlasClear = ab > 0.35
-    const marsLive = !atlasClear && marsish
+    // Atlas chrome may linger in IO — never let it mute Mars once the film tip is past dive
+    const atlasClear = ab > 0.35 && filmP.current < 0.22
+    const marsLive = (!atlasClear && marsish) || (transit && journey.marsPresence > 0.02) || f === 'mars' || f === 'storm'
     // Meridiani stage (wheel / hotspots) — not during pure transit approach
-    const marsStage = !atlasClear && (f === 'mars' || f === 'storm')
+    const marsStage = (f === 'mars' || f === 'storm') && filmP.current >= 0.22
 
     // Mute diegetic events with blend (not a binary lock) — no dust/bokeh bleed into Atlas
     const eventMute = 1 - ab
@@ -1203,13 +1351,22 @@ function FilmDirector({
         ? lerp(sample.look[0], 1.28, hemi)
         : lookBaseX
 
+    // Portrait / narrow viewports crush horizontal FOV — without a Z pullback the
+    // Moon overfills the frame (dark_frac≈0) and reads as a flat crater photo.
+    const lunarBreathing = (f === 'moon' || f === 'dive') && !marsStageLock
+    const aspect = Math.max(0.35, Math.min(2.4, size?.width && size?.height ? size.width / size.height : 1))
+    const narrow = aspect < 0.72 || mobile
+    const moonZBoost = lunarBreathing
+      ? (narrow ? lerp(1.55, 2.35, clamp((0.72 - aspect) / 0.37, 0, 1)) : 0.55)
+      : 0
+
     if (marsStageLock) {
       desired.set(0.55 + mx * 0.12, 0.1 - my * 0.35, 4.7)
     } else {
       desired.set(
         moonLock ? 0 : sample.cam[0] + mx,
         sample.cam[1] - my,
-        sample.cam[2],
+        sample.cam[2] + moonZBoost,
       )
     }
 
@@ -1225,7 +1382,8 @@ function FilmDirector({
     camera.position.z = lerp(camera.position.z, desired.z, damp)
 
     if ('fov' in camera) {
-      const targetFov = marsStageLock ? 33 : sample.fov
+      const lunarFovLift = lunarBreathing && narrow ? (mobile ? 7.5 : 4.5) : (lunarBreathing ? 2 : 0)
+      const targetFov = marsStageLock ? 33 : sample.fov + lunarFovLift
       const fovDamp = reduced
         ? Math.min(0.28, shotFovDamp * 2.2)
         : Math.min(0.2, shotFovDamp * (transit ? 0.62 : 1))
@@ -1233,16 +1391,20 @@ function FilmDirector({
       camera.updateProjectionMatrix()
     }
 
+    // Mobile silence: look hard upward so Voyager sits in clear sky above coda copy
+    const lookY = marsStageLock
+      ? 0.06
+      : (f === 'pioneer' && mobile ? sample.look[1] + 1.72 : sample.look[1])
     look.set(
       moonLock ? 0 : (transit ? sample.look[0] : lookHemiX),
-      marsStageLock ? 0.06 : sample.look[1],
+      lookY,
       marsStageLock ? -0.4 : sample.look[2],
     )
     camera.lookAt(look)
 
     if (moonRef.current) {
-      const show = f === 'moon' || f === 'dive' || ab > 0.02 || (transit && journey.moonPresence > 0.02)
-      moonRef.current.visible = show || sample.event.dive > 0.05
+      const show = f === 'moon' || f === 'dive' || ab > 0.02 || (transit && journey.moonPresence > 0.08)
+      moonRef.current.visible = (show || sample.event.dive > 0.05) && !(transit && journey.moonExit > 0.88)
 
       let targetScale = 0.01
       let tx = 0
@@ -1251,25 +1413,27 @@ function FilmDirector({
       if (f === 'moon' || f === 'dive') {
         const arrival = sample.act?.id === 'hero'
         const nearPass = sample.act?.id === 'crater_dive'
-        // Globe only — centered; near-pass eases in slightly larger scale (no mesh floor)
+        // Keep circular limbs + starfield — never let the disc become a flat fill
+        const slim = mobile ? 0.82 : 0.94
         if (nearPass) {
-          targetScale = lerp(1.88, 2.42, sample.event.dive)
+          targetScale = lerp(1.55, 1.78, sample.event.dive) * slim
         } else {
-          targetScale = arrival ? lerp(1.62, 1.72, sample.eased) : lerp(1.72, 1.88, sample.eased)
+          targetScale = (arrival ? lerp(1.38, 1.48, sample.eased) : lerp(1.46, 1.58, sample.eased)) * slim
         }
         tx = 0
         ty = 0
         tz = 0
       } else if (transit && journey.moonPresence > 0.01) {
-        // Soft fade-recede along the corridor — longer arc, no pop
+        // Recede hard left/back — leave the corridor clear before Mars grows
         const exit = easeInOutCubic(journey.moonExit)
-        targetScale = lerp(1.88, 0.04, exit)
-        tx = lerp(0, -1.15, exit)
-        ty = lerp(0, 0.18, exit)
-        tz = lerp(0, -4.4, exit)
+        targetScale = lerp(mobile ? 1.48 : 1.62, 0.02, exit)
+        tx = lerp(0, -2.4, exit)
+        ty = lerp(0, 0.22, exit)
+        tz = lerp(0, -5.2, exit)
       }
 
-      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 1.55 : 4.2)) * step)
+      // Transit: snappy exit so Moon never sits under Mars
+      const poseDamp = Math.min(1, (reduced ? 8 : (transit ? 3.6 : 4.2)) * step)
       moonScale.current = lerp(moonScale.current, targetScale, poseDamp)
       moonPos.current.x = lerp(moonPos.current.x, tx, poseDamp)
       moonPos.current.y = lerp(moonPos.current.y, ty, poseDamp)
@@ -1277,21 +1441,23 @@ function FilmDirector({
       moonRef.current.scale.setScalar(moonScale.current)
       moonRef.current.position.copy(moonPos.current)
     }
-    // Mars: one continuous center→right rail (no branch snaps)
+    // Mars: readable disc from transit frame 0 → right-limb Meridiani lock (never a void)
     if (marsRef.current) {
-      const showMars = marsLive || (transit && journey.marsPresence > 0.02)
+      const showMars = marsLive
+        || (transit && journey.marsPresence > 0.01)
+        || f === 'mars'
+        || f === 'storm'
       marsRef.current.visible = showMars
       if (showMars) {
-        // Presence fades the disc in without a scale pop
         const presence = transit
-          ? clamp(journey.marsPresence, 0, 1)
+          ? clamp(Math.max(journey.marsPresence, 0.55), 0, 1)
           : 1
-        // Center → right: only ~50% of the body stays on screen at lock
-        const hemiX = lerp(0.18, 3.28, slide)
-        const ty = lerp(0.12, 0.04, slide)
-        const tz = lerp(-3.1, -0.5, slide)
-        const hemiScale = lerp(0.36, 1.72, slide) * lerp(0.42, 1, easeInOutCubic(presence))
-        const poseDamp = Math.min(1, (reduced ? 5.5 : (transit ? 1.45 : 2.05)) * step)
+        // Start near center (readable), ease to right-limb lock — never spawn off-screen
+        const hemiX = lerp(0.12, 3.05, slide)
+        const ty = lerp(0.08, 0.04, slide)
+        const tz = lerp(-1.7, -0.5, slide)
+        const hemiScale = lerp(1.12, 1.82, slide) * lerp(0.82, 1, easeInOutCubic(presence))
+        const poseDamp = Math.min(1, (reduced ? 5.5 : (transit ? 1.55 : 2.05)) * step)
         marsScale.current = lerp(marsScale.current, hemiScale, poseDamp)
         marsPos.current.x = lerp(marsPos.current.x, hemiX, poseDamp)
         marsPos.current.y = lerp(marsPos.current.y, ty, poseDamp)
@@ -1306,19 +1472,30 @@ function FilmDirector({
       }
     }
     if (pioneerRef.current) {
-      const show = !atlasClear && f === 'pioneer'
+      // Carrier + Silence — Voyager must stay on stage for the whole farewell
+      const show = f === 'pioneer' || sample.act?.id === 'carrier' || sample.act?.id === 'silence'
       pioneerRef.current.visible = show
-      // Frame NASA Voyager for the silence camera (look ~ -9.2)
-      const craftScale = show ? lerp(1.35, 1.85, sample.eased) : 0.01
-      pioneerRef.current.position.set(0.55, 0.02, -8.55)
+      // Hero craft — large enough to read as Voyager, not a silhouette speck
+      const craftScale = show
+        ? (mobile ? lerp(1.45, 1.78, sample.eased) : lerp(2.05, 2.65, sample.eased))
+        : 0.01
+      const craftX = mobile ? 0.04 : 0.38
+      const craftY = mobile ? 2.25 : 0.1
+      const craftZ = mobile ? -7.1 : -7.2
+      pioneerRef.current.position.set(craftX, craftY, craftZ)
       pioneerRef.current.scale.setScalar(
         lerp(pioneerRef.current.scale.x || craftScale, craftScale, Math.min(1, 3.2 * step)),
       )
     }
     // Lighting lockstep with events — keep a readable sun on Voyager (pioneer)
     if (sunRef.current) {
-      sunRef.current.position.set(marsish ? 4.0 : f === 'pioneer' ? 3.2 : 6.0, marsish ? 3.2 : f === 'pioneer' ? 3.6 : 2.5, f === 'pioneer' ? 4.5 : 3)
-      const base = sample.grade.exposure * (f === 'storm' ? 0.35 : f === 'pioneer' ? 1.85 : 1.4)
+      const pioneerSunY = f === 'pioneer' ? (mobile ? 5.2 : 3.6) : 2.5
+      sunRef.current.position.set(
+        marsish ? 4.0 : f === 'pioneer' ? 3.2 : 6.0,
+        marsish ? 3.2 : pioneerSunY,
+        f === 'pioneer' ? 4.5 : 3,
+      )
+      const base = sample.grade.exposure * (f === 'storm' ? 0.35 : f === 'pioneer' ? (mobile ? 2.15 : 1.85) : 1.4)
       const darkMul = f === 'pioneer' ? (1 - sample.dark * 0.35) : (1 - sample.dark * 0.92)
       const carrierMul = f === 'pioneer' ? (1 - sample.event.carrier * 0.12) : (1 - sample.event.carrier * 0.55)
       sunRef.current.intensity = base * darkMul * carrierMul
@@ -1386,13 +1563,22 @@ function ContinuumPost({ mobile, reduced, stormRef, diveRef, darkRef }) {
       vignetteRef.current.darkness = 0.48 + storm * 0.42 + dark * 0.28
     }
   })
-  if (mobile || reduced) return null
+  // Mobile: cheap grade only (vignette + soft noise) so silence/storm still read cinematic
+  if (reduced) return null
+  if (mobile) {
+    return (
+      <EffectComposer multisampling={0} enableNormalPass={false}>
+        <Noise ref={noiseRef} premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.03} />
+        <Vignette ref={vignetteRef} eskil={false} offset={0.32} darkness={0.52} />
+      </EffectComposer>
+    )
+  }
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
-      {/* No mipmapBlur bloom — it turned stars into soft tan particle orbs */}
-      <Bloom intensity={0.028} luminanceThreshold={0.985} luminanceSmoothing={0.12} mipmapBlur={false} />
+      {/* Visible but restrained bloom — was nearly invisible at 0.028 */}
+      <Bloom intensity={0.085} luminanceThreshold={0.92} luminanceSmoothing={0.18} mipmapBlur={false} />
       <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={aberration} />
-      <Noise ref={noiseRef} premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.025} />
+      <Noise ref={noiseRef} premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.03} />
       <Vignette ref={vignetteRef} eskil={false} offset={0.28} darkness={0.48} />
     </EffectComposer>
   )
@@ -1466,6 +1652,7 @@ function ContinuumScene({
         progress={progress}
         mouse={mouse}
         reduced={reduced}
+        mobile={mobile}
         moonRef={moonRef}
         marsRef={marsRef}
         pioneerRef={pioneerRef}
@@ -1599,18 +1786,24 @@ export default function ContinuumCanvas({
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [])
 
-  // When #journey scrolls past the viewport, ride Continuum up (transform/opacity only).
-  // gsap.quickTo keeps compositor writes cheap under Lenis (gsap-performance).
+  // Fade Continuum only when Fleet/Recover enters — never during Silence (Voyager farewell).
+  // Tying exit to #journey bottom killed Voyager mid-coda as the rail tip hit 1.
   useEffect(() => {
     const root = rootRef.current
     if (!root || typeof window === 'undefined') return undefined
     gsap.set(root, { y: 0, opacity: 1, force3D: true })
-    const yTo = gsap.quickTo(root, 'y', { duration: 0.16, ease: 'power2.out' })
-    const oTo = gsap.quickTo(root, 'opacity', { duration: 0.2, ease: 'power2.out' })
+    const yTo = gsap.quickTo(root, 'y', { duration: 0.18, ease: 'power2.out' })
+    const oTo = gsap.quickTo(root, 'opacity', { duration: 0.22, ease: 'power2.out' })
     let lastExit = 1
     const apply = () => {
-      const journey = document.getElementById('journey')
-      if (!journey) {
+      // Hold Continuum through carrier + silence so Voyager never fades mid-farewell
+      const silenceLive = !!document.querySelector('.journey-spacer.is-silence-live')
+      const hud = document.querySelector('.journey-hud')?.textContent || ''
+      const farewellLive = silenceLive
+        || /CARRIER|SILENCE|VOYAGER/i.test(hud)
+      const fleet = document.getElementById('fleet')
+      const vh = window.innerHeight || 1
+      if (farewellLive || !fleet) {
         if (lastExit !== 0) {
           lastExit = 0
           yTo(0)
@@ -1619,9 +1812,9 @@ export default function ContinuumCanvas({
         }
         return
       }
-      const bottom = journey.getBoundingClientRect().bottom
-      const vh = window.innerHeight || 1
-      const exit = gsap.utils.clamp(-vh * 1.15, 0, bottom - vh)
+      // Start exit once Fleet approaches mid-viewport
+      const fleetTop = fleet.getBoundingClientRect().top
+      const exit = gsap.utils.clamp(-vh * 1.15, 0, fleetTop - vh * 0.58)
       if (Math.abs(exit - lastExit) < 0.35) return
       lastExit = exit
       if (exit >= -0.5) {

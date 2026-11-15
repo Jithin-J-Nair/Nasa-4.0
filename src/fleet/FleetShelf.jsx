@@ -196,12 +196,13 @@ export default function FleetShelf({ onSelect }) {
         setActive(active, dir)
       }
 
-      // Tab indicator — highlight active film's body (Vasari decade behaviour)
+      // Tab indicator — honor user filter; only fall back to active body on ALL
       const bar = tabBarRef.current
       const ind = indicatorRef.current
       if (bar && ind) {
-        const body = films[st.active]?.body || 'all'
-        const btn = bar.querySelector(`[data-filter="${body}"]`)
+        const pinned = filter && filter !== 'all' ? filter : null
+        const body = pinned || films[st.active]?.body || 'all'
+        const btn = bar.querySelector(`[data-filter="${pinned || body}"]`)
           || bar.querySelector('[data-filter="all"]')
         if (btn) {
           ind.style.width = `${btn.offsetWidth}px`
@@ -338,14 +339,26 @@ export default function FleetShelf({ onSelect }) {
   }
 
   useEffect(() => {
+    const root = rootRef.current
+    if (!root) return undefined
+    let live = false
+    const io = typeof IntersectionObserver !== 'undefined'
+      ? new IntersectionObserver(([e]) => { live = !!e?.isIntersecting }, { threshold: 0.2 })
+      : null
+    io?.observe(root)
     const onKey = (e) => {
+      if (!live) return
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return
       if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1) }
       if (e.key === 'ArrowRight') { e.preventDefault(); go(1) }
       if (e.key === 'Enter') openActive()
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  })
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      io?.disconnect()
+    }
+  }, [])
 
   const tapes = useMemo(() => {
     const list = []

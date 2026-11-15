@@ -39,3 +39,4 @@ dist-ssr
 !.cursor/skills/gsap-motion-director/**
 !.cursor/skills/web-performance-engineer/
 !.cursor/skills/web-performance-engineer/**
+.agents/
