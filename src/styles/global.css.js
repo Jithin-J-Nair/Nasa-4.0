@@ -1807,6 +1807,7 @@ body.is-coarse .fleet-card { cursor: pointer; }
   filter: saturate(1.05) contrast(1.05);
   transition: transform 1.1s var(--ease), filter 0.6s;
 }
+.nasa-media--a11-lm img { object-position: 50% 8%; }
 .nasa-media:hover img, .archive-card:hover .nasa-media img, .fleet-card:hover .nasa-media img {
   transform: scale(1.06);
   filter: saturate(1.12) contrast(1.08);
