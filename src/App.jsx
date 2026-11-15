@@ -883,7 +883,7 @@ function stopHardwareSpeech() {
   window.speechSynthesis.cancel()
 }
 
-/** Self-reading tool — speaks first-person voice, then transmission + short story. */
+/** Self-reading tool — speaks a creative monologue, mission marker, and factual story. */
 function HardwareReader({ item, reading, onReadingChange }) {
   const supported = typeof window !== 'undefined' && !!window.speechSynthesis
   const script = useMemo(() => {
@@ -1037,15 +1037,16 @@ function ArtifactModal({ item, onClose }) {
           {(item.voice || item.story) && (
             <blockquote className={`dossier-voice${reading ? ' is-reading' : ''}`}>
               <div className="dossier-voice__head">
-                <p className="mono dossier-voice__label">THE HARDWARE SPEAKS</p>
+                <p className="mono dossier-voice__label">CREATIVE MONOLOGUE · NOT A RECORDING</p>
                 <HardwareReader item={item} reading={reading} onReadingChange={onReadingChange} />
               </div>
               {item.voice ? <p>“{item.voice}”</p> : <p>“{item.story}”</p>}
             </blockquote>
           )}
           <p style={{ color: 'var(--ink-dim)', lineHeight: 1.65, marginBottom: '1rem' }}>{item.story}</p>
+          <p className="mono" style={{ color: 'var(--ink-mute)', fontSize: '0.68rem', letterSpacing: '0.12em', marginBottom: '0.35rem' }}>MISSION MARKER · ARCHIVAL CONTEXT</p>
           <p style={{ color: 'var(--ice)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', letterSpacing: '0.04em', marginBottom: '1rem' }}>
-            “{item.transmission}”
+            {item.transmission}
           </p>
           <p style={{ color: 'var(--ink-mute)', fontSize: '0.9rem', lineHeight: 1.55 }}>{item.science}</p>
           {item.id === 'voyager1' && (
