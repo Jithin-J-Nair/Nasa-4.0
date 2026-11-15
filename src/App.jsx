@@ -890,7 +890,7 @@ function HardwareReader({ item, reading, onReadingChange }) {
     if (!item) return ''
     const parts = []
     if (item.voice) parts.push(item.voice)
-    if (item.transmission) parts.push(`Last transmission. ${item.transmission}.`)
+    if (item.transmission) parts.push(`Mission marker. ${item.transmission}.`)
     if (item.story) parts.push(item.story)
     return parts.join(' ')
   }, [item])
