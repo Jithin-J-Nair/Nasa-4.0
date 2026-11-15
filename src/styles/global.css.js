@@ -1760,9 +1760,30 @@ body.is-coarse .fleet-card { cursor: pointer; }
 
 .canvas-fallback {
   position: absolute; inset: 0;
+  display: grid; place-items: center;
+  overflow: hidden;
+  pointer-events: none;
   background:
     radial-gradient(ellipse at 40% 40%, #3a4250 0%, #12151c 45%, #07070c 80%),
     linear-gradient(135deg, rgba(255,122,69,0.08), transparent 40%);
+}
+.canvas-fallback__orb {
+  position: absolute;
+  width: min(58vw, 58vh, 620px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: 0.72;
+  background:
+    radial-gradient(circle at 34% 30%, rgba(226,235,245,.92) 0%, rgba(140,157,179,.78) 16%, rgba(67,79,100,.9) 43%, rgba(15,20,31,.98) 68%, transparent 72%);
+  box-shadow: 0 0 90px rgba(142,200,255,.12), inset -38px -24px 70px rgba(0,0,0,.65);
+}
+.canvas-fallback__label {
+  position: absolute;
+  left: clamp(1rem, 4vw, 3rem);
+  bottom: clamp(1rem, 4vh, 2.5rem);
+  color: rgba(232,238,245,.46);
+  font-size: .58rem;
+  letter-spacing: .18em;
 }
 .canvas-fallback.mars {
   background:
