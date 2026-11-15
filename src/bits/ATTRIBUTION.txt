@@ -1,7 +1,2 @@
-React Bits — https://github.com/DavidHDev/react-bits
-MIT License (David Haz)
-Vendored JS + CSS flavors into src/bits/ (Club GSAP plugins omitted).
-Components used: Magnet, SpotlightCard, ClickSpark, FadeContent,
-GradientText, GlareHover, BlurText, TrueFocus, OptionWheel, SplitText.
-SplitText from https://reactbits.dev/r/SplitText-JS-CSS — Club GSAP SplitText
-replaced with manual char/word spans (@gsap/react + ScrollTrigger).
+React Bits components
+Source / attribution: https://www.reactbits.dev/get-started/introduction
