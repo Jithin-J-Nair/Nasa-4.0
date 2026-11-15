@@ -66,6 +66,7 @@ export const SITE_FOCUS = {
   opportunity: { body: 'mars', aimLon: -5.527, aimLat: -1.946 },
   spirit: { body: 'mars', aimLon: 175.4729, aimLat: -14.5692 },
   phoenix: { body: 'mars', aimLon: -125.7492, aimLat: 68.2188 },
+  ingenuity: { body: 'mars', aimLon: 77.45, aimLat: 18.44 },
   insight: { body: 'mars', aimLon: 135.6234, aimLat: 4.5024 },
   sojourner: { body: 'mars', aimLon: -33.22, aimLat: 19.13 },
   pioneer10: { body: 'deep' },
