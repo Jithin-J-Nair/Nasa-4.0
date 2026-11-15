@@ -1292,9 +1292,28 @@ body.is-coarse .hero-leftover { cursor: pointer; }
 .moon-hotspot-card .open {
   display: inline-block;
   margin-top: 0.55rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-mono);
   font-size: 0.58rem;
   letter-spacing: 0.14em;
   color: var(--ice);
+  text-align: left;
+  cursor: pointer;
+}
+.moon-hotspot-card .open:hover,
+.moon-hotspot-card .open:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.moon-hotspot-card .open:focus-visible {
+  outline: 2px solid var(--ice);
+  outline-offset: 4px;
+}
+.moon-hotspot-card--a11-lm .nasa-media img {
+  object-position: 50% 8%;
 }
 .moon-pin.active {
   box-shadow: 0 0 0 1px rgba(142,200,255,0.55);
