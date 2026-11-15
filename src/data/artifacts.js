@@ -281,6 +281,8 @@ export const ARTIFACTS = [
 ]
 
 export const NASA_RESOURCES = [
+  { label: 'Solar System Scope textures · CC BY 4.0', href: 'https://www.solarsystemscope.com/textures/' },
+  { label: 'React Bits · component source', href: 'https://www.reactbits.dev/get-started/introduction' },
   { label: 'CGI Moon Kit (SVS 4720)', href: 'https://svs.gsfc.nasa.gov/4720/' },
   { label: 'RSS-Mars textures', href: 'https://github.com/RSS-Reborn/RSS-Mars' },
   { label: 'Challenge details', href: 'https://www.spaceappschallenge.org/2026/challenges/nasas-discarded-equipment-storytelling/?tab=details' },
